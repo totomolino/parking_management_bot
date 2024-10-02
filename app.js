@@ -93,10 +93,10 @@ app.post('/whatsapp', (req, res) => {
     case messageBody.startsWith('notify'):
       handleNotify(messageBody, sender);
       break;
-    case slotAvailable && messageBody === 'yes':
+    case slotAvailable && messageBody === 'Accept':
       handleSlotAccept(sender);
       break;
-    case slotAvailable && messageBody === 'no':
+    case slotAvailable && messageBody === 'Decline':
       handleSlotDecline(sender);
       break;
     default:
@@ -200,13 +200,13 @@ app.post('/excel-data', (req, res) => {
   // Arrays to hold parking and waiting list members
   const parkingList = [];
   const waitingList = [];
-
+  let index = 0;
   // Iterate through the received data
   receivedData.forEach(item => {
     const person = item.Person;
     const slot = item.Parking_slot;
     const phone = `whatsapp:${item.Number}`;
-    let index = 0;
+    
     if (slot === 'WL') {
       // If the person is in the waiting list, add their name and order to waitingList array
       index++;
@@ -224,7 +224,7 @@ app.post('/excel-data', (req, res) => {
 
   // Create message for the waiting list
   if (waitingList.length > 0) {
-    const waitingListMessage = `You are in the waiting list: \n${waitingList.join(', ')}`;
+    const waitingListMessage = `You are in the waiting list: \n${waitingList.join(',\n')}`;
     
     // Send a WhatsApp message to all waiting list members with their order
     waitingList.forEach((person, index) => {
