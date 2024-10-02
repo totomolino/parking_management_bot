@@ -204,7 +204,7 @@ app.post('/excel-data', (req, res) => {
   // Iterate through the received data
   receivedData.forEach(item => {
     const person = item.Person;
-    const slot = item['Parking slot'];
+    const slot = item.Parking_slot;
     const phone = `whatsapp:${item.Number}`;
     
     if (slot === 'WL') {
