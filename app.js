@@ -226,11 +226,15 @@ function sendWhatsAppMessage2(to, message) {
   const accountSid = 'AC11e65e51a8103f9755dea5e707c03f73';
   const authToken = 'cf0b399ba91e1802b5768165de899006';
   const client = new twilio(accountSid, authToken);
+  template_id='HX11c138027519a9b312f9d550da94d35e'
 
   client.messages.create({
     from: 'whatsapp:+14155238886',    
     to: to,
-    contentSid:'HX209b9dbfabc26dfd91fc9339c3b346c2'
+    contentSid:template_id,
+    contentVariables: JSON.stringify({
+      1: message,  // Replace {{1}} with params[0]
+    })
   })
   .then(message => console.log('Message sent:', message.sid))
   .catch(error => console.error('Error sending message:', error));
@@ -240,8 +244,10 @@ function sendWhatsAppMessage2(to, message) {
 
 
 // Create HTTP server
-const server = http.createServer(app);
-server.listen(port, () => console.log(`Node.js web server at ${port} is running...`));
+// const server = http.createServer(app);
+// server.listen(port, () => console.log(`Node.js web server at ${port} is running...`));
+
+app.listen(port, () => console.log(`Node.js web server at ${port} is running...`));
 
 // Get your endpoint online with ngrok
 // ngrok.connect({ addr: port, authtoken: process.env.NGROK_AUTHTOKEN, domain: 'upward-gull-dear.ngrok-free.app' })
