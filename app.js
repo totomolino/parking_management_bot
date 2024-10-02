@@ -202,14 +202,14 @@ app.post('/excel-data', (req, res) => {
   const waitingList = [];
 
   // Iterate through the received data
-  receivedData.forEach(item => {
+  receivedData.forEach((item, index) => {
     const person = item.Person;
     const slot = item.Parking_slot;
     const phone = `whatsapp:${item.Number}`;
     
     if (slot === 'WL') {
-      // If the person is in the waiting list, add to waitingList array
-      waitingList.push(`${person} (${phone})`);
+      // If the person is in the waiting list, add their name and order to waitingList array
+      waitingList.push(`${index + 1}. ${person}`); // Index + 1 for 1-based numbering
       console.log(`${person} is in the waiting list.`);
     } else {
       // If the person has a parking slot, add to parkingList array
@@ -224,9 +224,11 @@ app.post('/excel-data', (req, res) => {
   // Create message for the waiting list
   if (waitingList.length > 0) {
     const waitingListMessage = `You are in the waiting list: ${waitingList.join(', ')}`;
-    waitingList.forEach(item => {
-      // Extract the phone number for each waiting list member
-      const phone = item.split(' ')[1].slice(1, -1); // Get the phone number from formatted string
+    
+    // Send a WhatsApp message to all waiting list members with their order
+    waitingList.forEach((person, index) => {
+      // Get the original phone number from receivedData based on the index
+      const phone = `whatsapp:${receivedData[index].Number}`; // Use the original number
       sendWhatsAppMessage(phone, waitingListMessage);
     });
   }
@@ -234,6 +236,7 @@ app.post('/excel-data', (req, res) => {
   // Send success response
   res.status(200).send('Data received successfully');
 });
+
 
 
 // Twilio send message helper with buttons
