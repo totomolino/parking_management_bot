@@ -12,8 +12,9 @@ app.use(bodyParser.urlencoded({ extended: false }));
 app.use(bodyParser.json()); // Middleware to parse JSON body
 
 // In-memory storage for received data
-let parkingData = [];
-let waitingList = ['whatsapp:+5491166070996'];
+// Arrays to hold parking and waiting list members
+let parkingList = [];
+let waitingList = [];
 let slotAvailable = false;
 
 // Predefined buttons for interactive messages
@@ -52,7 +53,7 @@ function generateHTMLTable(data) {
 }
 
 // Function to generate the parking slot table
-function generateParkingSlotTable(data) {
+function generateParkingSlotTable() {
   const parkingSlotWidth = 15; // Width for Parking Slot column
   const personWidth = 20;      // Width for Person column
 
@@ -61,23 +62,22 @@ function generateParkingSlotTable(data) {
   table += '-'.repeat(parkingSlotWidth + personWidth + 2) + '\n'; // Separator line
 
   // Add data rows for parking slot list
-  data.forEach(item => {
-    if(item.Parking_slot ==! 'WL'){
-      const parkingSlotString = item.Parking_slot.toString();
-      const parkingSlotPadding = parkingSlotWidth - parkingSlotString.length;
-      const parkingSlot = ' '.repeat(Math.floor(parkingSlotPadding / 2)) + parkingSlotString +
-                          ' '.repeat(Math.ceil(parkingSlotPadding / 2));
-      
-      const person = item.Person.padEnd(personWidth);
-      table += `${parkingSlot}| ${person}\n`;
-    }
+  parkingList.forEach(item => {
+    const parkingSlotString = item.Parking_slot.toString();
+    const parkingSlotPadding = parkingSlotWidth - parkingSlotString.length;
+    const parkingSlot = ' '.repeat(Math.floor(parkingSlotPadding / 2)) + parkingSlotString +
+                        ' '.repeat(Math.ceil(parkingSlotPadding / 2));
+    
+    const person = item.name.padEnd(personWidth);
+    table += `${parkingSlot}| ${person}\n`;
+    
   });
 
   return table;
 }
 
 // Function to generate the waiting list table
-function generateWaitingListTable(waitingList) {
+function generateWaitingListTable() {
   const indexWidth = 5;        // Width for index column
   const personWidth = 20;      // Width for Person column
 
@@ -98,35 +98,15 @@ function generateWaitingListTable(waitingList) {
 }
 
 // Function to generate both lists in the same message
-function generateFullTable(parkingData) {
-  const parkingTable = generateParkingSlotTable(parkingData);
-  const waitingTable = generateWaitingListTable(parkingData);
+function generateFullTable() {
+  const parkingTable = generateParkingSlotTable();
+  const waitingTable = generateWaitingListTable();
 
   // Combine both tables with a separator
   return parkingTable + '\n' + 'Waiting List:\n' + waitingTable;
 }
 
 
-// Helper function to generate a plain text table from parking data
-function generatePlainTextTable(data) {
-  const parkingSlotWidth = 15; // Width for Parking Slot column
-  const personWidth = 20;       // Width for Person column
-
-  let table = 'Parking Slot'.padEnd(parkingSlotWidth) + '| ' + 'Person'.padEnd(personWidth) + '\n';
-  table += '-'.repeat(parkingSlotWidth + personWidth + 2) + '\n'; // Separator line
-
-  data.forEach(item => {
-    const parkingSlotString = item.Parking_slot.toString();
-    const parkingSlotPadding = parkingSlotWidth - parkingSlotString.length;
-    const parkingSlot = ' '.repeat(Math.floor(parkingSlotPadding / 2)) + parkingSlotString +
-                        ' '.repeat(Math.ceil(parkingSlotPadding / 2));
-    
-    const person = item.Person.padEnd(personWidth);
-    table += `${parkingSlot}| ${person}\n`;
-  });
-
-  return table;
-}
 
 // Handle incoming WhatsApp messages
 app.post('/whatsapp', (req, res) => {
@@ -141,13 +121,13 @@ app.post('/whatsapp', (req, res) => {
       handleAddMe(sender);
       break;
     case messageBody === 'show all':
-      sendWhatsAppMessage(sender, `The data is \n${generateFullTable(parkingData)}`);
+      sendWhatsAppMessage(sender, `The data is \n${generateFullTable()}`);
       break;
     case messageBody === 'show parking':
-      sendWhatsAppMessage(sender, `The data is \n${generateParkingSlotTable(parkingData)}`);
+      sendWhatsAppMessage(sender, `The data is \n${generateParkingSlotTable()}`);
       break;
     case messageBody === 'show waiting list':
-      sendWhatsAppMessage(sender, `The data is \n${generateWaitingListTable(parkingData)}`);
+      sendWhatsAppMessage(sender, `The data is \n${generateWaitingListTable()}`);
       break;
     case messageBody === 'cancel':
       handleCancel(sender);
@@ -258,10 +238,9 @@ function askNextInLine() {
 app.post('/excel-data', (req, res) => {
   const receivedData = req.body;
   console.log('Data received from Excel:', receivedData);
-  
-  // Arrays to hold parking and waiting list members
-  const parkingList = [];
-  const waitingList = [];
+  parkingList = [];
+  waitingList = [];
+
   let index = 0;
 
   // Iterate through the received data
@@ -277,7 +256,7 @@ app.post('/excel-data', (req, res) => {
       console.log(`${person} is in the waiting list.`);
     } else {
       // If the person has a parking slot, add to parkingList array
-      parkingList.push(`${person} (${slot})`);
+      parkingList.push({ name: person, phone, slot });
       console.log(`${person} has parking slot ${slot}. The number is ${phone}.`);
       
       // Send WhatsApp message for parking slot
@@ -297,8 +276,6 @@ app.post('/excel-data', (req, res) => {
       sendWhatsAppMessage(member.phone, waitingListMessage);
     });
   }
-
-  parkingData = receivedData
 
   // Send success response
   res.status(200).send('Data received successfully');
