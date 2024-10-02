@@ -63,7 +63,7 @@ function generateParkingSlotTable() {
 
   // Add data rows for parking slot list
   parkingList.forEach(item => {
-    const parkingSlotString = item.Parking_slot.toString();
+    const parkingSlotString = item.slot.toString();
     const parkingSlotPadding = parkingSlotWidth - parkingSlotString.length;
     const parkingSlot = ' '.repeat(Math.floor(parkingSlotPadding / 2)) + parkingSlotString +
                         ' '.repeat(Math.ceil(parkingSlotPadding / 2));
@@ -89,7 +89,7 @@ function generateWaitingListTable() {
   waitingList.forEach((item, index) => {
     if(item.Parking_slot === 'WL'){
       const indexString = (index + 1).toString().padEnd(indexWidth);
-      const person = item.Person.padEnd(personWidth);
+      const person = item.name.padEnd(personWidth);
       table += `${indexString}| ${person}\n`;
     }
   });
