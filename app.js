@@ -241,10 +241,6 @@ app.post('/excel-data', (req, res) => {
 });
 
 
-  // Send success response
-  res.status(200).send('Data received successfully');
-});
-
 
 
 // Twilio send message helper with buttons
