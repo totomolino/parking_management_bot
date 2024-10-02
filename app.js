@@ -124,7 +124,7 @@ app.post('/whatsapp', (req, res) => {
   } else if (messageBody.startsWith('notify')) {
     const listString = messageBody.replace('notify ', '').replace(/[\[\]']+/g, '').trim();
     console.log(listString)
-    sendWhatsAppMessage2(waitingList[Number(listString)], "A parking slot is available. Do you want it? Reply 'Yes' or 'No'.");
+    sendWhatsAppMessage2(waitingList[Number(listString)], "Test message");
   } else if (slotAvailable && messageBody === 'yes') {
     if (waitingList[0] === sender) {
       sendWhatsAppMessage(sender, "You've been assigned a parking slot.");
@@ -227,12 +227,22 @@ function sendWhatsAppMessage2(to, message) {
   const authToken = 'cf0b399ba91e1802b5768165de899006';
   const client = new twilio(accountSid, authToken);
   template_id='HX11c138027519a9b312f9d550da94d35e'
+    
+ // Log the message and recipient for debugging
+  console.log('Sending message to:', to);
+  console.log('Message:', message);
+
+  // Ensure the key is a string
+  const variables = { "1": message };
+  const variablesJson = JSON.stringify(variables);
+
+  console.log('Content Variables JSON:', variablesJson);
 
   client.messages.create({
-    from: 'whatsapp:+14155238886',    
+    from: 'whatsapp:+14155238886',
     to: to,
-    contentSid:template_id,
-    contentVariables: JSON.stringify({1:message})
+    contentSid: template_id,
+    contentVariables: variablesJson
   })
   .then(message => console.log('Message sent:', message.sid))
   .catch(error => console.error('Error sending message:', error));
