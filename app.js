@@ -202,14 +202,15 @@ app.post('/excel-data', (req, res) => {
   const waitingList = [];
 
   // Iterate through the received data
-  receivedData.forEach((item, index) => {
+  receivedData.forEach(item => {
     const person = item.Person;
     const slot = item.Parking_slot;
     const phone = `whatsapp:${item.Number}`;
-    
+    let index = 0;
     if (slot === 'WL') {
       // If the person is in the waiting list, add their name and order to waitingList array
-      waitingList.push(`${index + 1}. ${person}`); // Index + 1 for 1-based numbering
+      index++;
+      waitingList.push(`${index}. ${person}`); // Index + 1 for 1-based numbering
       console.log(`${person} is in the waiting list.`);
     } else {
       // If the person has a parking slot, add to parkingList array
@@ -223,7 +224,7 @@ app.post('/excel-data', (req, res) => {
 
   // Create message for the waiting list
   if (waitingList.length > 0) {
-    const waitingListMessage = `You are in the waiting list: ${waitingList.join(', ')}`;
+    const waitingListMessage = `You are in the waiting list: \n${waitingList.join(', ')}`;
     
     // Send a WhatsApp message to all waiting list members with their order
     waitingList.forEach((person, index) => {
