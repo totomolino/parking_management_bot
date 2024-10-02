@@ -135,7 +135,7 @@ app.post('/whatsapp', (req, res) => {
     case messageBody.startsWith('notify'):
       handleNotify(messageBody, sender);
       break;
-    case slotAvailable && messageBody === 'Accept':
+    case messageBody === 'Accept':
       handleSlotAccept(sender);
       break;
     case slotAvailable && messageBody === 'Decline':
@@ -206,13 +206,22 @@ function handleNotify(messageBody, sender) {
 
 // Handle acceptance of a parking slot
 function handleSlotAccept(sender) {
-  if (waitingList[0] === sender) {
-    sendWhatsAppMessage(sender, "You've been assigned a parking slot.");
-    slotAvailable = false;
-    waitingList.shift(); // Remove the user who accepted the slot
-  } else {
-    sendWhatsAppMessage(sender, "You're not next in line.");
+  if (slotAvailable){
+    if (waitingList[0].phone === sender) {
+      sendWhatsAppMessage(sender, "You've been assigned a parking slot.");
+      slotAvailable = false;
+      waitingList.shift(); // Remove the user who accepted the slot
+    } else {
+      sendWhatsAppMessage(sender, "You're not next in line.");
+    }
   }
+  parkingList.forEach(member => {
+    if(member.phone === sender){
+      sendWhatsAppMessage(member.phone, `Thanks ${member.name} for the confirmation. The slot ${member.slot} is yours!`);
+    }
+  });
+
+
 }
 
 // Handle declination of a parking slot
