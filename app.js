@@ -201,6 +201,7 @@ app.post('/excel-data', (req, res) => {
   const parkingList = [];
   const waitingList = [];
   let index = 0;
+
   // Iterate through the received data
   receivedData.forEach(item => {
     const person = item.Person;
@@ -210,7 +211,7 @@ app.post('/excel-data', (req, res) => {
     if (slot === 'WL') {
       // If the person is in the waiting list, add their name and order to waitingList array
       index++;
-      waitingList.push(`${index}. ${person}`); // Index + 1 for 1-based numbering
+      waitingList.push({ name: person, phone }); // Store name and phone in an object
       console.log(`${person} is in the waiting list.`);
     } else {
       // If the person has a parking slot, add to parkingList array
@@ -224,15 +225,21 @@ app.post('/excel-data', (req, res) => {
 
   // Create message for the waiting list
   if (waitingList.length > 0) {
-    const waitingListMessage = `You are in the waiting list: \n${waitingList.join(',\n')}`;
-    
-    // Send a WhatsApp message to all waiting list members with their order
-    waitingList.forEach((person, index) => {
-      // Get the original phone number from receivedData based on the index
-      const phone = `whatsapp:${receivedData[index].Number}`; // Use the original number
-      sendWhatsAppMessage(phone, waitingListMessage);
+    // Create a personalized message for each member in the waiting list
+    waitingList.forEach((member, i) => {
+      const waitingListMessage = `You are in the waiting list: \n${waitingList.map((m, index) => {
+        return `${index + 1}. ${m.name}${index === i ? ' (you)' : ''}`;
+      }).join('\n')}`;
+
+      // Send a WhatsApp message to each waiting list member with their order
+      sendWhatsAppMessage(member.phone, waitingListMessage);
     });
   }
+
+  // Send success response
+  res.status(200).send('Data received successfully');
+});
+
 
   // Send success response
   res.status(200).send('Data received successfully');
