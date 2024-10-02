@@ -51,6 +51,58 @@ function generateHTMLTable(data) {
   return table;
 }
 
+// Function to generate the parking slot table
+function generateParkingSlotTable(data) {
+  const parkingSlotWidth = 15; // Width for Parking Slot column
+  const personWidth = 20;      // Width for Person column
+
+  // Header for parking slot table
+  let table = 'Parking Slot'.padEnd(parkingSlotWidth) + '| ' + 'Person'.padEnd(personWidth) + '\n';
+  table += '-'.repeat(parkingSlotWidth + personWidth + 2) + '\n'; // Separator line
+
+  // Add data rows for parking slot list
+  data.forEach(item => {
+    const parkingSlotString = item.Parking_slot.toString();
+    const parkingSlotPadding = parkingSlotWidth - parkingSlotString.length;
+    const parkingSlot = ' '.repeat(Math.floor(parkingSlotPadding / 2)) + parkingSlotString +
+                        ' '.repeat(Math.ceil(parkingSlotPadding / 2));
+    
+    const person = item.Person.padEnd(personWidth);
+    table += `${parkingSlot}| ${person}\n`;
+  });
+
+  return table;
+}
+
+// Function to generate the waiting list table
+function generateWaitingListTable(waitingList) {
+  const indexWidth = 5;        // Width for index column
+  const personWidth = 20;      // Width for Person column
+
+  // Header for waiting list table
+  let table = 'No.'.padEnd(indexWidth) + '| ' + 'Person'.padEnd(personWidth) + '\n';
+  table += '-'.repeat(indexWidth + personWidth + 2) + '\n'; // Separator line
+
+  // Add data rows for waiting list
+  waitingList.forEach((item, index) => {
+    const indexString = (index + 1).toString().padEnd(indexWidth);
+    const person = item.Person.padEnd(personWidth);
+    table += `${indexString}| ${person}\n`;
+  });
+
+  return table;
+}
+
+// Function to generate both lists in the same message
+function generateFullTable(parkingData) {
+  const parkingTable = generateParkingSlotTable(parkingData);
+  const waitingTable = generateWaitingListTable(parkingData);
+
+  // Combine both tables with a separator
+  return parkingTable + '\n' + 'Waiting List:\n' + waitingTable;
+}
+
+
 // Helper function to generate a plain text table from parking data
 function generatePlainTextTable(data) {
   const parkingSlotWidth = 15; // Width for Parking Slot column
@@ -60,7 +112,7 @@ function generatePlainTextTable(data) {
   table += '-'.repeat(parkingSlotWidth + personWidth + 2) + '\n'; // Separator line
 
   data.forEach(item => {
-    const parkingSlotString = item["Parking slot"].toString();
+    const parkingSlotString = item.Parking_slot.toString();
     const parkingSlotPadding = parkingSlotWidth - parkingSlotString.length;
     const parkingSlot = ' '.repeat(Math.floor(parkingSlotPadding / 2)) + parkingSlotString +
                         ' '.repeat(Math.ceil(parkingSlotPadding / 2));
@@ -84,8 +136,14 @@ app.post('/whatsapp', (req, res) => {
     case messageBody === 'add me':
       handleAddMe(sender);
       break;
-    case messageBody === 'show list':
-      sendWhatsAppMessage(sender, `The data is \n${generatePlainTextTable(parkingData)}`);
+    case messageBody === 'show all':
+      sendWhatsAppMessage(sender, `The data is \n${generateFullTable(parkingData)}`);
+      break;
+    case messageBody === 'show parking':
+      sendWhatsAppMessage(sender, `The data is \n${generateParkingSlotTable(parkingData)}`);
+      break;
+    case messageBody === 'show waiting list':
+      sendWhatsAppMessage(sender, `The data is \n${generateWaitingListTable(parkingData)}`);
       break;
     case messageBody === 'cancel':
       handleCancel(sender);
@@ -235,6 +293,8 @@ app.post('/excel-data', (req, res) => {
       sendWhatsAppMessage(member.phone, waitingListMessage);
     });
   }
+
+  parkingData = receivedData
 
   // Send success response
   res.status(200).send('Data received successfully');
