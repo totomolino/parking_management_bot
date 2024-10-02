@@ -197,7 +197,14 @@ app.post('/excel-data', (req, res) => {
   const receivedData = req.body;
   console.log('Data received from Excel:', receivedData);
   
-  parkingData = receivedData; // Process the data as needed
+  // Iterate through the received data and log the desired message
+  receivedData.forEach(item => {
+    const message = `${item.Person} has parking slot ${item['Parking slot']}. The number is ${item.Number}.`;
+    console.log(message);
+  });
+  
+  // Store the data or process it as needed
+  parkingData = receivedData; 
   res.status(200).send('Data received successfully');
 });
 
