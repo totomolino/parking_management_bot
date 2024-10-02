@@ -62,13 +62,15 @@ function generateParkingSlotTable(data) {
 
   // Add data rows for parking slot list
   data.forEach(item => {
-    const parkingSlotString = item.Parking_slot.toString();
-    const parkingSlotPadding = parkingSlotWidth - parkingSlotString.length;
-    const parkingSlot = ' '.repeat(Math.floor(parkingSlotPadding / 2)) + parkingSlotString +
-                        ' '.repeat(Math.ceil(parkingSlotPadding / 2));
-    
-    const person = item.Person.padEnd(personWidth);
-    table += `${parkingSlot}| ${person}\n`;
+    if(item.Parking_slot ==! 'WL'){
+      const parkingSlotString = item.Parking_slot.toString();
+      const parkingSlotPadding = parkingSlotWidth - parkingSlotString.length;
+      const parkingSlot = ' '.repeat(Math.floor(parkingSlotPadding / 2)) + parkingSlotString +
+                          ' '.repeat(Math.ceil(parkingSlotPadding / 2));
+      
+      const person = item.Person.padEnd(personWidth);
+      table += `${parkingSlot}| ${person}\n`;
+    }
   });
 
   return table;
@@ -85,9 +87,11 @@ function generateWaitingListTable(waitingList) {
 
   // Add data rows for waiting list
   waitingList.forEach((item, index) => {
-    const indexString = (index + 1).toString().padEnd(indexWidth);
-    const person = item.Person.padEnd(personWidth);
-    table += `${indexString}| ${person}\n`;
+    if(item.Parking_slot === 'WL'){
+      const indexString = (index + 1).toString().padEnd(indexWidth);
+      const person = item.Person.padEnd(personWidth);
+      table += `${indexString}| ${person}\n`;
+    }
   });
 
   return table;
