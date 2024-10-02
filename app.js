@@ -201,10 +201,11 @@ app.post('/excel-data', (req, res) => {
   receivedData.forEach(item => {
     person = item.Person
     slot = item.Parking_slot
-    phone = `whatsapp:${item.number}`
-    sendWhatsAppMessage2(phone, `You have been asigned to parking slot ${slot}, please confirm`)
-    const message = `${item.Person} has parking slot ${item['Parking slot']}. The number is ${item.Number}.`;
+    phone = `whatsapp:${item.Number}`
+    const message = `${person} has parking slot ${slot}. The number is ${phone}.`;
     console.log(message);
+    sendWhatsAppMessage2(phone, `You have been asigned to parking slot ${slot}, please confirm`)
+
   });
   
   // Store the data or process it as needed
