@@ -232,9 +232,7 @@ function sendWhatsAppMessage2(to, message) {
     from: 'whatsapp:+14155238886',    
     to: to,
     contentSid:template_id,
-    contentVariables: JSON.stringify({
-      1: message,  // Replace {{1}} with params[0]
-    })
+    contentVariables: JSON.stringify({1:"hola"})
   })
   .then(message => console.log('Message sent:', message.sid))
   .catch(error => console.error('Error sending message:', error));
