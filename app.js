@@ -252,11 +252,3 @@ function sendWhatsAppMessage2(to, message) {
 // Start the server and ngrok
 app.listen(port, () => console.log(`Node.js web server at ${port} is running...`));
 
-// Uncomment to use ngrok for exposing your endpoint
-/*
-ngrok.connect({ addr: port, authtoken: process.env.NGROK_AUTHTOKEN })
-  .then((listener) => {
-    console.log(`Ingress established at: ${listener.url}`);
-    // Here you can set up your Twilio webhook URL with the ngrok URL
-  })
-  .catch((error
