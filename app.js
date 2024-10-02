@@ -87,11 +87,9 @@ function generateWaitingListTable() {
 
   // Add data rows for waiting list
   waitingList.forEach((item, index) => {
-    if(item.Parking_slot === 'WL'){
-      const indexString = (index + 1).toString().padEnd(indexWidth);
-      const person = item.name.padEnd(personWidth);
-      table += `${indexString}| ${person}\n`;
-    }
+    const indexString = (index + 1).toString().padEnd(indexWidth);
+    const person = item.name.padEnd(personWidth);
+    table += `${indexString}| ${person}\n`;
   });
 
   return table;
@@ -216,6 +214,7 @@ function handleSlotAccept(sender) {
     }
   }
   parkingList.forEach(member => {
+    console.log(member.phone, 'llll ', sender)
     if(member.phone === sender){
       sendWhatsAppMessage(member.phone, `Thanks ${member.name} for the confirmation. The slot ${member.slot} is yours!`);
     }
