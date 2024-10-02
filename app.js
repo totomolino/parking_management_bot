@@ -197,21 +197,44 @@ app.post('/excel-data', (req, res) => {
   const receivedData = req.body;
   console.log('Data received from Excel:', receivedData);
   
-  // Iterate through the received data and log the desired message
-  receivedData.forEach(item => {
-    person = item.Person
-    slot = item.Parking_slot
-    phone = `whatsapp:${item.Number}`
-    const message = `${person} has parking slot ${slot}. The number is ${phone}.`;
-    console.log(message);
-    sendWhatsAppMessage2(phone, `You have been asigned to parking slot ${slot}, please confirm`)
+  // Arrays to hold parking and waiting list members
+  const parkingList = [];
+  const waitingList = [];
 
+  // Iterate through the received data
+  receivedData.forEach(item => {
+    const person = item.Person;
+    const slot = item['Parking slot'];
+    const phone = `whatsapp:${item.Number}`;
+    
+    if (slot === 'WL') {
+      // If the person is in the waiting list, add to waitingList array
+      waitingList.push(`${person} (${phone})`);
+      console.log(`${person} is in the waiting list.`);
+    } else {
+      // If the person has a parking slot, add to parkingList array
+      parkingList.push(`${person} (${slot})`);
+      console.log(`${person} has parking slot ${slot}. The number is ${phone}.`);
+      
+      // Send WhatsApp message for parking slot
+      sendWhatsAppMessage2(phone, `You have been assigned to parking slot ${slot}.`);
+    }
   });
-  
-  // Store the data or process it as needed
-  parkingData = receivedData; 
+
+  // Create message for the waiting list
+  if (waitingList.length > 0) {
+    const waitingListMessage = `You are in the waiting list: ${waitingList.join(', ')}`;
+    waitingList.forEach(item => {
+      // Extract the phone number for each waiting list member
+      const phone = item.split(' ')[1].slice(1, -1); // Get the phone number from formatted string
+      sendWhatsAppMessage(phone, waitingListMessage);
+    });
+  }
+
+  // Send success response
   res.status(200).send('Data received successfully');
 });
+
 
 // Twilio send message helper with buttons
 function sendWhatsAppMessage(to, message, buttons = []) {
