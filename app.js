@@ -199,6 +199,10 @@ app.post('/excel-data', (req, res) => {
   
   // Iterate through the received data and log the desired message
   receivedData.forEach(item => {
+    person = item.Person
+    slot = item.Parking_slot
+    phone = `whatsapp:${item.number}`
+    sendWhatsAppMessage2(phone, `You have been asigned to parking slot ${slot}, please confirm`)
     const message = `${item.Person} has parking slot ${item['Parking slot']}. The number is ${item.Number}.`;
     console.log(message);
   });
@@ -258,4 +262,3 @@ function sendWhatsAppMessage2(to, message) {
 
 // Start the server and ngrok
 app.listen(port, () => console.log(`Node.js web server at ${port} is running...`));
-
