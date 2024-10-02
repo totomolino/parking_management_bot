@@ -153,7 +153,7 @@ app.post('/whatsapp', (req, res) => {
 function askNextInLine() {
   if (waitingList.length > 0) {
     slotAvailable = true;
-    sendWhatsAppMessage(waitingList[0], "A parking slot is available. Do you want it? Reply 'Yes' or 'No'.");
+    sendWhatsAppMessage(waitingList[0], "A parking slot is available. Do you want it? Reply Yes or No.");
   } else {
     slotAvailable = false;
   }
@@ -232,7 +232,7 @@ function sendWhatsAppMessage2(to, message) {
     from: 'whatsapp:+14155238886',    
     to: to,
     contentSid:template_id,
-    contentVariables: JSON.stringify({1:"hola"})
+    contentVariables: JSON.stringify({1:message})
   })
   .then(message => console.log('Message sent:', message.sid))
   .catch(error => console.error('Error sending message:', error));
