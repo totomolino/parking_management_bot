@@ -155,10 +155,11 @@ function assignNextSlot() {
   // Assign the slot to the first person in the waiting list
   const nextPerson = waitingList[0];
   availableSlot.status = 'pending';
-  availableSlot.assignedTo = nextPerson.phone;
+  availableSlot.assignedTo = nextPerson.name;
+  availableSlot.phone = nextPerson.phone;
 
   // Notify the user with interactive buttons
-  sendWhatsAppMessage2(nextPerson.phone, `A parking slot have been released! You have been assigned to parking slot ${slot.number}. You have 10 min to confirm.`);
+  sendWhatsAppMessage2(nextPerson.phone, `A parking slot have been released! You have been assigned to parking slot ${availableSlot.number}. You have 10 min to confirm.`);
 }
 
 // Function to notify the next person in the waiting list
