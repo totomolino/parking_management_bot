@@ -11,16 +11,25 @@ const port = 3000;
 app.use(bodyParser.urlencoded({ extended: false }));
 app.use(bodyParser.json()); // Middleware to parse JSON body
 
-// In-memory storage for received data
-// Arrays to hold parking and waiting list members
-let parkingList = [];
+// Define all parking slots with their initial status
+const allSlots = [
+  832, 834, 835, 836, 837, 838, 839, 840, 841, // Corrected duplicate 840 to 841
+  ...Array.from({ length: 10 }, (_, i) => 585 + i), // 585 to 594
+  ...Array.from({ length: 8 }, (_, i) => 569 + i)  // 569 to 576
+].map(slotNumber => ({
+  number: slotNumber,
+  status: 'available', // possible statuses: 'available', 'pending', 'assigned'
+  assignedTo: null
+}));
+
+// In-memory storage
+let parkingSlots = [...allSlots];
 let waitingList = [];
-let slotAvailable = false;
 
 // Predefined buttons for interactive messages
 const buttons = [
-  { id: 'button1', title: 'Yes' },
-  { id: 'button2', title: 'No' }
+  { id: 'button_accept', title: 'Accept' },
+  { id: 'button_decline', title: 'Decline' }
 ];
 
 // Health check endpoint
@@ -51,10 +60,9 @@ function generateParkingSlotTable() {
     const parkingSlotPadding = parkingSlotWidth - parkingSlotString.length;
     const parkingSlot = ' '.repeat(Math.floor(parkingSlotPadding / 2)) + parkingSlotString +
                         ' '.repeat(Math.ceil(parkingSlotPadding / 2));
-    
+
     const person = item.name.padEnd(personWidth);
     table += `${parkingSlot}| ${person}\n`;
-    
   });
 
   return table;
@@ -88,8 +96,6 @@ function generateFullTable() {
   return parkingTable + '\n' + 'Waiting List:\n' + waitingTable;
 }
 
-
-
 // Handle incoming WhatsApp messages
 app.post('/whatsapp', (req, res) => {
   const messageBody = req.body.Body.trim().toLowerCase();
@@ -118,17 +124,47 @@ app.post('/whatsapp', (req, res) => {
       handleSlotDecline(sender);
       break;
     default:
-      sendWhatsAppMessage(sender, "Unknown command. Please use 'Add me' or 'Remove me'.");
+      sendWhatsAppMessage(sender, "Unknown command. Please use 'Add me', 'Show all', 'Show parking', 'Show waiting list', 'Cancel', 'Accept', or 'Decline'.");
   }
 
   res.sendStatus(200);  
 });
 
+// Function to assign the next available slot to the first person in the waiting list
+function assignNextSlot() {
+  if (waitingList.length === 0) return;
+
+  // Find the first available slot
+  const availableSlot = parkingSlots.find(slot => slot.status === 'available');
+  if (!availableSlot) {
+    console.log('No available slots at the moment.');
+    return;
+  }
+
+  // Assign the slot to the first person in the waiting list
+  const nextPerson = waitingList[0];
+  availableSlot.status = 'pending';
+  availableSlot.assignedTo = nextPerson.phone;
+
+  // Notify the user with interactive buttons
+  sendWhatsAppMessage(nextPerson.phone, `A parking slot (${availableSlot.number}) is available. Do you accept it? Reply with 'Accept' or 'Decline'.`, buttons);
+}
+
+// Function to notify the next person in the waiting list
+function notifyAvailability() {
+  assignNextSlot();
+}
+
 // Handle the 'add me' command
 function handleAddMe(sender) {
-  if (!waitingList.includes(sender)) {
-    waitingList.push(sender);
+  if (!waitingList.some(user => user.phone === sender)) {
+    // Ideally, retrieve the user's name from a database or ask for it
+    const userName = 'User'; // Placeholder: You can enhance this by asking for the user's name
+    waitingList.push({ name: userName, phone: sender });
     sendWhatsAppMessage(sender, "You've been added to the waiting list.");
+
+    // If no slots are pending assignment, try assigning
+    assignNextSlot();
   } else {
     sendWhatsAppMessage(sender, "You're already on the waiting list.");
   }
@@ -136,13 +172,17 @@ function handleAddMe(sender) {
 
 // Handle the 'cancel' command
 function handleCancel(sender) {
-  // const index = waitingList.indexOf(sender);
-  const index = waitingList.findIndex(item => item.phone === sender);
+  const index = waitingList.findIndex(user => user.phone === sender);
   if (index > -1) {
     waitingList.splice(index, 1);
     sendWhatsAppMessage(sender, "You've been removed from the waiting list.");
-    if (waitingList.length > 0) {
-      askNextInLine();
+
+    // If the user had a pending slot, free it
+    const pendingSlot = parkingSlots.find(slot => slot.assignedTo === sender && slot.status === 'pending');
+    if (pendingSlot) {
+      pendingSlot.status = 'available';
+      pendingSlot.assignedTo = null;
+      assignNextSlot();
     }
   } else {
     sendWhatsAppMessage(sender, "You're not on the waiting list.");
@@ -151,31 +191,38 @@ function handleCancel(sender) {
 
 // Handle acceptance of a parking slot
 function handleSlotAccept(sender) {
-  if (slotAvailable){
-    if (waitingList[0].phone === sender) {
-      sendWhatsAppMessage(sender, "You've been assigned a parking slot.");
-      slotAvailable = false;
-      waitingList.shift(); // Remove the user who accepted the slot
-    } else {
-      sendWhatsAppMessage(sender, "You're not next in line.");
-    }
+  const slot = parkingSlots.find(slot => slot.assignedTo === sender && slot.status === 'pending');
+  
+  if (slot) {
+    slot.status = 'assigned';
+    const user = waitingList.find(user => user.phone === sender);
+    sendWhatsAppMessage(sender, `Congratulations! You've been assigned parking slot ${slot.number}.`);
+    waitingList = waitingList.filter(user => user.phone !== sender);
+    console.log(`Slot ${slot.number} assigned to ${user.name}.`);
+
+    // Optionally, assign another slot if available
+    assignNextSlot();
+  } else {
+    sendWhatsAppMessage(sender, "You don't have any pending slot assignments.");
   }
-  parkingList.forEach(member => {
-    console.log('hola')
-    if(member.phone === sender){
-      sendWhatsAppMessage(member.phone, `Thanks ${member.name} for the confirmation. The slot ${member.slot} is yours!`);
-    }
-  });
-
-
 }
 
 // Handle declination of a parking slot
 function handleSlotDecline(sender) {
-  if (waitingList[0].phone === sender) {
-    sendWhatsAppMessage(sender, "You've declined the slot. Asking the next person.");
-    slotAvailable = true;
-    askNextInLine();
+  const slot = parkingSlots.find(slot => slot.assignedTo === sender && slot.status === 'pending');
+  
+  if (slot) {
+    slot.status = 'available';
+    slot.assignedTo = null;
+    sendWhatsAppMessage(sender, `You've declined parking slot ${slot.number}. The slot is now available for others.`);
+    
+    // Remove the first user who declined
+    waitingList.shift();
+    
+    // Notify the next person
+    assignNextSlot();
+  } else {
+    sendWhatsAppMessage(sender, "You don't have any pending slot assignments to decline.");
   }
 }
 
@@ -183,7 +230,7 @@ function handleSlotDecline(sender) {
 function askNextInLine() {
   if (waitingList.length > 0) {
     slotAvailable = true;
-    sendWhatsAppMessage(waitingList[0], "A parking slot is available. Do you want it? Reply Yes or No.");
+    sendWhatsAppMessage(waitingList[0].phone, "A parking slot is available. Do you want it? Reply 'Accept' or 'Decline'.", buttons);
   } else {
     slotAvailable = false;
   }
@@ -193,51 +240,42 @@ function askNextInLine() {
 app.post('/excel-data', (req, res) => {
   const receivedData = req.body;
   console.log('Data received from Excel:', receivedData);
-  parkingList = [];
+
+  // Reset parking slots based on received data
+  parkingSlots = parkingSlots.map(slot => ({
+    ...slot,
+    status: 'available',
+    assignedTo: null
+  }));
+
   waitingList = [];
 
-  let index = 0;
-
-  // Iterate through the received data
   receivedData.forEach(item => {
     const person = item.Person;
-    const slot = item.Parking_slot;
+    const slotNumber = item.Parking_slot === 'WL' ? null : parseInt(item.Parking_slot, 10);
     const phone = `whatsapp:${item.Number}`;
-    
-    if (slot === 'WL') {
-      // If the person is in the waiting list, add their name and order to waitingList array
-      index++;
-      waitingList.push({ name: person, phone }); // Store name and phone in an object
+
+    if (item.Parking_slot === 'WL') {
+      waitingList.push({ name: person, phone });
       console.log(`${person} is in the waiting list.`);
-    } else {
-      // If the person has a parking slot, add to parkingList array
-      parkingList.push({ name: person, phone, slot });
-      console.log(`${person} has parking slot ${slot}. The number is ${phone}.`);
-      
-      // Send WhatsApp message for parking slot
-      sendWhatsAppMessage2(phone, `You have been assigned to parking slot ${slot}.`);
+    } else if (slotNumber) {
+      const slot = parkingSlots.find(s => s.number === slotNumber);
+      if (slot) {
+        slot.status = 'assigned';
+        slot.assignedTo = phone;
+        console.log(`${person} has parking slot ${slot.number}.`);
+
+        // Notify the assigned user
+        sendWhatsAppMessage2(phone, `You have been assigned to parking slot ${slot.number}.`);
+      }
     }
   });
 
-  // Create message for the waiting list
-  if (waitingList.length > 0) {
-    // Create a personalized message for each member in the waiting list
-    waitingList.forEach((member, i) => {
-      const waitingListMessage = `You are in the waiting list: \n${waitingList.map((m, index) => {
-        return `${index + 1}. ${m.name}${index === i ? ' (you)' : ''}`;
-      }).join('\n')}`;
+  // Notify the next person in the waiting list
+  assignNextSlot();
 
-      // Send a WhatsApp message to each waiting list member with their order
-      sendWhatsAppMessage(member.phone, waitingListMessage);
-    });
-  }
-
-  // Send success response
   res.status(200).send('Data received successfully');
 });
-
-
-
 
 // Twilio send message helper with buttons
 function sendWhatsAppMessage(to, message, buttons = []) {
@@ -265,14 +303,14 @@ function sendWhatsAppMessage(to, message, buttons = []) {
       }
     }
   })
-  .then(message => console.log('Message sent:', message, 'to ', to))
+  .then(message => console.log('Message sent:', message.sid, 'to', to))
   .catch(error => console.error('Error sending message:', error));
 }
 
 // Twilio send message helper without buttons
 function sendWhatsAppMessage2(to, message) {
   const client = new twilio(process.env.TWILIO_ACCOUNT_SID, process.env.TWILIO_AUTH_TOKEN);
-  const template_id = 'HX11c138027519a9b312f9d550da94d35e';
+  const template_id = 'HX11c138027519a9b312f9d550da94d35e'; // Ensure this template ID is correct and approved
 
   const variables = { "1": message };
   const variablesJson = JSON.stringify(variables);
@@ -288,4 +326,4 @@ function sendWhatsAppMessage2(to, message) {
 }
 
 // Start the server and ngrok
-app.listen(port, () => console.log(`Node.js web server at ${port} is running...`));
+app.listen(port, () => console.log(`Node.js web server at http://localhost:${port} is running...`));
