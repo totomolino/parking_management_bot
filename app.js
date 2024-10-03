@@ -158,7 +158,7 @@ function assignNextSlot() {
   availableSlot.assignedTo = nextPerson.phone;
 
   // Notify the user with interactive buttons
-  sendWhatsAppMessage2(nextPerson.phone, `A parking slot (${availableSlot.number}) is available. Do you accept it? Reply with 'Accept' or 'Decline'.`);
+  sendWhatsAppMessage2(nextPerson.phone, `A parking slot have been released! You have been assigned to parking slot ${slot.number}. You have 10 min to confirm.`);
 }
 
 // Function to notify the next person in the waiting list
