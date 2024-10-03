@@ -29,7 +29,8 @@ const allSlots = [
 ].map(slotNumber => ({
   number: slotNumber,
   status: 'available', // possible statuses: 'available', 'pending', 'assigned'
-  assignedTo: null
+  assignedTo: null,
+  phone: null
 }));
 
 // In-memory storage
@@ -65,13 +66,13 @@ function generateParkingSlotTable() {
   table += '-'.repeat(parkingSlotWidth + personWidth + 2) + '\n'; // Separator line
 
   // Add data rows for parking slot list
-  parkingList.forEach(item => {
-    const parkingSlotString = item.slot.toString();
+  parkingSlots.forEach(item => {
+    const parkingSlotString = item.number.toString();
     const parkingSlotPadding = parkingSlotWidth - parkingSlotString.length;
     const parkingSlot = ' '.repeat(Math.floor(parkingSlotPadding / 2)) + parkingSlotString +
                         ' '.repeat(Math.ceil(parkingSlotPadding / 2));
 
-    const person = item.name.padEnd(personWidth);
+    const person = item.assignedTo.padEnd(personWidth);
     table += `${parkingSlot}| ${person}\n`;
   });
 
@@ -255,7 +256,8 @@ app.post('/excel-data', (req, res) => {
   parkingSlots = parkingSlots.map(slot => ({
     ...slot,
     status: 'available',
-    assignedTo: null
+    assignedTo: null,
+    phone: null
   }));
 
   waitingList = [];
@@ -272,7 +274,8 @@ app.post('/excel-data', (req, res) => {
       const slot = parkingSlots.find(s => s.number === slotNumber);
       if (slot) {
         slot.status = 'assigned';
-        slot.assignedTo = phone;
+        slot.assignedTo = person;
+        slot.phone = phone;
         console.log(`${person} has parking slot ${slot.number}.`);
 
         // Notify the assigned user
