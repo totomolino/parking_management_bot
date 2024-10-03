@@ -12,10 +12,18 @@ app.use(bodyParser.urlencoded({ extended: false }));
 app.use(bodyParser.json()); // Middleware to parse JSON body
 
 // Define all parking slots with their initial status
+// const allSlots = [
+//   832, 834, 835, 836, 837, 838, 839, 840, 841, // Corrected duplicate 840 to 841
+//   ...Array.from({ length: 10 }, (_, i) => 585 + i), // 585 to 594
+//   ...Array.from({ length: 8 }, (_, i) => 569 + i)  // 569 to 576
+// ].map(slotNumber => ({
+//   number: slotNumber,
+//   status: 'available', // possible statuses: 'available', 'pending', 'assigned'
+//   assignedTo: null
+// }));
+
 const allSlots = [
-  832, 834, 835, 836, 837, 838, 839, 840, 841, // Corrected duplicate 840 to 841
-  ...Array.from({ length: 10 }, (_, i) => 585 + i), // 585 to 594
-  ...Array.from({ length: 8 }, (_, i) => 569 + i)  // 569 to 576
+  832
 ].map(slotNumber => ({
   number: slotNumber,
   status: 'available', // possible statuses: 'available', 'pending', 'assigned'
