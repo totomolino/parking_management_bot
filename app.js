@@ -1,7 +1,7 @@
 const express = require('express');
 const bodyParser = require('body-parser');
 const twilio = require('twilio');
-const ngrok = require('@ngrok/ngrok');
+const cors = require('cors');
 require('dotenv').config(); // Load environment variables from .env file
 
 const app = express();
@@ -10,6 +10,8 @@ const port = 3000;
 // Middleware setup
 app.use(bodyParser.urlencoded({ extended: false }));
 app.use(bodyParser.json()); // Middleware to parse JSON body
+// Use CORS middleware
+app.use(cors());
 
 // Define all parking slots with their initial status
 // const allSlots = [
