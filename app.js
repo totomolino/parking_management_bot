@@ -36,22 +36,6 @@ app.get('/wake', (_, res) => {
   res.send('OK');
 });
 
-// Helper function to generate HTML table from parking data
-function generateHTMLTable(data) {
-  let table = '<table border="1" style="border-collapse: collapse; width: 100%;">';
-  table += '<tr><th>Parking Slot</th><th>Person</th></tr>'; // Header row
-
-  data.forEach(item => {
-    table += '<tr>';
-    table += `<td>${item["Parking slot"]}</td>`;
-    table += `<td>${item.Person}</td>`;
-    table += '</tr>';
-  });
-
-  table += '</table>';
-  return table;
-}
-
 // Function to generate the parking slot table
 function generateParkingSlotTable() {
   const parkingSlotWidth = 15; // Width for Parking Slot column
@@ -112,9 +96,6 @@ app.post('/whatsapp', (req, res) => {
   const sender = req.body.From; // WhatsApp number
 
   switch (true) {
-    case messageBody.startsWith('start list:'):
-      handleStartList(messageBody, sender);
-      break;
     case messageBody === 'add me':
       handleAddMe(sender);
       break;
@@ -130,13 +111,10 @@ app.post('/whatsapp', (req, res) => {
     case messageBody === 'cancel':
       handleCancel(sender);
       break;
-    case messageBody.startsWith('notify'):
-      handleNotify(messageBody, sender);
-      break;
     case messageBody === 'accept':
       handleSlotAccept(sender);
       break;
-    case slotAvailable && messageBody === 'decline':
+    case messageBody === 'decline':
       handleSlotDecline(sender);
       break;
     default:
@@ -145,30 +123,6 @@ app.post('/whatsapp', (req, res) => {
 
   res.sendStatus(200);  
 });
-
-// Handle the 'start list' command
-function handleStartList(messageBody, sender) {
-  try {
-    const listString = messageBody.replace('start list:', '').replace(/[\[\]']+/g, '').trim();
-    const numbers = listString.split(',').map(number => number.trim().replace(/[^0-9+]/g, ''));
-
-    if (numbers.length > 0) {
-      waitingList.length = 0; // Clear existing list
-      numbers.forEach(number => {
-        const formattedNumber = `whatsapp:${number}`;
-        if (!waitingList.includes(formattedNumber)) {
-          waitingList.push(formattedNumber);
-        }
-      });
-      sendWhatsAppMessage(sender, "Waiting list has been initialized with the provided numbers.");
-    } else {
-      sendWhatsAppMessage(sender, "No numbers were provided. Please provide a valid list of numbers.");
-    }
-  } catch (error) {
-    console.error('Error processing list:', error);
-    sendWhatsAppMessage(sender, "There was an error processing the list. Please ensure the format is correct.");
-  }
-}
 
 // Handle the 'add me' command
 function handleAddMe(sender) {
@@ -182,7 +136,8 @@ function handleAddMe(sender) {
 
 // Handle the 'cancel' command
 function handleCancel(sender) {
-  const index = waitingList.indexOf(sender);
+  // const index = waitingList.indexOf(sender);
+  const index = waitingList.findIndex(item => item.phone === sender);
   if (index > -1) {
     waitingList.splice(index, 1);
     sendWhatsAppMessage(sender, "You've been removed from the waiting list.");
@@ -192,13 +147,6 @@ function handleCancel(sender) {
   } else {
     sendWhatsAppMessage(sender, "You're not on the waiting list.");
   }
-}
-
-// Handle the 'notify' command
-function handleNotify(messageBody, sender) {
-  const listString = messageBody.replace('notify ', '').replace(/[\[\]']+/g, '').trim();
-  console.log(listString);
-  sendWhatsAppMessage2(waitingList[Number(listString)], "Test message");
 }
 
 // Handle acceptance of a parking slot
@@ -224,9 +172,9 @@ function handleSlotAccept(sender) {
 
 // Handle declination of a parking slot
 function handleSlotDecline(sender) {
-  if (waitingList[0] === sender) {
+  if (waitingList[0].phone === sender) {
     sendWhatsAppMessage(sender, "You've declined the slot. Asking the next person.");
-    slotAvailable = false;
+    slotAvailable = true;
     askNextInLine();
   }
 }
