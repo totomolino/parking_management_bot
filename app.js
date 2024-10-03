@@ -133,18 +133,17 @@ app.post('/whatsapp', (req, res) => {
     case messageBody.startsWith('notify'):
       handleNotify(messageBody, sender);
       break;
-    case messageBody === 'Accept':
+    case messageBody === 'accept':
       handleSlotAccept(sender);
       break;
-    case slotAvailable && messageBody === 'Decline':
+    case slotAvailable && messageBody === 'decline':
       handleSlotDecline(sender);
       break;
     default:
       sendWhatsAppMessage(sender, "Unknown command. Please use 'Add me' or 'Remove me'.");
   }
 
-  res.sendStatus(200);
-  console.log(waitingList);
+  res.sendStatus(200);  
 });
 
 // Handle the 'start list' command
@@ -214,7 +213,7 @@ function handleSlotAccept(sender) {
     }
   }
   parkingList.forEach(member => {
-    console.log(member.phone, 'llll ', sender)
+    console.log('hola')
     if(member.phone === sender){
       sendWhatsAppMessage(member.phone, `Thanks ${member.name} for the confirmation. The slot ${member.slot} is yours!`);
     }
@@ -318,7 +317,7 @@ function sendWhatsAppMessage(to, message, buttons = []) {
       }
     }
   })
-  .then(message => console.log('Message sent:', message.sid))
+  .then(message => console.log('Message sent:', message, 'to ', to))
   .catch(error => console.error('Error sending message:', error));
 }
 
