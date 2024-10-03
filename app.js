@@ -247,6 +247,27 @@ function askNextInLine() {
   }
 }
 
+app.post('/parking_slots', (req,res) => {
+
+  const receivedSlots = req.body;
+
+  // Validate the input
+  if (!Array.isArray(receivedSlots)) {
+    return res.status(400).json({ message: 'Invalid input: expected an array of slot numbers' });
+  }
+
+  const allSlots = receivedSlots.map(slotNumber => ({
+    number: slotNumber,
+    status: 'available', // possible statuses: 'available', 'pending', 'assigned'
+    assignedTo: null,
+    phone: null
+  }));
+
+  // In-memory storage
+  parkingSlots = [...allSlots];
+
+})
+
 // Endpoint to receive data from Excel macro
 app.post('/excel-data', (req, res) => {
   const receivedData = req.body;
