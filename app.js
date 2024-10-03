@@ -155,7 +155,7 @@ function assignNextSlot() {
   availableSlot.assignedTo = nextPerson.phone;
 
   // Notify the user with interactive buttons
-  sendWhatsAppMessage(nextPerson.phone, `A parking slot (${availableSlot.number}) is available. Do you accept it? Reply with 'Accept' or 'Decline'.`, buttons);
+  sendWhatsAppMessage2(nextPerson.phone, `A parking slot (${availableSlot.number}) is available. Do you accept it? Reply with 'Accept' or 'Decline'.`);
 }
 
 // Function to notify the next person in the waiting list
@@ -281,6 +281,19 @@ app.post('/excel-data', (req, res) => {
 
   // Notify the next person in the waiting list
   assignNextSlot();
+
+  // Create message for the waiting list
+  if (waitingList.length > 0) {
+    // Create a personalized message for each member in the waiting list
+    waitingList.forEach((member, i) => {
+      const waitingListMessage = `You are in the waiting list: \n${waitingList.map((m, index) => {
+        return `${index + 1}. ${m.name}${index === i ? ' (you)' : ''}`;
+      }).join('\n')}`;
+
+      // Send a WhatsApp message to each waiting list member with their order
+      sendWhatsAppMessage(member.phone, waitingListMessage);
+    });
+  }
 
   res.status(200).send('Data received successfully');
 });
