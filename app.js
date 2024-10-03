@@ -266,6 +266,8 @@ app.post('/parking_slots', (req,res) => {
   // In-memory storage
   parkingSlots = [...allSlots];
 
+  res.status(200).send('Data received successfully');
+
 })
 
 // Endpoint to receive data from Excel macro
