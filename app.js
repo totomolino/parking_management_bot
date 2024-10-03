@@ -2,6 +2,7 @@ const express = require('express');
 const bodyParser = require('body-parser');
 const twilio = require('twilio');
 const cors = require('cors');
+const ngrok = require('@ngrok/ngrok')
 require('dotenv').config(); // Load environment variables from .env file
 
 const app = express();
@@ -277,12 +278,12 @@ app.post('/excel-data', (req, res) => {
   console.log('Data received from Excel:', receivedData);
 
   // Reset parking slots based on received data
-  parkingSlots = parkingSlots.map(slot => ({
-    ...slot,
-    status: 'available',
-    assignedTo: null,
-    phone: null
-  }));
+  // parkingSlots = parkingSlots.map(slot => ({
+  //   ...slot,
+  //   status: 'available',
+  //   assignedTo: null,
+  //   phone: null
+  // }));
 
   waitingList = [];
 
@@ -377,3 +378,13 @@ function sendWhatsAppMessage2(to, message) {
 
 // Start the server and ngrok
 app.listen(port, () => console.log(`Node.js web server at http://localhost:${port} is running...`));
+
+// Get your endpoint online with ngrok
+ngrok.connect({ addr: port, authtoken: process.env.NGROK_AUTHTOKEN, domain: 'upward-gull-dear.ngrok-free.app' })
+  .then((listener) => {
+    console.log(`Ingress established at: ${listener.url()}`);
+    // Here you can set up your Twilio webhook URL with the ngrok URL
+  })
+  .catch((error) => {
+    console.error('Error connecting ngrok:', error);
+  });
