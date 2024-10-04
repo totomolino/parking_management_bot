@@ -155,7 +155,7 @@ function assignNextSlot() {
   availableSlot.phone = nextPerson.phone;
 
   // Notify the user with interactive buttons
-  sendWhatsAppMessage2(nextPerson.phone, `A parking slot has been released! You have been assigned to parking slot ${availableSlot.number}. Reply 'Accept' or 'Decline' within 10 minutes.`);
+  sendWhatsAppMessage2(nextPerson.phone, `A parking slot is available!\nPlease confirm if you want parking slot *${availableSlot.number}*.`);
 }
 
 // Function to handle the 'add me' command
@@ -367,7 +367,7 @@ app.post('/excel-data', (req, res) => {
     } else if (slotNumber) {
       const slot = parkingSlots.find(s => s.number === slotNumber);
       if (slot) {
-        slot.status = 'assigned';
+        slot.status = 'pending';
         slot.assignedTo = person;
         slot.phone = phone;
         console.log(`${person} has parking slot ${slot.number}.`);
