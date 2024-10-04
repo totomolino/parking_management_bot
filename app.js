@@ -2,7 +2,7 @@ const express = require('express');
 const bodyParser = require('body-parser');
 const twilio = require('twilio');
 const cors = require('cors');
-const ngrok = require('@ngrok/ngrok')
+const ngrok = require('@ngrok/ngrok');
 require('dotenv').config(); // Load environment variables from .env file
 
 const app = express();
@@ -11,22 +11,13 @@ const port = 3000;
 // Middleware setup
 app.use(bodyParser.urlencoded({ extended: false }));
 app.use(bodyParser.json()); // Middleware to parse JSON body
-// Use CORS middleware
-app.use(cors());
+app.use(cors()); // Enable CORS
 
-// Define all parking slots with their initial status
-// const allSlots = [
-//   832, 834, 835, 836, 837, 838, 839, 840, 841, // Corrected duplicate 840 to 841
-//   ...Array.from({ length: 10 }, (_, i) => 585 + i), // 585 to 594
-//   ...Array.from({ length: 8 }, (_, i) => 569 + i)  // 569 to 576
-// ].map(slotNumber => ({
-//   number: slotNumber,
-//   status: 'available', // possible statuses: 'available', 'pending', 'assigned'
-//   assignedTo: null
-// }));
-
-const allSlots = [
-  832
+// Initial Parking Slots Configuration
+const initialSlots = [
+  832, 834, 835, 836, 837, 838, 839, 840, 841, // Corrected duplicate 840 to 841
+  ...Array.from({ length: 10 }, (_, i) => 585 + i), // 585 to 594
+  ...Array.from({ length: 8 }, (_, i) => 569 + i)  // 569 to 576
 ].map(slotNumber => ({
   number: slotNumber,
   status: 'available', // possible statuses: 'available', 'pending', 'assigned'
@@ -35,7 +26,7 @@ const allSlots = [
 }));
 
 // In-memory storage
-let parkingSlots = [...allSlots];
+let parkingSlots = [...initialSlots];
 let waitingList = [];
 
 // Predefined buttons for interactive messages
@@ -73,7 +64,7 @@ function generateParkingSlotTable() {
     const parkingSlot = ' '.repeat(Math.floor(parkingSlotPadding / 2)) + parkingSlotString +
                         ' '.repeat(Math.ceil(parkingSlotPadding / 2));
 
-    const person = item.assignedTo.padEnd(personWidth);
+    const person = item.assignedTo ? item.assignedTo.padEnd(personWidth) : 'Available'.padEnd(personWidth);
     table += `${parkingSlot}| ${person}\n`;
   });
 
@@ -112,19 +103,20 @@ function generateFullTable() {
 app.post('/whatsapp', (req, res) => {
   const messageBody = req.body.Body.trim().toLowerCase();
   const sender = req.body.From; // WhatsApp number
+  const name = req.body.ProfileName;
 
   switch (true) {
     case messageBody === 'add me':
-      handleAddMe(sender);
+      handleAddMe(sender, name);
       break;
     case messageBody === 'show all':
-      sendWhatsAppMessage(sender, `The data is \n${generateFullTable()}`);
+      handleShowAll(sender);
       break;
     case messageBody === 'show parking':
-      sendWhatsAppMessage(sender, `The data is \n${generateParkingSlotTable()}`);
+      handleShowParking(sender);
       break;
     case messageBody === 'show waiting list':
-      sendWhatsAppMessage(sender, `The data is \n${generateWaitingListTable()}`);
+      handleShowWaitingList(sender);
       break;
     case messageBody === 'cancel':
       handleCancel(sender);
@@ -135,11 +127,14 @@ app.post('/whatsapp', (req, res) => {
     case messageBody === 'decline':
       handleSlotDecline(sender);
       break;
+    case messageBody === 'release':
+      handleSlotDecline(parkingSlots[0].phone);
+      break;
     default:
       sendWhatsAppMessage(sender, "Unknown command. Please use 'Add me', 'Show all', 'Show parking', 'Show waiting list', 'Cancel', 'Accept', or 'Decline'.");
   }
 
-  res.sendStatus(200);  
+  res.sendStatus(200);
 });
 
 // Function to assign the next available slot to the first person in the waiting list
@@ -160,58 +155,145 @@ function assignNextSlot() {
   availableSlot.phone = nextPerson.phone;
 
   // Notify the user with interactive buttons
-  sendWhatsAppMessage2(nextPerson.phone, `A parking slot have been released! You have been assigned to parking slot ${availableSlot.number}. You have 10 min to confirm.`);
+  sendWhatsAppMessage2(nextPerson.phone, `A parking slot has been released! You have been assigned to parking slot ${availableSlot.number}. Reply 'Accept' or 'Decline' within 10 minutes.`);
 }
 
-// Function to notify the next person in the waiting list
-function notifyAvailability() {
-  assignNextSlot();
-}
+// Function to handle the 'add me' command
+function handleAddMe(sender, name) {
+  const userInSlots = parkingSlots.find(slot => slot.phone === sender && slot.status !== 'available');
+  const userInWaiting = waitingList.find(user => user.phone === sender);
 
-// Handle the 'add me' command
-function handleAddMe(sender) {
-  if (!waitingList.some(user => user.phone === sender)) {
-    // Ideally, retrieve the user's name from a database or ask for it
-    const userName = 'User'; // Placeholder: You can enhance this by asking for the user's name
-    waitingList.push({ name: userName, phone: sender });
-    sendWhatsAppMessage(sender, "You've been added to the waiting list.");
-
-    // If no slots are pending assignment, try assigning
-    assignNextSlot();
-  } else {
-    sendWhatsAppMessage(sender, "You're already on the waiting list.");
-  }
-}
-
-// Handle the 'cancel' command
-function handleCancel(sender) {
-  const index = waitingList.findIndex(user => user.phone === sender);
-  if (index > -1) {
-    waitingList.splice(index, 1);
-    sendWhatsAppMessage(sender, "You've been removed from the waiting list.");
-
-    // If the user had a pending slot, free it
-    const pendingSlot = parkingSlots.find(slot => slot.assignedTo === sender && slot.status === 'pending');
-    if (pendingSlot) {
-      pendingSlot.status = 'available';
-      pendingSlot.assignedTo = null;
-      assignNextSlot();
-    }
-  } else {
-    sendWhatsAppMessage(sender, "You're not on the waiting list.");
-  }
-}
-
-// Handle acceptance of a parking slot
-function handleSlotAccept(sender) {
-  const slot = parkingSlots.find(slot => slot.assignedTo === sender && slot.status === 'pending');
   
+  if (userInSlots) {
+    const slot = parkingSlots.find(slot => slot.phone === sender);
+    sendWhatsAppMessage(sender, `You already have parking slot ${slot.number}.`);
+    return;
+  }
+
+  if (userInWaiting) {
+    sendWhatsAppMessage(sender, `You're already on the waiting list at position ${waitingList.indexOf(userInWaiting) + 1}.`);
+    return;
+  }
+
+  // Check for available slot
+  const availableSlot = parkingSlots.find(slot => slot.status === 'available');
+  if (availableSlot) {
+    // Assign slot immediately
+    availableSlot.status = 'pending';
+    availableSlot.assignedTo = name;
+    availableSlot.phone = sender;
+    sendWhatsAppMessage2(sender, `A parking slot is available!\nPlease confirm if you want parking slot *${availableSlot.number}*.`);
+  } else {
+    // Add to waiting list
+    waitingList.push({ name, phone: sender });
+    sendWhatsAppMessage(sender, "No available parking slots at the moment. You've been added to the waiting list.");
+
+    // Optionally notify the next slot availability
+    assignNextSlot();
+  }
+}
+
+// Function to handle the 'show all' command
+function handleShowAll(sender) {
+  const userInSlots = parkingSlots.find(slot => slot.phone === sender && slot.status !== 'available');
+  const userInWaiting = waitingList.find(user => user.phone === sender);
+
+  let message = '';
+
+  if (userInSlots) {
+    const slot = parkingSlots.find(slot => slot.phone === sender);
+    message += `You are assigned to parking slot ${slot.number}.\n`;
+  }
+
+  if (userInWaiting) {
+    message += `You are on the waiting list at position ${waitingList.indexOf(userInWaiting) + 1}.\n`;
+  }
+
+  if (!userInSlots && !userInWaiting) {
+    message += "You are neither assigned a parking slot nor on the waiting list.";
+  }
+
+  message += `\n\n${generateFullTable()}`;
+
+  sendWhatsAppMessage(sender, message);
+}
+
+// Function to handle the 'show parking' command
+function handleShowParking(sender) {
+  const userInSlots = parkingSlots.find(slot => slot.phone === sender && slot.status !== 'available');
+  const userInWaiting = waitingList.find(user => user.phone === sender);
+
+  let message = '';
+
+  if (userInSlots) {
+    const slot = parkingSlots.find(slot => slot.phone === sender);
+    message += `You are assigned to parking slot ${slot.number}.\n`;
+  }
+
+  if (userInWaiting) {
+    message += `You are on the waiting list at position ${waitingList.indexOf(userInWaiting) + 1}.\n`;
+  }
+
+  if (!userInSlots && !userInWaiting) {
+    message += "You are neither assigned a parking slot nor on the waiting list.";
+  }
+
+  message += `\n\n${generateParkingSlotTable()}`;
+
+  sendWhatsAppMessage(sender, message);
+}
+
+// Function to handle the 'show waiting list' command
+function handleShowWaitingList(sender) {
+  const userInWaiting = waitingList.find(user => user.phone === sender);
+
+  let message = '';
+
+  if (userInWaiting) {
+    message += `You are on the waiting list at position ${waitingList.indexOf(userInWaiting) + 1}.\n`;
+  } else {
+    message += "You are not on the waiting list.\n";
+  }
+
+  message += `\n${generateWaitingListTable()}`;
+
+  sendWhatsAppMessage(sender, message);
+}
+
+// Function to handle the 'cancel' command
+function handleCancel(sender) {
+  const userInWaitingIndex = waitingList.findIndex(user => user.phone === sender);
+  const userInSlots = parkingSlots.find(slot => slot.phone === sender && slot.status !== 'available');
+
+  if (userInWaitingIndex > -1) {
+    waitingList.splice(userInWaitingIndex, 1);
+    sendWhatsAppMessage(sender, "You've been removed from the waiting list.");
+    assignNextSlot();
+    return;
+  }
+
+  if (userInSlots) {
+    const slot = parkingSlots.find(slot => slot.phone === sender);
+    slot.status = 'available';
+    slot.assignedTo = null;
+    slot.phone = null;
+    sendWhatsAppMessage(sender, `You've released parking slot ${slot.number}.`);
+    assignNextSlot();
+    return;
+  }
+
+  sendWhatsAppMessage(sender, "You're neither on the waiting list nor assigned to any parking slot.");
+}
+
+// Function to handle acceptance of a parking slot
+function handleSlotAccept(sender) {
+  const slot = parkingSlots.find(slot => slot.phone === sender && slot.status === 'pending');
+
   if (slot) {
     slot.status = 'assigned';
-    const user = waitingList.find(user => user.phone === sender);
     sendWhatsAppMessage(sender, `Congratulations! You've been assigned parking slot ${slot.number}.`);
     waitingList = waitingList.filter(user => user.phone !== sender);
-    console.log(`Slot ${slot.number} assigned to ${user.name}.`);
+    console.log(`Slot ${slot.number} assigned to ${slot.assignedTo}.`);
 
     // Optionally, assign another slot if available
     assignNextSlot();
@@ -220,37 +302,24 @@ function handleSlotAccept(sender) {
   }
 }
 
-// Handle declination of a parking slot
+// Function to handle declination of a parking slot
 function handleSlotDecline(sender) {
-  const slot = parkingSlots.find(slot => slot.assignedTo === sender && slot.status === 'pending');
-  
+  const slot = parkingSlots.find(slot => slot.phone === sender && slot.status === 'pending');
+
   if (slot) {
     slot.status = 'available';
     slot.assignedTo = null;
+    slot.phone = null;
     sendWhatsAppMessage(sender, `You've declined parking slot ${slot.number}. The slot is now available for others.`);
-    
-    // Remove the first user who declined
-    waitingList.shift();
-    
-    // Notify the next person
     assignNextSlot();
   } else {
     sendWhatsAppMessage(sender, "You don't have any pending slot assignments to decline.");
   }
 }
 
-// Notify the next person on the waiting list
-function askNextInLine() {
-  if (waitingList.length > 0) {
-    slotAvailable = true;
-    sendWhatsAppMessage(waitingList[0].phone, "A parking slot is available. Do you want it? Reply 'Accept' or 'Decline'.", buttons);
-  } else {
-    slotAvailable = false;
-  }
-}
 
-app.post('/parking_slots', (req,res) => {
-
+// Endpoint to configure parking slots via POST request
+app.post('/parking_slots', (req, res) => {
   const receivedSlots = req.body;
 
   // Validate the input
@@ -258,19 +327,20 @@ app.post('/parking_slots', (req,res) => {
     return res.status(400).json({ message: 'Invalid input: expected an array of slot numbers' });
   }
 
-  const allSlots = receivedSlots.map(slotNumber => ({
+  // Reset parking slots based on received data
+  parkingSlots = receivedSlots.map(slotNumber => ({
     number: slotNumber,
-    status: 'available', // possible statuses: 'available', 'pending', 'assigned'
+    status: 'available',
     assignedTo: null,
     phone: null
   }));
 
-  // In-memory storage
-  parkingSlots = [...allSlots];
+  waitingList = []; // Reset waiting list
 
-  res.status(200).send('Data received successfully');
+  console.log("The parking slots have been reset: ", parkingSlots);
 
-})
+  res.status(200).send('Parking slots have been reset successfully.');
+});
 
 // Endpoint to receive data from Excel macro
 app.post('/excel-data', (req, res) => {
@@ -278,12 +348,11 @@ app.post('/excel-data', (req, res) => {
   console.log('Data received from Excel:', receivedData);
 
   // Reset parking slots based on received data
-  // parkingSlots = parkingSlots.map(slot => ({
-  //   ...slot,
-  //   status: 'available',
-  //   assignedTo: null,
-  //   phone: null
-  // }));
+  parkingSlots.forEach(slot => {
+    slot.status = 'available';
+    slot.assignedTo = null;
+    slot.phone = null;
+  });
 
   waitingList = [];
 
@@ -316,7 +385,7 @@ app.post('/excel-data', (req, res) => {
   if (waitingList.length > 0) {
     // Create a personalized message for each member in the waiting list
     waitingList.forEach((member, i) => {
-      const waitingListMessage = `You are in the waiting list: \n${waitingList.map((m, index) => {
+      const waitingListMessage = `You are on the waiting list:\n${waitingList.map((m, index) => {
         return `${index + 1}. ${m.name}${index === i ? ' (you)' : ''}`;
       }).join('\n')}`;
 
@@ -325,40 +394,23 @@ app.post('/excel-data', (req, res) => {
     });
   }
 
-  res.status(200).send('Data received successfully');
+  res.status(200).send('Excel data processed successfully.');
 });
 
-// Twilio send message helper with buttons
-function sendWhatsAppMessage(to, message, buttons = []) {
+// Twilio send message helper without interactive buttons
+function sendWhatsAppMessage(to, message) {
   const client = new twilio(process.env.TWILIO_ACCOUNT_SID, process.env.TWILIO_AUTH_TOKEN);
-
-  const interactiveButtons = buttons.length > 0 ? buttons.map(button => ({
-    type: 'reply',
-    reply: {
-      id: button.id,
-      title: button.title
-    }
-  })) : [];
 
   client.messages.create({
     body: message,
     from: 'whatsapp:+14155238886',
-    to: to,
-    interactive: {
-      type: 'button',
-      body: {
-        text: message
-      },
-      action: {
-        buttons: interactiveButtons
-      }
-    }
+    to: to
   })
-  .then(message => console.log('Message sent:', message.sid, 'to', to))
+  .then(message => console.log('Message sent:', message.body, 'to', to))
   .catch(error => console.error('Error sending message:', error));
 }
 
-// Twilio send message helper without buttons
+// Twilio send message helper with interactive buttons (using template messages)
 function sendWhatsAppMessage2(to, message) {
   const client = new twilio(process.env.TWILIO_ACCOUNT_SID, process.env.TWILIO_AUTH_TOKEN);
   const template_id = 'HX11c138027519a9b312f9d550da94d35e'; // Ensure this template ID is correct and approved
@@ -372,7 +424,7 @@ function sendWhatsAppMessage2(to, message) {
     contentSid: template_id,
     contentVariables: variablesJson
   })
-  .then(message => console.log('Message sent:', message.sid))
+  .then(message => console.log('Message sent:', message.body))
   .catch(error => console.error('Error sending message:', error));
 }
 
