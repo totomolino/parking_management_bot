@@ -246,7 +246,7 @@ function handleShowAll(sender) {
 
   if (userInSlots) {
     const slot = parkingSlots.find((slot) => slot.phone === sender);
-    message += `You are assigned to parking slot ${slot.number}.\n`;
+    message += `You are assigned to parking slot *${slot.number}*.\n`;
   }
 
   if (userInWaiting) {
