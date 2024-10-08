@@ -154,7 +154,6 @@ app.post("/whatsapp", (req, res) => {
       );
   }
 
-  res.sendStatus(200);
 });
 
 // Function to assign the next available slot to the first person in the waiting list
