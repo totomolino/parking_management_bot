@@ -153,7 +153,6 @@ app.post("/whatsapp", (req, res) => {
         "Unknown command. Please use 'Add me', 'Show all', 'Show parking', 'Show waiting list', 'Cancel', 'Accept', or 'Decline'."
       );
   }
-
 });
 
 // Function to assign the next available slot to the first person in the waiting list
@@ -177,7 +176,7 @@ function assignNextSlot() {
   availableSlot.phone = nextPerson.phone;
 
   // Notify the user with interactive buttons
-  sendWhatsAppMessage2(
+  sendMessageWithButtons(
     nextPerson.phone,
     `A parking slot is available!\nPlease confirm if you want parking slot *${availableSlot.number}*.`
   );
@@ -218,7 +217,7 @@ function handleAddMe(sender, name) {
     availableSlot.status = "pending";
     availableSlot.assignedTo = name;
     availableSlot.phone = sender;
-    sendWhatsAppMessage2(
+    sendMessageWithButtons(
       sender,
       `A parking slot is available!\nPlease confirm if you want parking slot *${availableSlot.number}*.`
     );
@@ -450,7 +449,7 @@ app.post("/excel-data", (req, res) => {
         console.log(`${person} has parking slot ${slot.number}.`);
 
         // Notify the assigned user
-        sendWhatsAppMessage2(
+        sendMessageWithButtons(
           phone,
           `You have been assigned to parking slot ${slot.number}.`
         );
@@ -497,7 +496,7 @@ function sendWhatsAppMessage(to, message) {
 }
 
 // Twilio send message helper with interactive buttons (using template messages)
-function sendWhatsAppMessage2(to, message) {
+function sendMessageWithButtons(to, message) {
   const client = new twilio(
     process.env.TWILIO_ACCOUNT_SID,
     process.env.TWILIO_AUTH_TOKEN
