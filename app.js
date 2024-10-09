@@ -631,7 +631,7 @@ function sendMessageWithButtons(to, message) {
     process.env.TWILIO_ACCOUNT_SID,
     process.env.TWILIO_AUTH_TOKEN
   );
-  const template_id = "HX11c138027519a9b312f9d550da94d35e"; // Ensure this template ID is correct and approved
+  const template_id = "HXfaa5bc60e6e735ea9f0a78b483216e8b"; // Ensure this template ID is correct and approved
 
   const variables = { 1: message };
   const variablesJson = JSON.stringify(variables);
