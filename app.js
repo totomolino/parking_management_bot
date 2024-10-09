@@ -174,16 +174,18 @@ app.post("/whatsapp", (req, res) => {
 });
 
 // Generic function to assign a slot to a user with a timeout
-function assignSlotToUser(slot, user, timeoutDuration) {
+function assignSlotToUser(
+  slot,
+  user,
+  timeoutDuration,
+  message = `A parking slot is available!\nPlease confirm if you want parking slot *${slot.number}*.`
+) {
   slot.status = "pending";
   slot.assignedTo = `${user.name} (Pending)`;
   slot.phone = user.phone;
 
   // Notify the user with interactive buttons
-  sendMessageWithButtons(
-    user.phone,
-    `A parking slot is available!\nPlease confirm if you want parking slot *${slot.number}*.`
-  );
+  sendMessageWithButtons(user.phone, message);
 
   // Set up the timeout
   slot.timeoutHandle = setTimeout(() => {
@@ -576,7 +578,8 @@ app.post("/excel-data", (req, res) => {
         assignSlotToUser(
           slot,
           { name: person, phone },
-          2 * 60 * 60 * 1000 // 2 hours in milliseconds
+          2 * 60 * 60 * 1000, // 2 hours in milliseconds
+          `The parking slot *${slot.number}* is yours!\nPlease confirm or decline before 7pm.`
         );
       }
     }
