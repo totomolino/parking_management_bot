@@ -31,6 +31,7 @@ const initialSlots = [
   status: "available", // possible statuses: 'available', 'pending', 'assigned'
   assignedTo: null,
   phone: null,
+  timeoutHandle: null, // To store the timeout reference
 }));
 
 // In-memory storage
@@ -153,10 +154,51 @@ app.post("/whatsapp", (req, res) => {
         "Unknown command. Please use 'Add me', 'Show all', 'Show parking', 'Show waiting list', 'Cancel', 'Accept', or 'Decline'."
       );
   }
+
+  res.status(200).send("OK"); // Respond to Twilio immediately
 });
 
+// Generic function to assign a slot to a user with a timeout
+function assignSlotToUser(slot, user, timeoutDuration) {
+  slot.status = "pending";
+  slot.assignedTo = `${user.name} (Pending)`;
+  slot.phone = user.phone;
+
+  // Notify the user with interactive buttons
+  sendMessageWithButtons(
+    user.phone,
+    `A parking slot is available!\nPlease confirm if you want parking slot *${slot.number}*.`
+  );
+
+  // Set up the timeout
+  slot.timeoutHandle = setTimeout(() => {
+    // Check if the slot is still pending
+    if (slot.status === "pending" && slot.phone === user.phone) {
+      console.log(
+        `User ${user.phone} did not respond in time. Releasing slot ${slot.number}.`
+      );
+      // Release the slot
+      slot.status = "available";
+      slot.assignedTo = null;
+      slot.phone = null;
+      slot.timeoutHandle = null;
+
+      // Notify the user about timeout (optional)
+      sendWhatsAppMessage(
+        user.phone,
+        `You did not respond in time for parking slot ${slot.number}. The slot is now available for others.`
+      );
+
+      // Assign to the next user in the waiting list
+      assignNextSlot();
+    }
+    console.log(slot);
+  }, timeoutDuration);
+}
+
 // Function to assign the next available slot to the first person in the waiting list
-function assignNextSlot() {
+function assignNextSlot(timeoutDuration = 10 * 60 * 1000) {
+  // Default 10 minutes
   if (waitingList.length === 0) return;
 
   // Find the first available slot
@@ -170,16 +212,9 @@ function assignNextSlot() {
 
   // Assign the slot to the first person in the waiting list
   const nextPerson = waitingList[0];
-  waitingList.splice(0, 1); //removing the first from waiting list
-  availableSlot.status = "pending";
-  availableSlot.assignedTo = nextPerson.name + " (Pending)";
-  availableSlot.phone = nextPerson.phone;
+  waitingList.splice(0, 1); // Remove the first from waiting list
 
-  // Notify the user with interactive buttons
-  sendMessageWithButtons(
-    nextPerson.phone,
-    `A parking slot is available!\nPlease confirm if you want parking slot *${availableSlot.number}*.`
-  );
+  assignSlotToUser(availableSlot, nextPerson, timeoutDuration);
 }
 
 // Function to handle the 'add me' command
@@ -213,13 +248,11 @@ function handleAddMe(sender, name) {
     (slot) => slot.status === "available"
   );
   if (availableSlot) {
-    // Assign slot immediately
-    availableSlot.status = "pending";
-    availableSlot.assignedTo = name;
-    availableSlot.phone = sender;
-    sendMessageWithButtons(
-      sender,
-      `A parking slot is available!\nPlease confirm if you want parking slot *${availableSlot.number}*.`
+    // Assign slot with 10 minutes timeout
+    assignSlotToUser(
+      availableSlot,
+      { name, phone: sender },
+      10 * 60 * 1000 // 10 minutes in milliseconds
     );
   } else {
     // Add to waiting list
@@ -331,6 +364,13 @@ function handleCancel(sender) {
 
   if (userInSlots) {
     const slot = parkingSlots.find((slot) => slot.phone === sender);
+
+    // Clear the timeout if it's pending
+    if (slot.timeoutHandle) {
+      clearTimeout(slot.timeoutHandle);
+      slot.timeoutHandle = null;
+    }
+
     slot.status = "available";
     slot.assignedTo = null;
     slot.phone = null;
@@ -352,6 +392,12 @@ function handleSlotAccept(sender, name) {
   );
 
   if (slot) {
+    // Clear the timeout as the user has responded
+    if (slot.timeoutHandle) {
+      clearTimeout(slot.timeoutHandle);
+      slot.timeoutHandle = null;
+    }
+
     slot.status = "assigned";
     slot.assignedTo = name;
     sendWhatsAppMessage(
@@ -375,6 +421,12 @@ function handleSlotDecline(sender) {
   );
 
   if (slot) {
+    // Clear the timeout as the user has responded
+    if (slot.timeoutHandle) {
+      clearTimeout(slot.timeoutHandle);
+      slot.timeoutHandle = null;
+    }
+
     slot.status = "available";
     slot.assignedTo = null;
     slot.phone = null;
@@ -402,12 +454,21 @@ app.post("/parking_slots", (req, res) => {
       .json({ message: "Invalid input: expected an array of slot numbers" });
   }
 
+  // Clear all existing timeouts
+  parkingSlots.forEach((slot) => {
+    if (slot.timeoutHandle) {
+      clearTimeout(slot.timeoutHandle);
+      slot.timeoutHandle = null;
+    }
+  });
+
   // Reset parking slots based on received data
   parkingSlots = receivedSlots.map((slotNumber) => ({
     number: slotNumber,
     status: "available",
     assignedTo: null,
     phone: null,
+    timeoutHandle: null,
   }));
 
   waitingList = []; // Reset waiting list
@@ -422,8 +483,12 @@ app.post("/excel-data", (req, res) => {
   const receivedData = req.body;
   console.log("Data received from Excel:", receivedData);
 
-  // Reset parking slots based on received data
+  // Clear all existing timeouts
   parkingSlots.forEach((slot) => {
+    if (slot.timeoutHandle) {
+      clearTimeout(slot.timeoutHandle);
+      slot.timeoutHandle = null;
+    }
     slot.status = "available";
     slot.assignedTo = null;
     slot.phone = null;
@@ -448,10 +513,11 @@ app.post("/excel-data", (req, res) => {
         slot.phone = phone;
         console.log(`${person} has parking slot ${slot.number}.`);
 
-        // Notify the assigned user
-        sendMessageWithButtons(
-          phone,
-          `You have been assigned to parking slot ${slot.number}.`
+        // Notify the assigned user with a 2-hour timeout
+        assignSlotToUser(
+          slot,
+          { name: person, phone },
+          2 * 60 * 60 * 1000 // 2 hours in milliseconds
         );
       }
     }
