@@ -704,9 +704,11 @@ function sendMessageWithButtonsFromBusiness(to, slot) {
     process.env.TWILIO_ACCOUNT_SID,
     process.env.TWILIO_AUTH_TOKEN
   );
+
+  console.log("Sending with busines initiated message")
   const template_id = "HX1d2fbc51c4b8e5ba8612845e810b0bb6"; // Ensure this template ID is correct and approved
   
-  const variables = { 1: slot };
+  const variables = { 1: slot.number };
   const variablesJson = JSON.stringify(variables);
 
   client.messages
