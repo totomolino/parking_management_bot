@@ -8,6 +8,7 @@ require("dotenv").config(); // Load environment variables from .env file
 
 const app = express();
 const port = 3000;
+const twilioNumber = "whatsapp:+12023351857"
 
 // Middleware setup
 app.use(bodyParser.urlencoded({ extended: false }));
@@ -185,7 +186,11 @@ function assignSlotToUser(
   slot.phone = user.phone;
 
   // Notify the user with interactive buttons
-  sendMessageWithButtons(user.phone, message);
+  if(message === 'BS'){
+    sendMessageWithButtonsFromBusiness(user.phone, slot)
+  }else{
+    sendMessageWithButtons(user.phone, message);
+  }
 
   // Set up the timeout
   slot.timeoutHandle = setTimeout(() => {
@@ -579,7 +584,7 @@ app.post("/excel-data", (req, res) => {
           slot,
           { name: person, phone },
           2 * 60 * 60 * 1000, // 2 hours in milliseconds
-          `The parking slot *${slot.number}* is yours!\nPlease confirm or decline before 7pm.`
+          "BS"
         );
       }
     }
@@ -592,14 +597,14 @@ app.post("/excel-data", (req, res) => {
   if (waitingList.length > 0) {
     // Create a personalized message for each member in the waiting list
     waitingList.forEach((member, i) => {
-      const waitingListMessage = `You are on the waiting list:\n${waitingList
+      const waitingListMessage = `${waitingList
         .map((m, index) => {
           return `${index + 1}. ${m.name}${index === i ? " (you)" : ""}`;
         })
         .join("\n")}`;
 
       // Send a WhatsApp message to each waiting list member with their order
-      sendWhatsAppMessage(member.phone, waitingListMessage);
+      sendWaitingListMessage(member.phone, waitingListMessage);
       logAction(
         member.phone,
         member.name,
@@ -621,12 +626,55 @@ function sendWhatsAppMessage(to, message) {
   client.messages
     .create({
       body: message,
-      from: "whatsapp:+14155238886",
+      from: twilioNumber,
       to: to,
     })
     .then((message) => console.log("Message sent:", message.body, "to", to))
     .catch((error) => console.error("Error sending message:", error));
 }
+
+// function sendWhatsAppMessage(to, message) {
+//   const client = new twilio(
+//     process.env.TWILIO_ACCOUNT_SID,
+//     process.env.TWILIO_AUTH_TOKEN
+//   );
+//   const template_id = "HX4e08c38162f3de30fd9336eb1370b64f";
+
+//   const variables = { 1: message };
+//   const variablesJson = JSON.stringify(variables);
+//   client.messages
+//     .create({
+//       from: twilioNumber,
+//       to: to,
+//       contentSid: template_id,
+//       contentVariables: variablesJson,
+//     })
+//     .then((message) => console.log("Message sent:", message.body, "to", to))
+//     .catch((error) => console.error("Error sending message:", error));
+// }
+
+function sendWaitingListMessage(to, message) {
+  const client = new twilio(
+    process.env.TWILIO_ACCOUNT_SID,
+    process.env.TWILIO_AUTH_TOKEN
+  );
+  const template_id = "HX38cbe7bc4b36cdb80502f8d6ca5a6b21";
+
+  const variables = { 1: message };
+  const variablesJson = JSON.stringify(variables);
+  client.messages
+    .create({
+      from: twilioNumber,
+      to: to,
+      contentSid: template_id,
+      contentVariables: variablesJson,
+    })
+    .then((message) => console.log("Message sent:", message.body, "to", to))
+    .catch((error) => console.error("Error sending message:", error));
+}
+
+
+
 
 // Twilio send message helper with interactive buttons (using template messages)
 function sendMessageWithButtons(to, message) {
@@ -634,14 +682,36 @@ function sendMessageWithButtons(to, message) {
     process.env.TWILIO_ACCOUNT_SID,
     process.env.TWILIO_AUTH_TOKEN
   );
-  const template_id = "HXfaa5bc60e6e735ea9f0a78b483216e8b"; // Ensure this template ID is correct and approved
-
+  const template_id = "HXba220fcf27481337670220b10c05af90"; // Ensure this template ID is correct and approved
+  
   const variables = { 1: message };
   const variablesJson = JSON.stringify(variables);
 
   client.messages
     .create({
-      from: "whatsapp:+14155238886",
+      from: twilioNumber,
+      to: to,
+      contentSid: template_id,
+      contentVariables: variablesJson,
+    })
+    .then((message) => console.log("Message sent:", message.body))
+    .catch((error) => console.error("Error sending message:", error));
+}
+
+
+function sendMessageWithButtonsFromBusiness(to, slot) {
+  const client = new twilio(
+    process.env.TWILIO_ACCOUNT_SID,
+    process.env.TWILIO_AUTH_TOKEN
+  );
+  const template_id = "HX1d2fbc51c4b8e5ba8612845e810b0bb6"; // Ensure this template ID is correct and approved
+  
+  const variables = { 1: slot };
+  const variablesJson = JSON.stringify(variables);
+
+  client.messages
+    .create({
+      from: twilioNumber,
       to: to,
       contentSid: template_id,
       contentVariables: variablesJson,
