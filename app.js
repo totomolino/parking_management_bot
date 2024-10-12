@@ -164,9 +164,11 @@ app.post("/whatsapp", (req, res) => {
   const messageBody = req.body.Body.trim().toLowerCase();
   const sender = req.body.From; // WhatsApp number
   // const name = req.body.ProfileName;
-  console.log(sender)
-  const name = csvData.find((row) => row.phone ===  sender.replace("whatsapp:", "")).name;
-  console.log(name)
+  
+  const entry = csvData.find((row) => row.phone ===  sender.replace("whatsapp:", ""));
+
+  const name = entry ? entry.name : sender;
+  
 
   switch (true) {
     case messageBody === "add me":
