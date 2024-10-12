@@ -386,6 +386,17 @@ function appendToCSV(reservation) {
   });
 }
 
+function refreshReservationCSV(){
+  const updatedCSV = currentReservations.map((reservation) => `${reservation.sender},${reservation.name},${reservation.timestamp},${reservation.priority}`).join('\n');
+  
+  fs.writeFile(reservationsFilePath, updatedCSV + '\n', (err) => {
+    if (err) {
+      console.error("Error writing CSV file:", err);
+      return res.status(500).json({ message: "Failed to update CSV file." });
+    }
+  });  
+}
+
 // Function to sort reservations based on priority and timestamp
 function sortReservations() {
   currentReservations.sort((a, b) => {
@@ -434,6 +445,7 @@ function removeDuplicates() {
 
   // Convert back to array
   currentReservations = Object.values(uniqueReservations);
+  refreshReservationCSV();
   console.log("Duplicates removed, only the earliest reservations kept.");
 }
 
@@ -980,7 +992,7 @@ ngrok
 // Immediately read the CSV file when the program starts
 readCSV()
   .then(() => {
-    console.log('CSV data loaded at startup:', csvData);
+    // console.log('CSV data loaded at startup:', csvData);
     // Here you can call other functions or start your application logic
   })
   .catch((error) => {
