@@ -85,11 +85,6 @@ const initialSlots = [
 let parkingSlots = [...initialSlots];
 let waitingList = [];
 
-// Predefined buttons for interactive messages
-const buttons = [
-  { id: "button_accept", title: "Accept" },
-  { id: "button_decline", title: "Decline" },
-];
 
 // Health check endpoint
 app.get("/health", (_, res) => {
@@ -168,7 +163,10 @@ function generateFullTable() {
 app.post("/whatsapp", (req, res) => {
   const messageBody = req.body.Body.trim().toLowerCase();
   const sender = req.body.From; // WhatsApp number
-  const name = req.body.ProfileName;
+  // const name = req.body.ProfileName;
+  console.log(sender)
+  const name = csvData.find((row) => row.phone ===  sender.replace("whatsapp:", "")).name;
+  console.log(name)
 
   switch (true) {
     case messageBody === "add me":
