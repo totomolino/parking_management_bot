@@ -5,6 +5,37 @@ const cors = require("cors");
 const ngrok = require("@ngrok/ngrok");
 const fs = require("fs"); // Import fs module for logging
 require("dotenv").config(); // Load environment variables from .env file
+const csvParser = require('csv-parser');
+
+const filePath = './roster.csv'; // Path to your CSV file
+
+let csvData = []; // In-memory storage for CSV data
+
+// Function to read CSV file and populate csvData
+function readCSV() {
+  const results = [];
+  fs.createReadStream(filePath)
+    .pipe(csvParser())
+    .on('data', (row) => {
+      results.push(row);
+    })
+    .on('end', () => {
+      console.log('CSV file successfully processed');
+      csvData = results;
+    });
+}
+
+// Function to write CSV data to file
+function writeCSV(data, res) {
+  const updatedCSV = data.map((row) => `${row.name},${row.phone},${row.priority}`).join('\n');
+  fs.writeFile(filePath, updatedCSV, (err) => {
+    if (err) {
+      console.error("Error writing CSV file:", err);
+      return res.status(500).json({ message: "Failed to update CSV file." });
+    }
+    res.status(200).json({ message: "CSV file updated successfully." });
+  });
+}
 
 const app = express();
 const port = 3000;
@@ -621,6 +652,60 @@ app.post("/excel-data", (req, res) => {
 
   res.status(200).send("Excel data processed successfully.");
 });
+
+// Endpoint to update the user roster data
+app.post("/update-roster", (req, res) => {
+  const users = req.body;
+
+  if (!Array.isArray(users) || users.length === 0) {
+    return res.status(400).json({ message: "Request body must contain a list of users." });
+  }
+
+  // Check if the file exists
+  fs.access(filePath, fs.constants.F_OK, (err) => {
+    if (err) {
+      console.log("File does not exist, creating new roster.csv file");
+
+      // If file doesn't exist, create it with the data from the request body
+      csvData = users.map(user => ({
+        name: user.name || "",
+        phone: user.phone || "",
+        priority: user.priority || ""
+      }));
+
+      // Write the new CSV file
+      return writeCSV(csvData, res);
+    }
+
+    // If file exists, read the CSV file first
+    
+    fs.createReadStream(filePath)
+      .pipe(csvParser())
+      .on('data', (row) => {
+        csvData.push(row);
+      })
+      .on('end', () => {
+        // For each user in the request body, update or add to csvData
+        users.forEach((user) => {
+          const { name, phone, priority } = user;
+          const existingEntry = csvData.find((entry) => entry.phone === phone);
+
+          if (existingEntry) {
+            // Update existing entry
+            if (name) existingEntry.name = name;
+            if (priority) existingEntry.priority = priority;
+          } else {
+            // Add new entry if it doesn't exist
+            csvData.push({ name, phone, priority });
+          }
+        });
+
+        // Write the updated data back to the CSV file
+        writeCSV(csvData, res);
+      });
+  });
+});
+
 
 // Twilio send message helper without interactive buttons
 function sendWhatsAppMessage(to, message) {
