@@ -12,6 +12,10 @@ const filePath = './roster.csv'; // Path to your CSV file
 let csvData = []; // In-memory storage for CSV data
 const maxRetries = 3;
 
+const OPERATING_START_HOUR = 9; // 9 AM
+const OPERATING_END_HOUR = 17; // 5 PM
+
+
 // Function to read CSV file and populate csvData
 function readCSV() {
   const results = [];
@@ -160,20 +164,42 @@ function generateFullTable() {
   return parkingTable + "\n" + "Waiting List:\n" + waitingTable;
 }
 
+function getCurrentTime() {
+  const now = new Date();
+  now.setHours(now.getHours() - 3); // Adjust to UTC-3
+  return now;
+}
+
+
+function isOperatingHours() {
+  const now = getCurrentTime();
+  const currentHour = now.getHours();
+  return currentHour >= OPERATING_START_HOUR && currentHour < OPERATING_END_HOUR;
+}
+
+
 // Handle incoming WhatsApp messages
 app.post("/whatsapp", (req, res) => {
   const messageBody = req.body.Body.trim().toLowerCase();
   const sender = req.body.From; // WhatsApp number
   // const name = req.body.ProfileName;
+  // console.log(req);
   
   const entry = csvData.find((row) => row.phone ===  sender.replace("whatsapp:", ""));
 
   const name = entry ? entry.name : sender;
+
+  const timestamp = getCurrentTime().toISOString();
+  
   
 
   switch (true) {
-    case messageBody === "add me":
-      handleAddMe(sender, name);
+    case messageBody === "reserve":
+      if (isOperatingHours()) {
+        handleReserve(sender, name, timestamp);
+      } else {
+        handleAddMe(sender, name);
+      }
       break;
     case messageBody === "show all":
       handleShowAll(sender);
