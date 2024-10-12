@@ -3,3 +3,7 @@
 .env
 bot_actions.log
 roster.csv
+reservations.csv
+bot_actions.log
+*.log
+*.log

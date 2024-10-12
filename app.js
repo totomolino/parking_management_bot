@@ -7,27 +7,66 @@ const fs = require("fs"); // Import fs module for logging
 require("dotenv").config(); // Load environment variables from .env file
 const csvParser = require('csv-parser');
 
-const filePath = './roster.csv'; // Path to your CSV file
+const rosterFile = './roster.csv'; // Path to your CSV file
+const reservationsFilePath = './reservations.csv'; // Path to your reservations CSV file
+
+let currentReservations = []; // In-memory storage for current reservations
 
 let csvData = []; // In-memory storage for CSV data
+
+
 const maxRetries = 3;
 
 const OPERATING_START_HOUR = 9; // 9 AM
 const OPERATING_END_HOUR = 17; // 5 PM
 
+// Function to read reservations.csv and populate currentReservations
+function readReservationsCSV() {
+  fs.access(reservationsFilePath, fs.constants.F_OK, (err) => {
+    if (err) {
+      console.log("reservations.csv does not exist. A new file will be created upon first reservation.");
+      currentReservations = [];
+      return;
+    }
+
+    fs.createReadStream(reservationsFilePath)
+      .pipe(csvParser())
+      .on('data', (row) => {
+        currentReservations.push(row);
+      })
+      .on('end', () => {
+        console.log('reservations.csv successfully loaded.');
+      })
+      .on('error', (error) => {
+        console.error("Error reading reservations.csv:", error);
+      });
+  });
+}
+
+
 
 // Function to read CSV file and populate csvData
 function readCSV() {
-  const results = [];
-  fs.createReadStream(filePath)
-    .pipe(csvParser())
-    .on('data', (row) => {
-      results.push(row);
-    })
-    .on('end', () => {
-      console.log('CSV file successfully processed');
-      csvData = results;
-    });
+  return new Promise((resolve, reject) => {
+    const results = [];
+    fs.createReadStream(rosterFile) // Ensure you provide the correct file path
+      .pipe(csvParser({ headers: false }))
+      .on('data', (row) => {
+        results.push(row);
+      })
+      .on('end', () => {
+        console.log('CSV file successfully processed');
+        csvData = results.map(user => ({
+          name: user[0] || "",
+          phone: user[1] || "",
+          priority: user[2] || ""
+        }));
+        resolve(); // Resolve the promise when done
+      })
+      .on('error', (error) => {
+        reject(error); // Reject the promise on error
+      });
+  });
 }
 
 // Function to write CSV data to file
@@ -186,8 +225,9 @@ app.post("/whatsapp", (req, res) => {
   // console.log(req);
   
   const entry = csvData.find((row) => row.phone ===  sender.replace("whatsapp:", ""));
-
-  const name = entry ? entry.name : sender;
+  console.log(entry);
+  console.log(csvData);
+  const name = entry ? entry.name : sender;  
 
   const timestamp = getCurrentTime().toISOString();
   
@@ -195,12 +235,11 @@ app.post("/whatsapp", (req, res) => {
 
   switch (true) {
     case messageBody === "reserve":
-      if (isOperatingHours()) {
-        handleReserve(sender, name, timestamp);
-      } else {
-        handleAddMe(sender, name);
-      }
+      handleReserve(sender, name, timestamp);
       break;
+    case messageBody === "add me":
+      handleAddMe(sender, name);
+      break;      
     case messageBody === "show all":
       handleShowAll(sender);
       break;
@@ -219,6 +258,12 @@ app.post("/whatsapp", (req, res) => {
     case messageBody === "decline":
       handleSlotDecline(sender, name);
       break;
+    case messageBody === "duplicates":
+      removeDuplicates();
+      break;
+    case messageBody === "order":
+      sortReservations();
+      break;            
     case messageBody === "release":
       handleSlotDecline(parkingSlots[0].phone);
       break;
@@ -303,7 +348,95 @@ function assignNextSlot(timeoutDuration = 10 * 60 * 1000) {
   waitingList.splice(0, 1); // Remove the first from waiting list
 
   assignSlotToUser(availableSlot, nextPerson, timeoutDuration);
+};
+
+// Function to handle the reservation
+function handleReserve(sender, name, timestamp) {
+
+  const entry = csvData.find((row) => row.phone ===  sender.replace("whatsapp:", ""));
+
+  const priority = entry ? entry.priority : 10;
+
+  // Create a reservation object
+  const reservation = {
+    sender,
+    name,
+    timestamp,
+    priority
+  };
+
+  // Add to in-memory variable
+  currentReservations.push(reservation);
+
+  // Append the reservation to the CSV file
+  appendToCSV(reservation);
 }
+
+// Function to append reservation to CSV (you may need to adjust for actual CSV writing)
+function appendToCSV(reservation) {
+  const fs = require('fs');
+  const csvLine = `${reservation.sender},${reservation.name},${reservation.timestamp},${reservation.priority}\n`;
+  
+  fs.appendFile('reservations.csv', csvLine, (err) => {
+    if (err) {
+      console.error('Error writing to CSV:', err);
+    } else {
+      console.log('Reservation added to CSV.');
+    }
+  });
+}
+
+// Function to sort reservations based on priority and timestamp
+function sortReservations() {
+  currentReservations.sort((a, b) => {
+    // Check if the reservation is before 9 AM
+    const before9AM = (reservation) => {
+      const date = new Date(reservation.timestamp);
+      return date.getHours() < 9;
+    };
+
+    // Assign priority
+    const priorityA = before9AM(a) ? -1 : parseInt(a.priority, 10) || 0;
+    const priorityB = before9AM(b) ? -1 : parseInt(b.priority, 10) || 0;
+
+    if (priorityA !== priorityB) {
+      return priorityB - priorityA; // Higher priority first
+    }
+
+    // If priorities are equal, sort by timestamp
+    const dateA = new Date(a.timestamp);
+    const dateB = new Date(b.timestamp);
+    return dateA - dateB; // Earlier reservations first
+  });
+
+  console.log("Reservations sorted based on priority and timestamp.");
+}
+
+// Function to remove duplicates based on the earliest reservation
+function removeDuplicates() {
+  const uniqueReservations = {};
+  
+  currentReservations.forEach(reservation => {
+    const key = reservation.name; // Assuming the name is the unique identifier
+    
+    // Only add the reservation if it's not already in the uniqueReservations
+    if (!uniqueReservations[key]) {
+      uniqueReservations[key] = reservation;
+    } else {
+      // Compare timestamps to keep the earliest one
+      const existingTimestamp = new Date(uniqueReservations[key].timestamp);
+      const newTimestamp = new Date(reservation.timestamp);
+      if (newTimestamp < existingTimestamp) {
+        uniqueReservations[key] = reservation;
+      }
+    }
+  });
+
+  // Convert back to array
+  currentReservations = Object.values(uniqueReservations);
+  console.log("Duplicates removed, only the earliest reservations kept.");
+}
+
 
 // Function to handle the 'add me' command
 function handleAddMe(sender, name) {
@@ -842,4 +975,14 @@ ngrok
   })
   .catch((error) => {
     console.error("Error connecting ngrok:", error);
+  });
+
+// Immediately read the CSV file when the program starts
+readCSV()
+  .then(() => {
+    console.log('CSV data loaded at startup:', csvData);
+    // Here you can call other functions or start your application logic
+  })
+  .catch((error) => {
+    console.error('Error reading CSV:', error);
   });
