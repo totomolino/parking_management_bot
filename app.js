@@ -10,6 +10,7 @@ const csvParser = require('csv-parser');
 const filePath = './roster.csv'; // Path to your CSV file
 
 let csvData = []; // In-memory storage for CSV data
+const maxRetries = 3;
 
 // Function to read CSV file and populate csvData
 function readCSV() {
@@ -678,6 +679,8 @@ app.post("/update-roster", (req, res) => {
     }
 
     // If file exists, read the CSV file first
+
+    csvData = []
     
     fs.createReadStream(filePath)
       .pipe(csvParser())
@@ -719,30 +722,11 @@ function sendWhatsAppMessage(to, message) {
       body: message,
       from: twilioNumber,
       to: to,
+      timeout: 5000
     })
     .then((message) => console.log("Message sent:", message.body, "to", to))
     .catch((error) => console.error("Error sending message:", error));
 }
-
-// function sendWhatsAppMessage(to, message) {
-//   const client = new twilio(
-//     process.env.TWILIO_ACCOUNT_SID,
-//     process.env.TWILIO_AUTH_TOKEN
-//   );
-//   const template_id = "HX4e08c38162f3de30fd9336eb1370b64f";
-
-//   const variables = { 1: message };
-//   const variablesJson = JSON.stringify(variables);
-//   client.messages
-//     .create({
-//       from: twilioNumber,
-//       to: to,
-//       contentSid: template_id,
-//       contentVariables: variablesJson,
-//     })
-//     .then((message) => console.log("Message sent:", message.body, "to", to))
-//     .catch((error) => console.error("Error sending message:", error));
-// }
 
 function sendWaitingListMessage(to, message) {
   const client = new twilio(
@@ -759,12 +743,11 @@ function sendWaitingListMessage(to, message) {
       to: to,
       contentSid: template_id,
       contentVariables: variablesJson,
+      timeout: 5000
     })
     .then((message) => console.log("Message sent:", message.body, "to", to))
     .catch((error) => console.error("Error sending message:", error));
 }
-
-
 
 
 // Twilio send message helper with interactive buttons (using template messages)
@@ -784,6 +767,7 @@ function sendMessageWithButtons(to, message) {
       to: to,
       contentSid: template_id,
       contentVariables: variablesJson,
+      timeout: 5000
     })
     .then((message) => console.log("Message sent:", message.body))
     .catch((error) => console.error("Error sending message:", error));
@@ -808,6 +792,7 @@ function sendMessageWithButtonsFromBusiness(to, slot) {
       to: to,
       contentSid: template_id,
       contentVariables: variablesJson,
+      timeout: 5000
     })
     .then((message) => console.log("Message sent:", message.body))
     .catch((error) => console.error("Error sending message:", error));
