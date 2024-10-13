@@ -377,7 +377,7 @@ function appendToCSV(reservation) {
   const fs = require('fs');
   const csvLine = `${reservation.sender},${reservation.name},${reservation.timestamp},${reservation.priority}\n`;
   
-  fs.appendFile('reservations.csv', csvLine, (err) => {
+  fs.appendFile(reservationsFilePath, csvLine, (err) => {
     if (err) {
       console.error('Error writing to CSV:', err);
     } else {
