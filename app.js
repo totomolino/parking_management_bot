@@ -488,7 +488,8 @@ function handleSlotAccept(sender, name) {
     }
 
     slot.status = "assigned";
-    slot.assignedTo = name;
+    slot.assignedTo = slot.assignedTo || name; //Assign name only if it's empty (waiting list)
+
     sendWhatsAppMessage(
       sender,
       `Congratulations! You've been assigned parking slot ${slot.number}.`
