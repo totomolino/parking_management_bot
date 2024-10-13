@@ -20,17 +20,21 @@ async function main(workbook: ExcelScript.Workbook) {
 
         for (let i = 0; i < data.length; i++) {
             let row = data[i];
+			
+			const parking_slot = row[13]
 
             // Create an object for each row, extracting phone (col C), name (col E), and parking slot (col P)
-            let item = {
-                Parking_slot: row[13],  // Column P (index 12)
-                Person: row[2],         // Column E (index 2)
-                // Number: row[0]          // Column C (index 0)
-                Number: "+5491166070996"          // Column C (index 0)
-            };
+			if(parking_slot){
+				let item = {
+					Parking_slot: parking_slot,  // Column P (index 12)
+					Person: row[2],         // Column E (index 2)
+					// Number: row[0]          // Column C (index 0)
+					Number: "+5491166070996"          // Column C (index 0)
+				};
 
-            // Push the item to the JSON array
-            jsonItems.push(item);
+				// Push the item to the JSON array
+				jsonItems.push(item);
+			}
         }
 
         // Convert the array of items to a JSON string
