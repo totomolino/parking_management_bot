@@ -235,6 +235,7 @@ app.post("/whatsapp", (req, res) => {
       break;
     case messageBody === "show all":
       handleShowAll(sender);
+      break;
     case messageBody === "show image":
       handleShowImage(sender);
       break;
