@@ -6,8 +6,11 @@ const ngrok = require("@ngrok/ngrok");
 const fs = require("fs"); // Import fs module for logging
 require("dotenv").config(); // Load environment variables from .env file
 const csvParser = require('csv-parser');
+const { createCanvas, loadImage } = require('canvas');
 
 const filePath = './roster.csv'; // Path to your CSV file
+const imagePath = 'original_image.jpg';
+const outputPath = 'modified_image.jpg';
 
 let csvData = []; // In-memory storage for CSV data
 const maxRetries = 3;
@@ -24,6 +27,61 @@ function readCSV() {
       console.log('CSV file successfully processed');
       csvData = results;
     });
+}
+
+// Configuration for image generation
+const cellWidth = 70;  // Width of each cell in pixels
+const cellHeight = 22; // Height of each cell in pixels
+
+// Function to modify parking slot image
+async function generateParkingImage() {
+    try {
+        const image = await loadImage(imagePath);
+        const canvas = createCanvas(image.width, image.height);
+        const ctx = canvas.getContext('2d');
+
+        ctx.drawImage(image, 0, 0);
+        ctx.font = '15px Arial';
+        ctx.fillStyle = 'black';
+
+        const textPositions = {};
+
+        // First pack of slots (C3 to C11)
+        parkingSlots.slice(0, 9).forEach((slot, i) => {
+            const row = 4 + i;
+            const position = `${(2 * cellWidth) + 5},${(row * cellHeight) - 5}`;
+            textPositions[position] = slot.assignedTo || '';
+        });
+
+        // Second pack of slots (C17 to C34)
+        parkingSlots.slice(9).forEach((slot, i) => {
+            const row = 17 + i;
+            const position = `${(2 * cellWidth) + 5},${(row * cellHeight) - 5}`;
+            textPositions[position] = slot.assignedTo || '';
+        });
+
+        // Waiting list (Column H, starting from row 25)
+        waitingList.forEach((person, i) => {
+            if (i < 18) { // Limit to 18 waiting list entries
+                const row = 25 + i;
+                const position = `${(7 * cellWidth) + 5},${(row * cellHeight) - 5}`;
+                textPositions[position] = person.name;
+            }
+        });
+
+        // Draw all text positions
+        for (const [position, text] of Object.entries(textPositions)) {
+            const [x, y] = position.split(',').map(Number);
+            ctx.fillText(text, x, y);
+        }
+
+        const buffer = canvas.toBuffer('image/jpeg');
+        fs.writeFileSync(outputPath, buffer);
+        return outputPath;
+    } catch (error) {
+        console.error('Error generating parking image:', error);
+        throw error;
+    }
 }
 
 // Function to write CSV data to file
@@ -177,6 +235,8 @@ app.post("/whatsapp", (req, res) => {
       break;
     case messageBody === "show all":
       handleShowAll(sender);
+    case messageBody === "show image":
+      handleShowImage(sender);
       break;
     case messageBody === "show parking":
       handleShowParking(sender);
@@ -341,6 +401,12 @@ function handleAddMe(sender, name) {
     // Optionally notify the next slot availability
     assignNextSlot();
   }
+}
+
+
+
+function handleShowImage(sender) {
+  sendParkingImage(sender)
 }
 
 // Function to handle the 'show all' command
@@ -655,6 +721,17 @@ app.post("/excel-data", (req, res) => {
   res.status(200).send("Excel data processed successfully.");
 });
 
+// Add new endpoint to get parking image
+app.get("/parking-image", async (req, res) => {
+    try {
+        await generateParkingImage();
+        res.sendFile(outputPath, { root: __dirname });
+    } catch (error) {
+        console.error("Error serving parking image:", error);
+        res.status(500).send("Error generating parking image");
+    }
+});
+
 // Endpoint to update the user roster data
 app.post("/update-roster", (req, res) => {
   const users = req.body;
@@ -784,8 +861,10 @@ function sendMessageWithButtonsFromBusiness(to, slot) {
   console.log("Sending with busines initiated message")
   const template_id = "HX1d2fbc51c4b8e5ba8612845e810b0bb6"; // Ensure this template ID is correct and approved
   
-  const variables = { 1: slot.number };
+  const variables = { 1: `${slot.number}` };
   const variablesJson = JSON.stringify(variables);
+
+  console.log(variables, variablesJson)
 
   client.messages
     .create({
@@ -797,6 +876,32 @@ function sendMessageWithButtonsFromBusiness(to, slot) {
     })
     .then((message) => console.log("Message sent:", message.body))
     .catch((error) => console.error("Error sending message:", error));
+}
+
+function sendParkingImage(to) {
+  const client = new twilio(
+    process.env.TWILIO_ACCOUNT_SID,
+    process.env.TWILIO_AUTH_TOKEN
+  );
+  
+  // Get current date in mm/dd/yyyy format
+  const today = new Date();
+  const date = `${(today.getMonth() + 1).toString().padStart(2, '0')}/${today.getDate().toString().padStart(2, '0')}/${today.getFullYear()}`;
+  
+  const template_id = "HX3b147be60e09c25a310861d39894b085";
+  const variables = { 1: date };
+  const variablesJson = JSON.stringify(variables);
+
+  client.messages
+    .create({
+      from: twilioNumber,
+      to: to,
+      contentSid: template_id,
+      contentVariables: variablesJson,
+      timeout: 5000
+    })
+    .then((message) => console.log("Date template message sent:", message.body, "to", to))
+    .catch((error) => console.error("Error sending date template message:", error));
 }
 
 // Start the server and ngrok
