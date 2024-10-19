@@ -554,7 +554,7 @@ function handleSlotAccept(sender, name) {
     }
 
     slot.status = "assigned";
-    slot.assignedTo = slot.assignedTo || name; //Assign name only if it's empty (waiting list)
+    slot.assignedTo = slot.assignedTo.replace(' (pending)', '') || name; //Assign name only if it's empty (waiting list)
 
     sendWhatsAppMessage(
       sender,
