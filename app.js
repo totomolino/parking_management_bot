@@ -905,21 +905,24 @@ function sendParkingImage(to) {
 }
 
 // Start the server and ngrok
-app.listen(port, () =>
+// app.listen(port, () =>
+//   console.log(`Node.js web server at http://localhost:${port} is running...`)
+// );
+app.listen(port,'0.0.0.0', () =>
   console.log(`Node.js web server at http://localhost:${port} is running...`)
 );
 
 // Get your endpoint online with ngrok
-ngrok
-  .connect({
-    addr: port,
-    authtoken: process.env.NGROK_AUTHTOKEN,
-    domain: "upward-gull-dear.ngrok-free.app",
-  })
-  .then((listener) => {
-    console.log(`Ingress established at: ${listener.url()}`);
-    // Here you can set up your Twilio webhook URL with the ngrok URL
-  })
-  .catch((error) => {
-    console.error("Error connecting ngrok:", error);
-  });
+// ngrok
+//   .connect({
+//     addr: port,
+//     authtoken: process.env.NGROK_AUTHTOKEN,
+//     domain: "upward-gull-dear.ngrok-free.app",
+//   })
+//   .then((listener) => {
+//     console.log(`Ingress established at: ${listener.url()}`);
+//     // Here you can set up your Twilio webhook URL with the ngrok URL
+//   })
+//   .catch((error) => {
+//     console.error("Error connecting ngrok:", error);
+//   });
