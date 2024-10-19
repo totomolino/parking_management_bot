@@ -41,7 +41,7 @@ async function generateParkingImage() {
         const ctx = canvas.getContext('2d');
 
         ctx.drawImage(image, 0, 0);
-        ctx.font = '15px Arial';
+        ctx.font = '15px Liberation Mono';
         ctx.fillStyle = 'black';
 
         const textPositions = {};
