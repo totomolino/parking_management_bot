@@ -888,7 +888,7 @@ function sendParkingImage(to) {
   const today = new Date();
   const date = `${(today.getMonth() + 1).toString().padStart(2, '0')}/${today.getDate().toString().padStart(2, '0')}/${today.getFullYear()}`;
   
-  const template_id = "HX3b147be60e09c25a310861d39894b085";
+  const template_id = "HX302373474c5815892d054e92aec7e64b";
   const variables = { 1: date };
   const variablesJson = JSON.stringify(variables);
 
