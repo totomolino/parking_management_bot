@@ -276,22 +276,43 @@ app.post("/whatsapp", (req, res) => {
 // Helper function to calculate timeout with overnight pause
 function calculateTimeoutDuration(timeoutDuration) {
   const now = new Date();
-  const currentHour = now.getHours();
+  const options = {
+      timeZone: 'America/Argentina/Buenos_Aires',
+      hour: 'numeric',
+      minute: 'numeric',
+      second: 'numeric',
+      hour12: false
+  };
 
-  // Check if current time is after 10 pm or before 7 am
+  // Get the current hour in Argentina time
+  const localDateTime = new Intl.DateTimeFormat('en-US', options).format(now);
+  const [currentHour, currentMinute, currentSecond] = localDateTime.split(':').map(Number);
+
+  // Create a local time date object
+  const localTime = new Date(now.getTime() - (3 * 60 * 60 * 1000)); // Adjust for GMT-3
+  localTime.setHours(currentHour, currentMinute, currentSecond, 0); // Set to local time
+
+  let nextDay7am = new Date(localTime); // Clone the current date
+
+  // Set the target time to 7:10 AM on the correct day
+  nextDay7am.setHours(7, 10, 0, 0); // Set to 7:10 AM in the local timezone
+
+  // If current time is after 10 PM or before 7 AM, set the target for the next day
   if (currentHour >= 22 || currentHour < 7) {
-    // Set the target time to 7 am the next day
-    const nextDay7am = new Date(now);
-    nextDay7am.setDate(now.getDate() + (currentHour >= 22 ? 1 : 0));
-    nextDay7am.setHours(7, 10, 0, 0); // 7:10 am the next day
-
-    // Calculate the delay until 7:10 am the next day
-    const overnightDelay = nextDay7am - now;
-    return overnightDelay;
+      nextDay7am.setDate(localTime.getDate() + 1); // Move to the next day
   }
 
-  // If within active hours, use the regular timeout duration
-  return timeoutDuration;
+  // Calculate the delay in milliseconds
+  const overnightDelay = nextDay7am - localTime;
+
+  // Convert the delay to seconds for easier understanding
+  const delayInSeconds = Math.floor(overnightDelay / 1000);
+
+  console.log(`Current Time: ${localTime}`);
+  console.log(`Next 7:10 AM: ${nextDay7am}`);
+  console.log(`Overnight Delay (seconds): ${delayInSeconds}`);
+
+  return delayInSeconds; // Return the delay
 }
 
 // Generic function to assign a slot to a user with a timeout
