@@ -1,7 +1,7 @@
 async function main(workbook: ExcelScript.Workbook) {
     try {
         // Set the URL of your API endpoint
-        const url = "https://upward-gull-dear.ngrok-free.app/excel-data";
+        const url = "http://18.216.164.92:3000/excel-data";
 
         // Get the active worksheet
         let sheet = workbook.getActiveWorksheet();
