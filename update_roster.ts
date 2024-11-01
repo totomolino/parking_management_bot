@@ -1,7 +1,7 @@
 async function main(workbook: ExcelScript.Workbook) {
   try {
     // Set the URL of your API endpoint for parking slots
-    const parkingSlotsUrl = "https://upward-gull-dear.ngrok-free.app/update-roster";
+    const parkingSlotsUrl = "http://18.216.164.92:3000/update-roster";
 
     // Get the "Slots" worksheet
     let slotsSheet = workbook.getWorksheet("FT Employees Roster (From HR)");
