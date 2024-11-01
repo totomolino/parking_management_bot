@@ -129,7 +129,7 @@ const initialSlots = [
   838,
   839,
   840,
-  841, // Corrected duplicate 840 to 841
+  841,
   ...Array.from({ length: 10 }, (_, i) => 585 + i), // 585 to 594
   ...Array.from({ length: 8 }, (_, i) => 569 + i), // 569 to 576
 ].map((slotNumber) => ({
@@ -139,6 +139,15 @@ const initialSlots = [
   phone: null,
   timeoutHandle: null, // To store the timeout reference
 }));
+
+// Add slot 60 with pre-assigned values
+initialSlots.push({
+  number: 60,
+  status: "assigned",
+  assignedTo: "Ramses de la Rosa",
+  phone: "+5491169691511",
+  timeoutHandle: null,
+});
 
 // In-memory storage
 let parkingSlots = [...initialSlots];
@@ -294,25 +303,24 @@ function calculateTimeoutDuration(timeoutDuration) {
 
   let nextDay7am = new Date(localTime); // Clone the current date
 
-  // Set the target time to 7:10 AM on the correct day
-  nextDay7am.setHours(7, 10, 0, 0); // Set to 7:10 AM in the local timezone
+  let finalDelay = timeoutDuration;
 
   // If current time is after 10 PM or before 7 AM, set the target for the next day
   if (currentHour >= 22 || currentHour < 7) {
+      // Set the target time to 7:10 AM on the correct day
+      nextDay7am.setHours(7, 10, 0, 0); // Set to 7:10 AM in the local timezone
       nextDay7am.setDate(localTime.getDate() + 1); // Move to the next day
+
+          // Calculate the delay in milliseconds
+      finalDelay = nextDay7am - localTime;      
   }
-
-  // Calculate the delay in milliseconds
-  const overnightDelay = nextDay7am - localTime;
-
-  // Convert the delay to seconds for easier understanding
-  const delayInSeconds = Math.floor(overnightDelay / 1000);
+ 
 
   console.log(`Current Time: ${localTime}`);
   console.log(`Next 7:10 AM: ${nextDay7am}`);
-  console.log(`Overnight Delay (seconds): ${delayInSeconds}`);
+  console.log(`Overnight Delay: ${finalDelay}`);
 
-  return delayInSeconds; // Return the delay
+  return finalDelay; // Return the delay
 }
 
 // Generic function to assign a slot to a user with a timeout
@@ -676,6 +684,17 @@ app.post("/parking_slots", (req, res) => {
     phone: null,
     timeoutHandle: null,
   }));
+
+  // Ensure slot 60 is included with the assigned values if it's not in receivedSlots
+  if (!parkingSlots.some(slot => slot.number === 60)) {
+    parkingSlots.push({
+      number: 60,
+      status: "assigned",
+      assignedTo: "Ramses de la Rosa",
+      phone: "+5491169691511",
+      timeoutHandle: null,
+    });
+  }
 
   waitingList = []; // Reset waiting list
 
