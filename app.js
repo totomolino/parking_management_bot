@@ -273,6 +273,27 @@ app.post("/whatsapp", (req, res) => {
   res.status(200).send("OK"); // Respond to Twilio immediately
 });
 
+// Helper function to calculate timeout with overnight pause
+function calculateTimeoutDuration(timeoutDuration) {
+  const now = new Date();
+  const currentHour = now.getHours();
+
+  // Check if current time is after 10 pm or before 7 am
+  if (currentHour >= 22 || currentHour < 7) {
+    // Set the target time to 7 am the next day
+    const nextDay7am = new Date(now);
+    nextDay7am.setDate(now.getDate() + (currentHour >= 22 ? 1 : 0));
+    nextDay7am.setHours(7, 10, 0, 0); // 7:10 am the next day
+
+    // Calculate the delay until 7:10 am the next day
+    const overnightDelay = nextDay7am - now;
+    return overnightDelay;
+  }
+
+  // If within active hours, use the regular timeout duration
+  return timeoutDuration;
+}
+
 // Generic function to assign a slot to a user with a timeout
 function assignSlotToUser(
   slot,
@@ -290,6 +311,9 @@ function assignSlotToUser(
   }else{
     sendMessageWithButtons(user.phone, message);
   }
+
+  // Calculate adjusted timeout duration
+  const adjustedTimeout = calculateTimeoutDuration(timeoutDuration);
 
   // Set up the timeout
   slot.timeoutHandle = setTimeout(() => {
@@ -316,7 +340,7 @@ function assignSlotToUser(
       assignNextSlot();
     }
     console.log(slot);
-  }, timeoutDuration);
+  }, adjustedTimeout);
 }
 
 // Function to assign the next available slot to the first person in the waiting list
