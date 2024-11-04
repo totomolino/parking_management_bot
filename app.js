@@ -3,6 +3,7 @@ const bodyParser = require("body-parser");
 const twilio = require("twilio");
 const cors = require("cors");
 const ngrok = require("@ngrok/ngrok");
+const https = require('https');
 const fs = require("fs"); // Import fs module for logging
 require("dotenv").config(); // Load environment variables from .env file
 const csvParser = require('csv-parser');
@@ -14,6 +15,11 @@ const outputPath = 'modified_image.jpg';
 
 let csvData = []; // In-memory storage for CSV data
 const maxRetries = 3;
+
+const serverOptions = {
+  key: fs.readFileSync('path/to/your/agent2-key.pem'),
+  cert: fs.readFileSync('path/to/your/agent2-cert.cert')
+};
 
 // Function to read CSV file and populate csvData
 function readCSV() {
@@ -976,6 +982,11 @@ function sendParkingImage(to) {
 app.listen(port,'0.0.0.0', () =>
   console.log(`Node.js web server at http://localhost:${port} is running...`)
 );
+
+// Create HTTPS server
+https.createServer(serverOptions, app).listen(port, '0.0.0.0', () => {
+  console.log(`Node.js HTTPS web server at https://localhost:${port} is running...`);
+});
 
 // Get your endpoint online with ngrok
 // ngrok
