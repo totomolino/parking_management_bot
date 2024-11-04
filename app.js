@@ -979,9 +979,9 @@ function sendParkingImage(to) {
 // app.listen(port, () =>
 //   console.log(`Node.js web server at http://localhost:${port} is running...`)
 // );
-app.listen(port,'0.0.0.0', () =>
-  console.log(`Node.js web server at http://localhost:${port} is running...`)
-);
+// app.listen(port,'0.0.0.0', () =>
+//   console.log(`Node.js web server at http://localhost:${port} is running...`)
+// );
 
 // Create HTTPS server
 https.createServer(serverOptions, app).listen(port, '0.0.0.0', () => {
