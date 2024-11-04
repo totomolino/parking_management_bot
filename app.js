@@ -17,8 +17,8 @@ let csvData = []; // In-memory storage for CSV data
 const maxRetries = 3;
 
 const serverOptions = {
-  key: fs.readFileSync('path/to/your/agent2-key.pem'),
-  cert: fs.readFileSync('path/to/your/agent2-cert.cert')
+  key: fs.readFileSync('./certs/agent2-key.pem'),
+  cert: fs.readFileSync('./certs/agent2-cert.cert')
 };
 
 // Function to read CSV file and populate csvData
