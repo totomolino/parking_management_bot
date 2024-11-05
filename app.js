@@ -3,8 +3,6 @@ const bodyParser = require("body-parser");
 const twilio = require("twilio");
 const cors = require("cors");
 const ngrok = require("@ngrok/ngrok");
-const https = require('https');
-const http = require('http');
 const fs = require("fs"); // Import fs module for logging
 require("dotenv").config(); // Load environment variables from .env file
 const csvParser = require('csv-parser');
@@ -16,11 +14,6 @@ const outputPath = 'modified_image.jpg';
 
 let csvData = []; // In-memory storage for CSV data
 const maxRetries = 3;
-
-const serverOptions = {
-  key: fs.readFileSync('../certs/agent2-key.pem'),
-  cert: fs.readFileSync('../certs/agent2-cert.cert')
-};
 
 // Function to read CSV file and populate csvData
 function readCSV() {
@@ -104,7 +97,7 @@ function writeCSV(data, res) {
 }
 
 const app = express();
-const port = 3001;  // HTTPS port
+const port = 3000;  // HTTP port
 const twilioNumber = "whatsapp:+12023351857"
 
 // Middleware setup
@@ -986,36 +979,21 @@ function sendParkingImage(to) {
 //   console.log(`Node.js web server at http://localhost:${port} is running...`)
 // );
 
-// Middleware to redirect HTTP to HTTPS
-app.use((req, res, next) => {
-  if (req.protocol === 'http') {
-    return res.redirect(301, `https://${req.headers.host}${req.url}`);
-  }
-  next();
-});
-
-// HTTPS server
-https.createServer(serverOptions, app).listen(port, '0.0.0.0', () => {
-  console.log(`Node.js HTTPS web server at https://localhost:${port} is running...`);
-});
-
-portHTTP = 3000
-// HTTP server to listen on port 80
-http.createServer(app).listen(portHTTP, () => {
-  console.log(`HTTP server running at http://localhost:${portHTTP} and redirecting to HTTPS`);
-});
+app.listen(port,'0.0.0.0', () =>
+  console.log(`Node.js web server at http://localhost:${port} is running...`)
+);
 
 // Get your endpoint online with ngrok
-// ngrok
-//   .connect({
-//     addr: port,
-//     authtoken: process.env.NGROK_AUTHTOKEN,
-//     domain: "upward-gull-dear.ngrok-free.app",
-//   })
-//   .then((listener) => {
-//     console.log(`Ingress established at: ${listener.url()}`);
-//     // Here you can set up your Twilio webhook URL with the ngrok URL
-//   })
-//   .catch((error) => {
-//     console.error("Error connecting ngrok:", error);
-//   });
+ngrok
+  .connect({
+    addr: port,
+    authtoken: process.env.NGROK_AUTHTOKEN,
+    domain: "brief-stable-penguin.ngrok-free.app",
+  })
+  .then((listener) => {
+    console.log(`Ingress established at: ${listener.url()}`);
+    // Here you can set up your Twilio webhook URL with the ngrok URL
+  })
+  .catch((error) => {
+    console.error("Error connecting ngrok:", error);
+  });
