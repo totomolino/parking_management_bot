@@ -104,8 +104,7 @@ function writeCSV(data, res) {
 }
 
 const app = express();
-const portHTTP = 3000;  // HTTP port
-const portHTTPS = 443;  // HTTPS port
+const port = 3000;  // HTTPS port
 const twilioNumber = "whatsapp:+12023351857"
 
 // Middleware setup
@@ -982,14 +981,17 @@ function sendParkingImage(to) {
 //   console.log(`Node.js web server at http://localhost:${port} is running...`)
 // );
 
-// Start the HTTP server to listen on port 80
-http.createServer(app).listen(portHTTP, () => {
-  console.log(`HTTP server running at http://localhost:${portHTTP}`);
+// Middleware to redirect HTTP to HTTPS
+app.use((req, res, next) => {
+  if (req.protocol === 'http') {
+    return res.redirect(301, `https://${req.headers.host}${req.url}`);
+  }
+  next();
 });
 
-// Start the HTTPS server to listen on port 443
-https.createServer(serverOptions, app).listen(portHTTPS, '0.0.0.0', () => {
-  console.log(`Node.js HTTPS web server at https://localhost:${portHTTPS} is running...`);
+// HTTPS server
+https.createServer(serverOptions, app).listen(port, '0.0.0.0', () => {
+  console.log(`Node.js HTTPS web server at https://localhost:${port} is running...`);
 });
 
 // Get your endpoint online with ngrok
