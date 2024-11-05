@@ -395,6 +395,12 @@ function assignNextSlot(timeoutDuration = 10 * 60 * 1000) {
   const nextPerson = waitingList[0];
   waitingList.splice(0, 1); // Remove the first from waiting list
 
+  logAction(
+    nextPerson.phone,
+    nextPerson.name,
+    `The slot ${availableSlot.number} was free and given to first on WL`
+  );
+
   assignSlotToUser(availableSlot, nextPerson, timeoutDuration);
 }
 
