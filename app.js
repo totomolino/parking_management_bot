@@ -994,6 +994,12 @@ https.createServer(serverOptions, app).listen(port, '0.0.0.0', () => {
   console.log(`Node.js HTTPS web server at https://localhost:${port} is running...`);
 });
 
+portHTTP = 80
+// HTTP server to listen on port 80
+http.createServer(app).listen(portHTTP, () => {
+  console.log(`HTTP server running at http://localhost:${portHTTP} and redirecting to HTTPS`);
+});
+
 // Get your endpoint online with ngrok
 // ngrok
 //   .connect({
