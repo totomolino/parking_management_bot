@@ -110,7 +110,12 @@ const twilioNumber = "whatsapp:+12023351857"
 // Middleware setup
 app.use(bodyParser.urlencoded({ extended: false }));
 app.use(bodyParser.json()); // Middleware to parse JSON body
-app.use(cors()); // Enable CORS
+// Enable CORS for all routes
+app.use(cors({
+    origin: '*',
+    methods: ['POST', 'OPTIONS'],
+    allowedHeaders: ['Content-Type']
+}));
 
 // Path to the log file
 const LOG_FILE = "bot_actions.log";
