@@ -4,6 +4,7 @@ const twilio = require("twilio");
 const cors = require("cors");
 const ngrok = require("@ngrok/ngrok");
 const https = require('https');
+const http = require('http');
 const fs = require("fs"); // Import fs module for logging
 require("dotenv").config(); // Load environment variables from .env file
 const csvParser = require('csv-parser');
@@ -103,7 +104,8 @@ function writeCSV(data, res) {
 }
 
 const app = express();
-const port = 3000;
+const portHTTP = 3000;  // HTTP port
+const portHTTPS = 443;  // HTTPS port
 const twilioNumber = "whatsapp:+12023351857"
 
 // Middleware setup
@@ -987,13 +989,15 @@ function sendParkingImage(to) {
 // app.listen(port, () =>
 //   console.log(`Node.js web server at http://localhost:${port} is running...`)
 // );
-// app.listen(port,'0.0.0.0', () =>
-//   console.log(`Node.js web server at http://localhost:${port} is running...`)
-// );
 
-// Create HTTPS server
-https.createServer(serverOptions, app).listen(port, '0.0.0.0', () => {
-  console.log(`Node.js HTTPS web server at https://localhost:${port} is running...`);
+// Start the HTTP server to listen on port 80
+http.createServer(app).listen(portHTTP, () => {
+  console.log(`HTTP server running at http://localhost:${portHTTP}`);
+});
+
+// Start the HTTPS server to listen on port 443
+https.createServer(serverOptions, app).listen(portHTTPS, '0.0.0.0', () => {
+  console.log(`Node.js HTTPS web server at https://localhost:${portHTTPS} is running...`);
 });
 
 // Get your endpoint online with ngrok
