@@ -235,14 +235,6 @@ function generateFullTable() {
   return parkingTable + "\n" + "Waiting List:\n" + waitingTable;
 }
 
-// Middleware to redirect HTTP to HTTPS
-app.use((req, res, next) => {
-  if (req.protocol === 'http') {
-    return res.redirect(301, `https://${req.headers.host}${req.url}`);
-  }
-  next();
-});
-
 // Handle incoming WhatsApp messages
 app.post("/whatsapp", (req, res) => {
   const messageBody = req.body.Body.trim().toLowerCase();
