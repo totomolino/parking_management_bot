@@ -104,7 +104,7 @@ function writeCSV(data, res) {
 }
 
 const app = express();
-const port = 3000;  // HTTPS port
+const port = 3001;  // HTTPS port
 const twilioNumber = "whatsapp:+12023351857"
 
 // Middleware setup
@@ -994,7 +994,7 @@ https.createServer(serverOptions, app).listen(port, '0.0.0.0', () => {
   console.log(`Node.js HTTPS web server at https://localhost:${port} is running...`);
 });
 
-portHTTP = 3001
+portHTTP = 3000
 // HTTP server to listen on port 80
 http.createServer(app).listen(portHTTP, () => {
   console.log(`HTTP server running at http://localhost:${portHTTP} and redirecting to HTTPS`);
