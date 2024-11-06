@@ -726,6 +726,9 @@ app.post("/excel-data", (req, res) => {
 
   // Clear all existing timeouts
   parkingSlots.forEach((slot) => {
+    if (slot.number === 60) {
+      return; // Skip this slot
+    }
     if (slot.timeoutHandle) {
       clearTimeout(slot.timeoutHandle);
       slot.timeoutHandle = null;
@@ -734,6 +737,8 @@ app.post("/excel-data", (req, res) => {
     slot.assignedTo = null;
     slot.phone = null;
   });
+
+  
 
   waitingList = [];
 
