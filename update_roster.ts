@@ -6,38 +6,54 @@ async function main(workbook: ExcelScript.Workbook) {
     // Get the "Slots" worksheet
     let slotsSheet = workbook.getWorksheet("FT Employees Roster (From HR)");
     let lastRow = slotsSheet.getUsedRange().getRowCount();
-    let dataRange = slotsSheet.getRange(`A2:A${lastRow}`); // Only get the first column with parking slots
+    let dataRange = slotsSheet.getRange(`A4:J${lastRow}`); // Adjusted to start at row 4
 
-    // Get the parking slots
-    let slotsData = dataRange.getValues();
-    let parkingSlots: Array<number> = [];
+    // Get data from the range
+    let data = dataRange.getValues();
+    let roster: Array<{ name: string; phone: string; priority: number }> = [];
 
-    for (let i = 0; i < slotsData.length; i++) {
-      let slot = Number(slotsData[i][0]); // Get the first column value (parking slot)
-      parkingSlots.push(slot); // Assuming slots are numbers
+    // Priority mapping
+    const priorityMap: { [key: string]: number } = {
+      "Principal/Executive Director": 1,
+      "Manager": 2,
+      "Senior Consultant": 3,
+      "Consultant": 3,
+      "Associate Consultant": 4,
+      "Associate": 4
+    };
+
+    for (let i = 0; i < data.length; i++) {
+      let name = data[i][1] as string; // Column B for name
+      let title = data[i][6] as string; // Column G for title
+      let phone = data[i][9] as string; // Column J for phone
+
+      // Determine priority based on title
+      let priority = priorityMap[title] || 5; // Default priority if title doesn't match
+
+      roster.push({ name, phone, priority });
     }
 
-    // Send the parking slots to the /parking_slots endpoint
-    let slotsJsonString = JSON.stringify(parkingSlots);
-    console.log("Parking Slots JSON:", slotsJsonString);
+    // Send the roster as JSON to the API endpoint
+    let rosterJsonString = JSON.stringify(roster);
+    console.log("Roster JSON:", rosterJsonString);
 
-    const slotsResponse = await fetch(parkingSlotsUrl, {
+    const response = await fetch(parkingSlotsUrl, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
       },
-      body: slotsJsonString,
+      body: rosterJsonString,
     });
 
-    // Check the response from the /parking_slots endpoint
-    if (!slotsResponse.ok) {
-      throw new Error(`Error sending parking slots: ${slotsResponse.status} - ${await slotsResponse.text()}`);
+    // Check the response from the API endpoint
+    if (!response.ok) {
+      throw new Error(`Error sending roster: ${response.status} - ${await response.text()}`);
     }
 
-    const slotsResponseData = await slotsResponse.text();
-    console.log("Parking slots sent successfully:", slotsResponseData);
+    const responseData = await response.text();
+    console.log("Roster sent successfully:", responseData);
 
   } catch (error) {
-    console.log("Error sending parking slots:", error);
+    console.log("Error sending roster:", error);
   }
 }
