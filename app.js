@@ -268,15 +268,12 @@ app.post("/whatsapp", (req, res) => {
     case messageBody === "decline":
       handleSlotDecline(sender, name);
       break;
-    case messageBody === "release":
-      handleSlotDecline(parkingSlots[0].phone);
+    case messageBody === "help":
+      sendWhatsAppMessage(
+        sender,
+        "Commands: 'Add me', 'Show all', 'Show parking', 'Show waiting list', 'Cancel'."
+      );
       break;
-      case messageBody === "help":
-        sendWhatsAppMessage(
-          sender,
-          "Commands: 'Add me', 'Show all', 'Show parking', 'Show waiting list', 'Cancel'."
-        );
-        break;
     default:
       sendWhatsAppMessage(
         sender,
