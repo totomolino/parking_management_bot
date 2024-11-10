@@ -18,7 +18,7 @@ const maxRetries = 3;
 // Function to read CSV file and populate csvData
 function readCSV() {
   fs.createReadStream(filePath)
-    .pipe(csvParser(['name', 'phone', 'priority'])) // Define column headers
+    .pipe(csvParser()) // Define column headers
     .on('data', (row) => {
       csvData.push(row);
     })
@@ -86,7 +86,9 @@ async function generateParkingImage() {
 
 // Function to write CSV data to file
 function writeCSV(data, res) {
-  const updatedCSV = data.map((row) => `${row.name},${row.phone},${row.priority}`).join('\n');
+  // Add headers to CSV
+  const headers = "name,phone,priority\n";
+  const updatedCSV = headers + data.map((row) => `${row.name},${row.phone},${row.priority}`).join('\n');
   fs.writeFile(filePath, updatedCSV, (err) => {
     if (err) {
       console.error("Error writing CSV file:", err);
@@ -865,7 +867,7 @@ app.post("/update-roster", (req, res) => {
     csvData = []
     
     fs.createReadStream(filePath)
-      .pipe(csvParser(['name', 'phone', 'priority'])) // Define column headers
+      .pipe(csvParser()) // Define column headers
       .on('data', (row) => {
         csvData.push(row);
       })
