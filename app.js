@@ -565,6 +565,8 @@ function handleShowTimeouts(sender) {
     message += `${parkingSlot}| ${person}| ${timeoutHandle}\n`;
   });
 
+  console.log(message);
+
   sendWhatsAppMessage(sender, message);
 }
 
