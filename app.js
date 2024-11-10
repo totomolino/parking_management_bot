@@ -335,7 +335,7 @@ function assignSlotToUser(
   slot,
   user,
   timeoutDuration,
-  message = `A parking slot is available!\nPlease confirm if you want parking slot *${slot.number}*.`
+  message = `A parking slot is available!\nPlease confirm in the next 10 minutes if you want parking slot *${slot.number}*.`
 ) {
   slot.status = "pending";
   slot.assignedTo = `${user.name} (Pending)`;
