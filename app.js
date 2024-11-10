@@ -256,6 +256,9 @@ app.post("/whatsapp", (req, res) => {
     case messageBody === "show parking":
       handleShowParking(sender);
       break;
+    case messageBody === "show timeouts":
+      handleShowTimeouts(sender);
+      break;
     case messageBody === "show waiting list":
       handleShowWaitingList(sender);
       break;
@@ -527,6 +530,19 @@ function handleShowParking(sender) {
   }
 
   message += `\n\n${generateParkingSlotTable()}`;
+
+  sendWhatsAppMessage(sender, message);
+}
+
+// Function to handle the 'show parking' command
+function handleShowTimeouts(sender) {
+  let message = "Slot | Status     | Assigned To         | Phone          | Timeout Handle\n";
+  message += "-----------------------------------------------------------------------\n";
+
+  parkingSlots.forEach((slot) => {
+    const { number, status, assignedTo, phone, timeoutHandle } = slot;
+    message += `${number.toString().padEnd(4)} | ${status.padEnd(10)} | ${assignedTo ? assignedTo.padEnd(18) : "N/A".padEnd(18)} | ${phone ? phone.padEnd(14) : "N/A".padEnd(14)} | ${timeoutHandle ? timeoutHandle : "N/A"}\n`;
+  });
 
   sendWhatsAppMessage(sender, message);
 }
