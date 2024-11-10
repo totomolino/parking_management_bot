@@ -29,6 +29,8 @@ function readCSV() {
     });
 }
 
+readCSV();
+
 // Configuration for image generation
 const cellWidth = 70;  // Width of each cell in pixels
 const cellHeight = 22; // Height of each cell in pixels
@@ -536,39 +538,26 @@ function handleShowParking(sender) {
 
 // Function to handle the 'show parking' command
 function handleShowTimeouts(sender) {
-  const parkingSlotWidth = 15; // Width for Parking Slot column
-  const personWidth = 20;      // Width for Person column
-  const timeoutWidth = 16;     // Width for Timeout Handle column
+  let message = "Slot|Person|Timeout\n";
+  message += "-------------------\n";
 
-  // Header for parking slot table
-  let message =
-    "Parking Slot".padEnd(parkingSlotWidth) +
-    "| " +
-    "Person".padEnd(personWidth) +
-    "| " +
-    "Timeout Handle".padEnd(timeoutWidth) +
-    "\n";
-  message += "-".repeat(parkingSlotWidth + personWidth + timeoutWidth + 4) + "\n"; // Separator line
-
-  // Add data rows for parking slot list
   parkingSlots.forEach((item) => {
-    const parkingSlotString = item.number.toString();
-    const parkingSlotPadding = parkingSlotWidth - parkingSlotString.length;
-    const parkingSlot =
-      " ".repeat(Math.floor(parkingSlotPadding / 2)) +
-      parkingSlotString +
-      " ".repeat(Math.ceil(parkingSlotPadding / 2));
+    const slot = item.number.toString();
+    const person = item.assignedTo || "Available";
+    const timeoutHandle = item.timeoutHandle ? String(item.timeoutHandle) : "N/A";
 
-    const person = item.assignedTo ? item.assignedTo.padEnd(personWidth) : "Available".padEnd(personWidth);
-    const timeoutHandle = item.timeoutHandle ? item.timeoutHandle.toString().padEnd(timeoutWidth) : "N/A".padEnd(timeoutWidth);
-
-    message += `${parkingSlot}| ${person}| ${timeoutHandle}\n`;
+    message += `${slot}|${person}|${timeoutHandle}\n`;
   });
 
-  console.log(message);
+  // Truncate message if it exceeds 1600 characters
+  if (message.length > 1600) {
+    message = message.slice(0, 1597) + "...";
+  }
 
+  console.log(message);
   sendWhatsAppMessage(sender, message);
 }
+
 
 // Function to handle the 'show waiting list' command
 function handleShowWaitingList(sender) {
