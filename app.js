@@ -18,7 +18,7 @@ const maxRetries = 3;
 // Function to read CSV file and populate csvData
 function readCSV() {
   fs.createReadStream(filePath)
-    .pipe(csvParser())
+    .pipe(csvParser(['name', 'phone', 'priority'])) // Define column headers
     .on('data', (row) => {
       csvData.push(row);
     })
@@ -865,7 +865,7 @@ app.post("/update-roster", (req, res) => {
     csvData = []
     
     fs.createReadStream(filePath)
-      .pipe(csvParser())
+      .pipe(csvParser(['name', 'phone', 'priority'])) // Define column headers
       .on('data', (row) => {
         csvData.push(row);
       })
