@@ -544,7 +544,10 @@ function handleShowTimeouts(sender) {
   parkingSlots.forEach((item) => {
     const slot = item.number.toString();
     const person = item.assignedTo || "Available";
-    const timeoutHandle = item.timeoutHandle ? String(item.timeoutHandle) : "N/A";
+    const timeoutHandle = item.timeoutHandle
+      ? `${Math.ceil((item.timeoutHandle._idleStart + item.timeoutHandle._idleTimeout - Date.now()) / 60000)} minutes`
+      : "N/A";
+
 
     message += `${slot}|${person}|${timeoutHandle}\n`;
   });
