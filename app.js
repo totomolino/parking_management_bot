@@ -536,12 +536,33 @@ function handleShowParking(sender) {
 
 // Function to handle the 'show parking' command
 function handleShowTimeouts(sender) {
-  let message = "Slot | Status     | Assigned To         | Phone          | Timeout Handle\n";
-  message += "-----------------------------------------------------------------------\n";
+  const parkingSlotWidth = 15; // Width for Parking Slot column
+  const personWidth = 20;      // Width for Person column
+  const timeoutWidth = 16;     // Width for Timeout Handle column
 
-  parkingSlots.forEach((slot) => {
-    const { number, status, assignedTo, phone, timeoutHandle } = slot;
-    message += `${number.toString().padEnd(4)} | ${status.padEnd(10)} | ${assignedTo ? assignedTo.padEnd(18) : "N/A".padEnd(18)} | ${phone ? phone.padEnd(14) : "N/A".padEnd(14)} | ${timeoutHandle ? timeoutHandle : "N/A"}\n`;
+  // Header for parking slot table
+  let message =
+    "Parking Slot".padEnd(parkingSlotWidth) +
+    "| " +
+    "Person".padEnd(personWidth) +
+    "| " +
+    "Timeout Handle".padEnd(timeoutWidth) +
+    "\n";
+  message += "-".repeat(parkingSlotWidth + personWidth + timeoutWidth + 4) + "\n"; // Separator line
+
+  // Add data rows for parking slot list
+  parkingSlots.forEach((item) => {
+    const parkingSlotString = item.number.toString();
+    const parkingSlotPadding = parkingSlotWidth - parkingSlotString.length;
+    const parkingSlot =
+      " ".repeat(Math.floor(parkingSlotPadding / 2)) +
+      parkingSlotString +
+      " ".repeat(Math.ceil(parkingSlotPadding / 2));
+
+    const person = item.assignedTo ? item.assignedTo.padEnd(personWidth) : "Available".padEnd(personWidth);
+    const timeoutHandle = item.timeoutHandle ? item.timeoutHandle.toString().padEnd(timeoutWidth) : "N/A".padEnd(timeoutWidth);
+
+    message += `${parkingSlot}| ${person}| ${timeoutHandle}\n`;
   });
 
   sendWhatsAppMessage(sender, message);
