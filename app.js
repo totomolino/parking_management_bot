@@ -17,15 +17,13 @@ const maxRetries = 3;
 
 // Function to read CSV file and populate csvData
 function readCSV() {
-  const results = [];
   fs.createReadStream(filePath)
     .pipe(csvParser())
     .on('data', (row) => {
-      results.push(row);
+      csvData.push(row);
     })
     .on('end', () => {
       console.log('CSV file successfully processed');
-      csvData = results;
     });
 }
 
