@@ -891,26 +891,26 @@ app.post("/update-roster", (req, res) => {
 
         users.forEach((user) => {
           const { name, phone, priority } = user;
-          const existingEntry = csvData.find((entry) => entry.phone === phone);
+          const existingEntry = csvData.find((entry) => entry.name === name);
 
           if (existingEntry) {
             // Check if any of the fields are different before updating
             const needsUpdate = 
-              (name && existingEntry.name !== name) || 
+              (phone && existingEntry.phone !== phone) || 
               (priority && existingEntry.priority !== priority);
 
             if (needsUpdate) {
-              console.log(`Updating existing entry for phone: ${phone}`);
-              if (name && existingEntry.name !== name) {
-                console.log(` - Updating name from '${existingEntry.name}' to '${name}'`);
-                existingEntry.name = name;
+              console.log(`Updating existing entry for: ${name}`);
+              if (phone && existingEntry.phone !== phone) {
+                console.log(` - Updating name from '${existingEntry.phone}' to '${phone}'`);
+                existingEntry.phone = phone;
               }
               if (priority && existingEntry.priority !== priority) {
                 console.log(` - Updating priority from '${existingEntry.priority}' to '${priority}'`);
                 existingEntry.priority = priority;
               }
             } else {
-              console.log(`No changes for existing entry with phone: ${phone}`);
+              console.log(`No changes for existing entry with name: ${name}`);
             }
           } else {
             console.log(`Adding new entry: ${name} | ${phone}`);
