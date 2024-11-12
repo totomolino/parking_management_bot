@@ -243,6 +243,15 @@ app.post("/whatsapp", (req, res) => {
   const entry = csvData.find((row) => row.phone ===  sender.replace("whatsapp:", ""));
 
   const name = entry ? entry.name : sender;
+
+  // Check if the sender is not found in csvData
+  if (!entry) {
+    sendWhatsAppMessage(
+      sender,
+      "It looks like your number is not logged in the forms. Please fill https://forms.office.com/r/0scGm4w6s9 and contact Ceci or Majo."
+    );
+    return res.status(200).send("OK");
+  }
   
 
   switch (true) {
