@@ -820,11 +820,8 @@ app.post("/excel-data", (req, res) => {
   if (waitingList.length > 0) {
     // Create a personalized message for each member in the waiting list
     waitingList.forEach((member, i) => {
-      const waitingListMessage = `${waitingList
-        .map((m, index) => {
-          return `${index + 1}. ${m.name}${index === i ? " (you)" : ""}`;
-        })
-        .join("\n")}`;
+        // Create a message that only contains the position of the member on the waiting list
+      const waitingListMessage = `${i + 1}`;
 
       // Send a WhatsApp message to each waiting list member with their order
       sendWaitingListMessage(member.phone, waitingListMessage);
@@ -896,7 +893,7 @@ function sendWaitingListMessage(to, message) {
     process.env.TWILIO_ACCOUNT_SID,
     process.env.TWILIO_AUTH_TOKEN
   );
-  const template_id = "HX38cbe7bc4b36cdb80502f8d6ca5a6b21";
+  const template_id = "HXe8c2d1da777fa3642c87553e1b978212";
 
   const variables = { 1: message };
   const variablesJson = JSON.stringify(variables);
