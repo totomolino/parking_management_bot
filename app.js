@@ -889,20 +889,34 @@ app.post("/update-roster", (req, res) => {
       .on('end', () => {
         console.log("Current roster data read successfully");
 
-        // For each user in the request body, update or add to csvData
         users.forEach((user) => {
           const { name, phone, priority } = user;
           const existingEntry = csvData.find((entry) => entry.phone === phone);
 
           if (existingEntry) {
-            console.log(`Updating existing entry for phone: ${phone}`);
-            if (name) existingEntry.name = name;
-            if (priority) existingEntry.priority = priority;
+            // Check if any of the fields are different before updating
+            const needsUpdate = 
+              (name && existingEntry.name !== name) || 
+              (priority && existingEntry.priority !== priority);
+
+            if (needsUpdate) {
+              console.log(`Updating existing entry for phone: ${phone}`);
+              if (name && existingEntry.name !== name) {
+                console.log(` - Updating name from '${existingEntry.name}' to '${name}'`);
+                existingEntry.name = name;
+              }
+              if (priority && existingEntry.priority !== priority) {
+                console.log(` - Updating priority from '${existingEntry.priority}' to '${priority}'`);
+                existingEntry.priority = priority;
+              }
+            } else {
+              console.log(`No changes for existing entry with phone: ${phone}`);
+            }
           } else {
             console.log(`Adding new entry: ${name} | ${phone}`);
             csvData.push({ name, phone, priority });
           }
-        });
+        });      
 
         // Write the updated data back to the CSV file
         console.log("Writing updated roster data back to roster.csv");
