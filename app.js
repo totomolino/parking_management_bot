@@ -248,7 +248,7 @@ app.post("/whatsapp", (req, res) => {
   if (!entry) {
     sendWhatsAppMessage(
       sender,
-      "It looks like your number is not logged in the forms.\n Please fill https://forms.office.com/r/0scGm4w6s9 and contact Ceci or Majo."
+      "It looks like your number is not logged in the forms.\nPlease fill https://forms.office.com/r/0scGm4w6s9 and contact Ceci or Majo."
     );
     return res.status(200).send("OK");
   }
