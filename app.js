@@ -852,9 +852,11 @@ app.get("/parking-image", async (req, res) => {
 
 // Endpoint to update the user roster data
 app.post("/update-roster", (req, res) => {
+  console.log("Received request to update roster");
   const users = req.body;
 
   if (!Array.isArray(users) || users.length === 0) {
+    console.log("Invalid request: request body must contain a list of users.");
     return res.status(400).json({ message: "Request body must contain a list of users." });
   }
 
@@ -871,39 +873,44 @@ app.post("/update-roster", (req, res) => {
       }));
 
       // Write the new CSV file
+      console.log("Writing new data to roster.csv");
       return writeCSV(csvData, res);
     }
 
     // If file exists, read the CSV file first
+    console.log("File exists, reading current roster data from roster.csv");
+    csvData = [];
 
-    csvData = []
-    
     fs.createReadStream(filePath)
-      .pipe(csvParser()) // Define column headers
+      .pipe(csvParser())
       .on('data', (row) => {
         csvData.push(row);
       })
       .on('end', () => {
+        console.log("Current roster data read successfully");
+
         // For each user in the request body, update or add to csvData
         users.forEach((user) => {
           const { name, phone, priority } = user;
           const existingEntry = csvData.find((entry) => entry.phone === phone);
 
           if (existingEntry) {
-            // Update existing entry
+            console.log(`Updating existing entry for phone: ${phone}`);
             if (name) existingEntry.name = name;
             if (priority) existingEntry.priority = priority;
           } else {
-            // Add new entry if it doesn't exist
+            console.log(`Adding new entry: ${name} | ${phone}`);
             csvData.push({ name, phone, priority });
           }
         });
 
         // Write the updated data back to the CSV file
+        console.log("Writing updated roster data back to roster.csv");
         writeCSV(csvData, res);
       });
   });
 });
+
 
 
 // Twilio send message helper without interactive buttons
