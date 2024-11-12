@@ -860,69 +860,15 @@ app.post("/update-roster", (req, res) => {
     return res.status(400).json({ message: "Request body must contain a list of users." });
   }
 
-  // Check if the file exists
-  fs.access(filePath, fs.constants.F_OK, (err) => {
-    if (err) {
-      console.log("File does not exist, creating new roster.csv file");
+  csvData = users.map(user => ({
+    name: user.name || "",
+    phone: user.phone || "",
+    priority: user.priority || ""
+  }));
 
-      // If file doesn't exist, create it with the data from the request body
-      csvData = users.map(user => ({
-        name: user.name || "",
-        phone: user.phone || "",
-        priority: user.priority || ""
-      }));
+  writeCSV(csvData, res);
 
-      // Write the new CSV file
-      console.log("Writing new data to roster.csv");
-      return writeCSV(csvData, res);
-    }
 
-    // If file exists, read the CSV file first
-    console.log("File exists, reading current roster data from roster.csv");
-    csvData = [];
-
-    fs.createReadStream(filePath)
-      .pipe(csvParser())
-      .on('data', (row) => {
-        csvData.push(row);
-      })
-      .on('end', () => {
-        console.log("Current roster data read successfully");
-
-        users.forEach((user) => {
-          const { name, phone, priority } = user;
-          const existingEntry = csvData.find((entry) => entry.name === name);
-
-          if (existingEntry) {
-            // Check if any of the fields are different before updating
-            const needsUpdate = 
-              (phone && existingEntry.phone !== phone) || 
-              (priority && existingEntry.priority !== priority);
-
-            if (needsUpdate) {
-              console.log(`Updating existing entry for: ${name}`);
-              if (phone && existingEntry.phone !== phone) {
-                console.log(` - Updating name from '${existingEntry.phone}' to '${phone}'`);
-                existingEntry.phone = phone;
-              }
-              if (priority && existingEntry.priority !== priority) {
-                console.log(` - Updating priority from '${existingEntry.priority}' to '${priority}'`);
-                existingEntry.priority = priority;
-              }
-            } else {
-              console.log(`No changes for existing entry with name: ${name}`);
-            }
-          } else {
-            console.log(`Adding new entry: ${name} | ${phone}`);
-            csvData.push({ name, phone, priority });
-          }
-        });      
-
-        // Write the updated data back to the CSV file
-        console.log("Writing updated roster data back to roster.csv");
-        writeCSV(csvData, res);
-      });
-  });
 });
 
 
