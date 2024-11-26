@@ -363,7 +363,7 @@ function assignSlotToUser(
   if(message === 'BS'){
     sendMessageWithButtonsFromBusiness(user.phone, slot)
   }else{
-    sendMessageWithButtons(user.phone, message);
+    sendMessageWithButtons(user.phone, slot);
   }
 
   // Calculate adjusted timeout duration
@@ -896,14 +896,14 @@ function sendWaitingListMessage(to, message) {
 
 
 // Twilio send message helper with interactive buttons (using template messages)
-function sendMessageWithButtons(to, message) {
+function sendMessageWithButtons(to, slot) {
   const client = new twilio(
     process.env.TWILIO_ACCOUNT_SID,
     process.env.TWILIO_AUTH_TOKEN
   );
-  const template_id = "HXba220fcf27481337670220b10c05af90"; // Ensure this template ID is correct and approved
+  const template_id = "HX91de7066a15f37fa8e76250dfc3153b0"; // Ensure this template ID is correct and approved
   
-  const variables = { 1: message };
+  const variables = { 1: `${slot.number}` };
   const variablesJson = JSON.stringify(variables);
 
   client.messages
