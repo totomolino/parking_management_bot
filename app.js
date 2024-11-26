@@ -299,6 +299,14 @@ app.post("/whatsapp", (req, res) => {
 });
 
 function getLocalTime(){
+  const now = new Date();
+  const options = {
+      timeZone: 'America/Argentina/Buenos_Aires',
+      hour: 'numeric',
+      minute: 'numeric',
+      second: 'numeric',
+      hour12: false
+  };
   // Get the current hour in Argentina time
   const localDateTime = new Intl.DateTimeFormat('en-US', options).format(now);
   const [currentHour, currentMinute, currentSecond] = localDateTime.split(':').map(Number);
@@ -312,14 +320,6 @@ function getLocalTime(){
 
 // Helper function to calculate timeout with overnight pause
 function calculateTimeoutDuration(timeoutDuration) {
-  const now = new Date();
-  const options = {
-      timeZone: 'America/Argentina/Buenos_Aires',
-      hour: 'numeric',
-      minute: 'numeric',
-      second: 'numeric',
-      hour12: false
-  };
 
   // Create a local time date object
   const localTime = getLocalTime();
