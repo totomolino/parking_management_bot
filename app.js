@@ -328,6 +328,8 @@ function calculateTimeoutDuration(timeoutDuration) {
 
   let finalDelay = timeoutDuration;
 
+  const currentHour = localTime.getHours(); // Extract the current hour (0–23)
+
   // If current time is after 10 PM or before 7 AM, set the target for the next day
   if (currentHour >= 22 || currentHour < 7) {
       // Set the target time to 7:10 AM on the correct day
