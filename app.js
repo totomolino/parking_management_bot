@@ -496,32 +496,8 @@ function handleShowImage(sender) {
 
 // Function to handle the 'show all' command
 function handleShowAll(sender) {
-  const userInSlots = parkingSlots.find(
-    (slot) => slot.phone === sender && slot.status !== "available"
-  );
-  const userInWaiting = waitingList.find((user) => user.phone === sender);
-
-  let message = "";
-
-  if (userInSlots) {
-    const slot = parkingSlots.find((slot) => slot.phone === sender);
-    message += `You are assigned to parking slot *${slot.number}*.\n`;
-  }
-
-  if (userInWaiting) {
-    message += `You are on the waiting list at position ${
-      waitingList.indexOf(userInWaiting) + 1
-    }.\n`;
-  }
-
-  if (!userInSlots && !userInWaiting) {
-    message +=
-      "You are neither assigned a parking slot nor on the waiting list.";
-  }
-
-  message += `\n\n${generateFullTable()}`;
-
-  sendWhatsAppMessage(sender, message);
+  handleShowParking(sender);
+  handleShowWaitingList(sender);
 }
 
 // Function to handle the 'show parking' command
