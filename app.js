@@ -118,7 +118,7 @@ const LOG_FILE = "bot_actions.log";
 // Function to log actions to a text file
 function logAction(userPhone, userName, action) {
   const timestamp = getLocalTime();
-  const logEntry = `${timestamp} | Phone: ${userPhone} | Name: ${userName} | Action: ${action}\n`;
+  const logEntry = `${timestamp}|${userPhone.replace("whatsapp:","")}|${userName}|${action}\n`;
   fs.appendFile(LOG_FILE, logEntry, (err) => {
     if (err) {
       console.error("Error logging action:", err);
