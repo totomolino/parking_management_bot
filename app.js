@@ -117,7 +117,7 @@ const LOG_FILE = "bot_actions.log";
 
 // Function to log actions to a text file
 function logAction(userPhone, userName, action) {
-  const timestamp = new Date().toISOString();
+  const timestamp = getLocalTime();
   const logEntry = `${timestamp} | Phone: ${userPhone} | Name: ${userName} | Action: ${action}\n`;
   fs.appendFile(LOG_FILE, logEntry, (err) => {
     if (err) {
@@ -298,6 +298,18 @@ app.post("/whatsapp", (req, res) => {
   res.status(200).send("OK"); // Respond to Twilio immediately
 });
 
+function getLocalTime(){
+  // Get the current hour in Argentina time
+  const localDateTime = new Intl.DateTimeFormat('en-US', options).format(now);
+  const [currentHour, currentMinute, currentSecond] = localDateTime.split(':').map(Number);
+
+  // Create a local time date object
+  const localTime = new Date(now.getTime() - (3 * 60 * 60 * 1000)); // Adjust for GMT-3
+  localTime.setHours(currentHour, currentMinute, currentSecond, 0); // Set to local time
+  return localTime;
+
+}
+
 // Helper function to calculate timeout with overnight pause
 function calculateTimeoutDuration(timeoutDuration) {
   const now = new Date();
@@ -309,13 +321,8 @@ function calculateTimeoutDuration(timeoutDuration) {
       hour12: false
   };
 
-  // Get the current hour in Argentina time
-  const localDateTime = new Intl.DateTimeFormat('en-US', options).format(now);
-  const [currentHour, currentMinute, currentSecond] = localDateTime.split(':').map(Number);
-
   // Create a local time date object
-  const localTime = new Date(now.getTime() - (3 * 60 * 60 * 1000)); // Adjust for GMT-3
-  localTime.setHours(currentHour, currentMinute, currentSecond, 0); // Set to local time
+  const localTime = getLocalTime();
 
   let nextDay7am = new Date(localTime); // Clone the current date
 
