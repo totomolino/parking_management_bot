@@ -152,7 +152,7 @@ initialSlots.push({
   number: 60,
   status: "assigned",
   assignedTo: "Ramses de la Rosa",
-  phone: "+5491169691511",
+  phone: "whatsapp:+5491169691511",
   timeoutHandle: null,
 });
 
@@ -739,7 +739,7 @@ app.post("/parking_slots", (req, res) => {
       number: 60,
       status: "assigned",
       assignedTo: "Ramses de la Rosa",
-      phone: "+5491169691511",
+      phone: "whatsapp:+5491169691511",
       timeoutHandle: null,
     });
   }
