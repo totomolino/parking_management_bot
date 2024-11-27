@@ -411,10 +411,7 @@ function assignSlotToUser(
       slot.timeoutHandle = null;
 
       // Notify the user about timeout (optional)
-      sendWhatsAppMessage(
-        user.phone,
-        `You did not respond in time for parking slot ${slot.number}. The slot is now available for others.`
-      );
+      sendTimeoutmessage(user.phone, slot);
 
       // Assign to the next user in the waiting list
       assignNextSlot();
@@ -896,6 +893,28 @@ function sendWhatsAppMessage(to, message) {
       timeout: 5000
     })
     .then((message) => console.log("Message sent:", message.body, "to", to))
+    .catch((error) => console.error("Error sending message:", error));
+}
+
+function sendTimeoutMessage(to, slot){
+  const client = new twilio(
+    process.env.TWILIO_ACCOUNT_SID,
+    process.env.TWILIO_AUTH_TOKEN
+  );
+  const template_id = "HX29b032532782ba9d68f850c4261aa409"; // Ensure this template ID is correct and approved
+  
+  const variables = { 1: `${slot.number}` };
+  const variablesJson = JSON.stringify(variables);
+
+  client.messages
+    .create({
+      from: twilioNumber,
+      to: to,
+      contentSid: template_id,
+      contentVariables: variablesJson,
+      timeout: 5000
+    })
+    .then((message) => console.log("Message sent:", message.body))
     .catch((error) => console.error("Error sending message:", error));
 }
 
