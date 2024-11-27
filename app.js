@@ -772,10 +772,10 @@ app.post("/excel-data", (req, res) => {
   // Clear all existing timeouts
   parkingSlots.forEach((slot) => {
     if (slot.number === 60) {
-      slot.status: "assigned",
-      slot.assignedTo: "Ramses de la Rosa",
-      slot.phone: "whatsapp:+5491169691511",
-      timeoutHandle: null,
+      slot.status= "assigned",
+      slot.assignedTo= "Ramses de la Rosa",
+      slot.phone= "whatsapp:+5491169691511",
+      timeoutHandle= null,
       return; // Skip this slot
     }
     if (slot.timeoutHandle) {
