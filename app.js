@@ -843,7 +843,7 @@ app.post("/excel-data", (req, res) => {
       );
     });
   }
-
+  saveParkingData();
   res.status(200).send("Excel data processed successfully.");
 });
 
