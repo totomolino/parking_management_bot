@@ -1,0 +1,210 @@
+{
+  "parkingSlots": [
+    {
+      "number": 832,
+      "status": "assigned",
+      "assignedTo": "Matías Acosta Voegeli",
+      "phone": "whatsapp:+5491150557824",
+      "timeoutHandle": null
+    },
+    {
+      "number": 834,
+      "status": "assigned",
+      "assignedTo": "David Chang",
+      "phone": "whatsapp:+5491131984325",
+      "timeoutHandle": null
+    },
+    {
+      "number": 835,
+      "status": "assigned",
+      "assignedTo": "Tomás Valarché",
+      "phone": "whatsapp:+5491156329964",
+      "timeoutHandle": null
+    },
+    {
+      "number": 836,
+      "status": "assigned",
+      "assignedTo": "Andres Tschiffely",
+      "phone": "whatsapp:+5491169666426",
+      "timeoutHandle": null
+    },
+    {
+      "number": 837,
+      "status": "assigned",
+      "assignedTo": "Agustina Martinez",
+      "phone": "whatsapp:+5491127009954",
+      "timeoutHandle": null
+    },
+    {
+      "number": 838,
+      "status": "assigned",
+      "assignedTo": "Esteban Bustos Fernandez",
+      "phone": "whatsapp:+5491135810142",
+      "timeoutHandle": null
+    },
+    {
+      "number": 839,
+      "status": "assigned",
+      "assignedTo": "Guido Freire",
+      "phone": "whatsapp:+5491165486741",
+      "timeoutHandle": null
+    },
+    {
+      "number": 840,
+      "status": "assigned",
+      "assignedTo": "Santiago Cirio",
+      "phone": "whatsapp:+5491159279780",
+      "timeoutHandle": null
+    },
+    {
+      "number": 841,
+      "status": "assigned",
+      "assignedTo": "Juan Medrano Zanotti",
+      "phone": "whatsapp:+5493875097895",
+      "timeoutHandle": null
+    },
+    {
+      "number": 585,
+      "status": "assigned",
+      "assignedTo": "Theo Rossi",
+      "phone": "whatsapp:+5491154871216",
+      "timeoutHandle": null
+    },
+    {
+      "number": 586,
+      "status": "assigned",
+      "assignedTo": "María José Añasco",
+      "phone": "whatsapp:+5491157432484",
+      "timeoutHandle": null
+    },
+    {
+      "number": 587,
+      "status": "assigned",
+      "assignedTo": "Facundo Breton",
+      "phone": "whatsapp:+5491160331949",
+      "timeoutHandle": null
+    },
+    {
+      "number": 588,
+      "status": "assigned",
+      "assignedTo": "Agustin Roel",
+      "phone": "whatsapp:+5491130904075",
+      "timeoutHandle": null
+    },
+    {
+      "number": 589,
+      "status": "assigned",
+      "assignedTo": "Maria Paula Tear",
+      "phone": "whatsapp:+5491123317716",
+      "timeoutHandle": null
+    },
+    {
+      "number": 590,
+      "status": "assigned",
+      "assignedTo": "Clara Alacahan",
+      "phone": "whatsapp:+5491131732801",
+      "timeoutHandle": null
+    },
+    {
+      "number": 591,
+      "status": "assigned",
+      "assignedTo": "Tomas Molino",
+      "phone": "whatsapp:+5491166070996",
+      "timeoutHandle": null
+    },
+    {
+      "number": 592,
+      "status": "assigned",
+      "assignedTo": "Nicolás Benito",
+      "phone": "whatsapp:+5491134777645",
+      "timeoutHandle": null
+    },
+    {
+      "number": 593,
+      "status": "assigned",
+      "assignedTo": "Stephanie Milano",
+      "phone": "whatsapp:+5491155884765",
+      "timeoutHandle": null
+    },
+    {
+      "number": 594,
+      "status": "assigned",
+      "assignedTo": "Lucia Vineys",
+      "phone": "whatsapp:+5491133966344",
+      "timeoutHandle": null
+    },
+    {
+      "number": 569,
+      "status": "assigned",
+      "assignedTo": "Matías Baccini",
+      "phone": "whatsapp:+5491165310595",
+      "timeoutHandle": null
+    },
+    {
+      "number": 570,
+      "status": "assigned",
+      "assignedTo": "Joaquin Canzani",
+      "phone": "whatsapp:+5491165634040",
+      "timeoutHandle": null
+    },
+    {
+      "number": 571,
+      "status": "assigned",
+      "assignedTo": "Magdalena Van Den Broeck",
+      "phone": "whatsapp:+5491138314922",
+      "timeoutHandle": null
+    },
+    {
+      "number": 572,
+      "status": "assigned",
+      "assignedTo": "Martin Fajre",
+      "phone": "whatsapp:+5491167329952",
+      "timeoutHandle": null
+    },
+    {
+      "number": 573,
+      "status": "assigned",
+      "assignedTo": "Tomas Cofino",
+      "phone": "whatsapp:+5491132147096",
+      "timeoutHandle": null
+    },
+    {
+      "number": 574,
+      "status": "assigned",
+      "assignedTo": "Lautaro Bedoian",
+      "phone": "whatsapp:+5491169530107",
+      "timeoutHandle": null
+    },
+    {
+      "number": 575,
+      "status": "assigned",
+      "assignedTo": "Agustin Cabral",
+      "phone": "whatsapp:+5491131063763",
+      "timeoutHandle": null
+    },
+    {
+      "number": 576,
+      "status": "assigned",
+      "assignedTo": "Candelaria Yvorra",
+      "phone": "whatsapp:+5491159478644",
+      "timeoutHandle": null
+    },
+    {
+      "number": 60,
+      "status": "assigned",
+      "assignedTo": "Natalia Etcheverry",
+      "phone": "whatsapp:+5491123320604",
+      "timeoutHandle": null
+    }
+  ],
+  "waitingList": [
+    {
+      "name": "Mateo Ferrari Torres",
+      "phone": "whatsapp:+5491122497999"
+    },
+    {
+      "name": "Jeronimo Diaz Blasizza",
+      "phone": "whatsapp:+5491130893734"
+    }
+  ]
+}

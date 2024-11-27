@@ -4,11 +4,14 @@ const twilio = require("twilio");
 const cors = require("cors");
 const ngrok = require("@ngrok/ngrok");
 const fs = require("fs"); // Import fs module for logging
+const path = require('path');
 require("dotenv").config(); // Load environment variables from .env file
 const csvParser = require('csv-parser');
 const { createCanvas, loadImage } = require('canvas');
 
 const filePath = './roster.csv'; // Path to your CSV file
+// File path for persistence
+const DATA_FILE_PATH = path.join(__dirname, 'parking_data.json');
 const imagePath = 'original_image.jpg';
 const outputPath = 'modified_image.jpg';
 
@@ -156,9 +159,32 @@ initialSlots.push({
   timeoutHandle: null,
 });
 
-// In-memory storage
-let parkingSlots = [...initialSlots];
-let waitingList = [];
+// Function to load data from file
+function loadParkingData() {
+  if (fs.existsSync(DATA_FILE_PATH)) {
+    try {
+      const data = JSON.parse(fs.readFileSync(DATA_FILE_PATH, 'utf-8'));
+      console.log('Data loaded successfully from file.');
+      return data;
+    } catch (error) {
+      console.error('Error reading parking data file:', error);
+    }
+  }
+  console.log('No data file found, using default values.');
+  return { parkingSlots: initialSlots, waitingList: [] };
+}
+
+// Function to save data to file
+function saveParkingData() {
+  const data = { parkingSlots, waitingList };
+  fs.writeFileSync(DATA_FILE_PATH, JSON.stringify(data, null, 2), 'utf-8');
+  console.log('Data saved successfully to file.');
+}
+
+// Restore data on startup
+const restoredData = loadParkingData();
+let parkingSlots = restoredData?.parkingSlots || initialSlots;
+let waitingList = restoredData?.waitingList || [];
 
 
 // Health check endpoint
@@ -294,7 +320,7 @@ app.post("/whatsapp", (req, res) => {
         "Unknown command. Please use 'Add me', 'Show all', 'Show parking', 'Show waiting list', 'Cancel', 'Accept', or 'Decline'."
       );
   }
-
+  saveParkingData();
   res.status(200).send("OK"); // Respond to Twilio immediately
 });
 
