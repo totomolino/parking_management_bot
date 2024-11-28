@@ -362,9 +362,13 @@ function calculateTimeoutDuration(timeoutDuration) {
   if (currentHour >= 22 || currentHour < 7) {
       // Set the target time to 7:10 AM on the correct day
       nextDay7am.setHours(7, 10, 0, 0); // Set to 7:10 AM in the local timezone
-      nextDay7am.setDate(localTime.getDate() + 1); // Move to the next day
+    
+      // Adjust the date correctly:
+      if (currentHour >= 22) {
+        nextDay7am.setDate(localTime.getDate() + 1);
+      }
 
-          // Calculate the delay in milliseconds
+      // Calculate the delay in milliseconds
       finalDelay = nextDay7am - localTime;      
   }
  
