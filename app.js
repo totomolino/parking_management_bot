@@ -148,6 +148,7 @@ const initialSlots = [
   assignedTo: null,
   phone: null,
   timeoutHandle: null, // To store the timeout reference
+  timeoutDate: null,
 }));
 
 // Add slot 60 with pre-assigned values
@@ -157,6 +158,7 @@ initialSlots.push({
   assignedTo: "Ramses de la Rosa",
   phone: "whatsapp:+5491169691511",
   timeoutHandle: null,
+  timeoutDate: null,
 });
 
 // Function to load data from file
@@ -394,7 +396,11 @@ function assignSlotToUser(
 
   // Calculate adjusted timeout duration
   const adjustedTimeout = calculateTimeoutDuration(timeoutDuration);
-
+  
+  // Save the timeout date as a string in ISO format
+  const timeoutDate = new Date(localTime.getTime() + adjustedTimeout);
+  slot.timeoutDate = timeoutDate.toISOString(); // Save as string
+  
   // Set up the timeout
   slot.timeoutHandle = setTimeout(() => {
     // Check if the slot is still pending
@@ -409,6 +415,7 @@ function assignSlotToUser(
       slot.assignedTo = null;
       slot.phone = null;
       slot.timeoutHandle = null;
+      slot.timeoutDate = null;
 
       // Notify the user about timeout (optional)
       sendTimeoutmessage(user.phone, slot);
@@ -633,6 +640,7 @@ function handleCancel(sender, name) {
     slot.status = "available";
     slot.assignedTo = null;
     slot.phone = null;
+    slot.timeoutDate = null;
     sendWhatsAppMessage(sender, `You've released parking slot ${slot.number}.`);
     logAction(sender, name, `Canceled and released slot ${slot.number}`);
     assignNextSlot();
@@ -665,7 +673,7 @@ function handleSlotAccept(sender, name) {
 
     slot.status = "assigned";
     slot.assignedTo = slot.assignedTo.replace(' (Pending)', '') || name; //Assign name only if it's empty (waiting list)
-
+    slot.timeoutDate = null;
     sendWhatsAppMessage(
       sender,
       `Congratulations! You've been assigned parking slot ${slot.number}.`
@@ -698,6 +706,7 @@ function handleSlotDecline(sender, name) {
     slot.status = "available";
     slot.assignedTo = null;
     slot.phone = null;
+    slot.timeoutDate = null;
     sendWhatsAppMessage(
       sender,
       `You've declined parking slot ${slot.number}. The slot is now available for others.`
@@ -739,6 +748,7 @@ app.post("/parking_slots", (req, res) => {
     assignedTo: null,
     phone: null,
     timeoutHandle: null,
+    timeoutDate: null,
   }));
 
   // Ensure slot 60 is included with the assigned values if it's not in receivedSlots
@@ -749,6 +759,7 @@ app.post("/parking_slots", (req, res) => {
       assignedTo: "Ramses de la Rosa",
       phone: "whatsapp:+5491169691511",
       timeoutHandle: null,
+      timeoutDate: null;
     });
   }
 
@@ -776,6 +787,7 @@ app.post("/excel-data", (req, res) => {
       slot.assignedTo= "Ramses de la Rosa"
       slot.phone= "whatsapp:+5491169691511"
       slot.timeoutHandle= null
+      slot.timeoutDate = null;
       return; // Skip this slot
     }
     if (slot.timeoutHandle) {
@@ -785,6 +797,7 @@ app.post("/excel-data", (req, res) => {
     slot.status = "available";
     slot.assignedTo = null;
     slot.phone = null;
+    slot.timeoutDate = null;
   });
 
   
