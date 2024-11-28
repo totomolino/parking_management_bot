@@ -178,11 +178,26 @@ function loadParkingData() {
 
 // Function to save data to file
 function saveParkingData() {
-  const data = { parkingSlots, waitingList };
-  fs.writeFileSync(DATA_FILE_PATH, JSON.stringify(data, null, 2), 'utf-8');
-  console.log('Data saved successfully to file.');
-}
+  // Preprocess parkingSlots to handle timeoutHandle as null
+  const processedParkingSlots = parkingSlots.map(slot => ({
+    ...slot,
+    timeoutHandle: null, // Set timeoutHandle as null for saving
+  }));
 
+  // Create the data object
+  const data = {
+    parkingSlots: processedParkingSlots,
+    waitingList,
+  };
+
+  // Save data to file
+  try {
+    fs.writeFileSync(DATA_FILE_PATH, JSON.stringify(data, null, 2), 'utf-8');
+    console.log('Data saved successfully to file.');
+  } catch (error) {
+    console.error('Failed to save data:', error);
+  }
+}
 // Restore data on startup
 const restoredData = loadParkingData();
 let parkingSlots = restoredData?.parkingSlots || initialSlots;
