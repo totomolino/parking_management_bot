@@ -759,7 +759,7 @@ app.post("/parking_slots", (req, res) => {
       assignedTo: "Ramses de la Rosa",
       phone: "whatsapp:+5491169691511",
       timeoutHandle: null,
-      timeoutDate: null;
+      timeoutDate: null,
     });
   }
 
