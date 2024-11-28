@@ -402,7 +402,7 @@ function assignSlotToUser(
   const adjustedTimeout = calculateTimeoutDuration(timeoutDuration);
   
   // Save the timeout date as a string in ISO format
-  const timeoutDate = new Date(localTime.getTime() + adjustedTimeout);
+  const timeoutDate = new Date(getLocalTime().getTime() + adjustedTimeout);
   slot.timeoutDate = timeoutDate.toISOString(); // Save as string
   
   // Set up the timeout
