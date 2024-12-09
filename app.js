@@ -437,7 +437,7 @@ function assignSlotToUser(
       slot.timeoutDate = null;
 
       // Notify the user about timeout (optional)
-      sendTimeoutmessage(user.phone, slot);
+      sendTimeoutMessage(user.phone, slot);
 
       // Assign to the next user in the waiting list
       assignNextSlot();
