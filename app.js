@@ -546,13 +546,13 @@ function handleShowImage(sender) {
 }
 
 // Function to handle the 'show all' command
-function handleShowAll(sender) {
-  handleShowParking(sender);
-  handleShowWaitingList(sender);
+async function handleShowAll(sender) {
+  await handleShowParking(sender);
+  await handleShowWaitingList(sender);
 }
 
 // Function to handle the 'show parking' command
-function handleShowParking(sender) {
+async function handleShowParking(sender) {
   const userInSlots = parkingSlots.find(
     (slot) => slot.phone === sender && slot.status !== "available"
   );
@@ -608,7 +608,7 @@ function handleShowTimeouts(sender) {
 
 
 // Function to handle the 'show waiting list' command
-function handleShowWaitingList(sender) {
+async function handleShowWaitingList(sender) {
   const userInWaiting = waitingList.find((user) => user.phone === sender);
 
   let message = `Valid for date ${parkingDate}\n`;
