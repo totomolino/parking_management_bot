@@ -293,7 +293,7 @@ app.post("/whatsapp", (req, res) => {
       sender,
       "It looks like your number is not logged in the forms.\nPlease fill https://forms.office.com/r/0scGm4w6s9 and contact Ceci or Majo."
     );
-    return res.status(200).send("OK");
+    return res.status(200).end();
   }
   
 
@@ -338,7 +338,7 @@ app.post("/whatsapp", (req, res) => {
       );
   }
   saveParkingData();
-  res.status(200).send("OK"); // Respond to Twilio immediately
+  res.status(200).end(); // Respond to Twilio immediately
 });
 
 function getLocalTime(){
