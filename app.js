@@ -188,6 +188,7 @@ function saveParkingData() {
   const data = {
     parkingSlots: processedParkingSlots,
     waitingList,
+    parkingDate,
   };
 
   // Save data to file
@@ -202,6 +203,7 @@ function saveParkingData() {
 const restoredData = loadParkingData();
 let parkingSlots = restoredData?.parkingSlots || initialSlots;
 let waitingList = restoredData?.waitingList || [];
+let parkingDate = restoredData?.parkingDate || getLocalTime().toLocaleDateString('en-GB');
 
 
 // Health check endpoint
@@ -556,7 +558,7 @@ function handleShowParking(sender) {
   );
   const userInWaiting = waitingList.find((user) => user.phone === sender);
 
-  let message = "";
+  let message = `Valid for date ${parkingDate}\n`;
 
   if (userInSlots) {
     const slot = parkingSlots.find((slot) => slot.phone === sender);
@@ -574,14 +576,14 @@ function handleShowParking(sender) {
       "You are neither assigned a parking slot nor on the waiting list.";
   }
 
-  message += `\n\n${generateParkingSlotTable()}`;
+  message += `\n${generateParkingSlotTable()}`;
 
   sendWhatsAppMessage(sender, message);
 }
 
 // Function to handle the 'show parking' command
 function handleShowTimeouts(sender) {
-  let message = "Slot|Person|Timeout\n";
+  let message = `Valid for date ${parkingDate}\nSlot|Person|Timeout\n`;
   message += "-------------------\n";
 
   parkingSlots.forEach((item) => {
@@ -794,10 +796,31 @@ app.post("/parking_slots", (req, res) => {
   res.status(200).send("Parking slots have been reset successfully.");
 });
 
+function getNextWorkday() {
+    const localTime = getLocalTime();
+
+    // Create a new Date object based on localTime and add one day
+    let nextDay = new Date(localTime);
+    nextDay.setDate(nextDay.getDate() + 1);
+
+    // Check if the next day is a weekend (Saturday or Sunday)
+    if (nextDay.getDay() === 6) { // Saturday
+        nextDay.setDate(nextDay.getDate() + 2); // Move to Monday
+    } else if (nextDay.getDay() === 0) { // Sunday
+        nextDay.setDate(nextDay.getDate() + 1); // Move to Monday
+    }
+
+    // Log the next workday (skipping weekends) in DD/MM/YYYY format
+    return nextDay.toLocaleDateString('en-GB');
+}
+
 // Endpoint to receive data from Excel macro
 app.post("/excel-data", (req, res) => {
   const receivedData = req.body;
   console.log("Data received from Excel:", receivedData);
+
+  // Create a new Date object based on localTime and add one day
+  parkingDate = getNextWorkday(); //changing the date to tomorrow since new assignations are placed
 
   // Clear all existing timeouts
   parkingSlots.forEach((slot) => {
