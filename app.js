@@ -611,7 +611,7 @@ function handleShowTimeouts(sender) {
 function handleShowWaitingList(sender) {
   const userInWaiting = waitingList.find((user) => user.phone === sender);
 
-  let message = "";
+  let message = `Valid for date ${parkingDate}\n`;
 
   if (userInWaiting) {
     message += `You are on the waiting list at position ${
