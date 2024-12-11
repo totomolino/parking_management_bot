@@ -578,7 +578,7 @@ async function handleShowParking(sender) {
 
   message += `\n${generateParkingSlotTable()}`;
 
-  sendWhatsAppMessage(sender, message);
+  await sendWhatsAppMessage(sender, message);
 }
 
 // Function to handle the 'show parking' command
@@ -623,7 +623,7 @@ async function handleShowWaitingList(sender) {
 
   message += `\n${generateWaitingListTable()}`;
 
-  sendWhatsAppMessage(sender, message);
+  await sendWhatsAppMessage(sender, message);
 }
 
 // Function to handle the 'cancel' command
@@ -938,7 +938,7 @@ app.post("/update-roster", (req, res) => {
 
 
 // Twilio send message helper without interactive buttons
-function sendWhatsAppMessage(to, message) {
+async function sendWhatsAppMessage(to, message) {
   const client = new twilio(
     process.env.TWILIO_ACCOUNT_SID,
     process.env.TWILIO_AUTH_TOKEN
