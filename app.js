@@ -776,7 +776,7 @@ app.post("/test", (req, res) => {
   .status(200)
   .json({ message: receivedSlots });
 
-  );
+});
 
   // Reset parking slots based on received data
   parkingSlots = receivedSlots.map((slotNumber) => ({
