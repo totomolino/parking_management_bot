@@ -762,6 +762,22 @@ app.post("/parking_slots", (req, res) => {
     }
   });
 
+  // Endpoint to configure parking slots via POST request
+app.post("/test", (req, res) => {
+  const receivedSlots = req.body;
+
+  // Validate the input
+  if (!Array.isArray(receivedSlots)) {
+    return res
+      .status(400)
+      .json({ message: "Invalid input: expected an array of slot numbers" });
+  }
+  return res
+  .status(200)
+  .json({ message: receivedSlots });
+
+  );
+
   // Reset parking slots based on received data
   parkingSlots = receivedSlots.map((slotNumber) => ({
     number: slotNumber,
