@@ -697,7 +697,7 @@ function handleSlotAccept(sender, name) {
     slot.timeoutDate = null;
     sendWhatsAppMessage(
       sender,
-      `Congratulations! You've been assigned parking slot ${slot.number}.`
+      `Congratulations! You've been assigned parking slot ${slot.number} for ${parkingDate}.`
     );
     waitingList = waitingList.filter((user) => user.phone !== sender);
     logAction(sender, name, `Accepted and assigned slot ${slot.number}`);
