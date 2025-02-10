@@ -960,15 +960,17 @@ async function sendWhatsAppMessage(to, message) {
     process.env.TWILIO_AUTH_TOKEN
   );
 
-  client.messages
-    .create({
+  try {
+    const sentMessage = await client.messages.create({
       body: message,
       from: twilioNumber,
       to: to,
-      timeout: 5000
-    })
-    .then((message) => console.log("Message sent:", message.body, "to", to))
-    .catch((error) => console.error("Error sending message:", error));
+    });
+
+    console.log("Message sent:", sentMessage.body, "to", to);
+  } catch (error) {
+    console.error("Error sending message:", error);
+  }
 }
 
 function sendTimeoutMessage(to, slot){
