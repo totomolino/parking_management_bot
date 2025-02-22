@@ -777,13 +777,21 @@ function handleSlotPing(sender, name) {
 
   if (slot) {
     // List of shared slots
-    const sharedSlots = [569, 570, 571, 572, 573, 574, 575, 576];    
+    // const sharedSlots = [569, 570, 571, 572, 573, 574, 575, 576];    
+    const sharedSlots = [586];    
     
     if (sharedSlots.includes(slot.number)) {
       // Determine the paired slot
-      const pairSlot = slot.number % 2 === 0 ? slot.number - 1 : slot.number + 1;
+      // const pairSlot = slot.number % 2 === 0 ? slot.number - 1 : slot.number + 1;
+      const pairSlotNumber = 586;
 
-      logAction(sender, name, `Checked shared slot ${slot.number} (Pair: ${pairSlot})`);
+      const pairSlot = slots.find(
+        (slot) => slot.number === pairSlotNumber
+      );
+
+      sendWhatsAppMessage(pairSlot.phone, `Your shared slot partner needs you to move your car please :)`);
+
+      logAction(sender, name, `Checked shared slot ${slot.number} (Pair: ${pairSlotNumber})`);
     } else {
       sendWhatsAppMessage(sender, `You are in slot ${slot.number}, which is not a shared slot.`);
       logAction(sender, name, `Checked non-shared slot ${slot.number}`);
