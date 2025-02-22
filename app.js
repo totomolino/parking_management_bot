@@ -12,6 +12,7 @@ const { createCanvas, loadImage } = require('canvas');
 const filePath = './roster.csv'; // Path to your CSV file
 // File path for persistence
 const DATA_FILE_PATH = path.join(__dirname, 'parking_data.json');
+const yesterday_FILE_PATH = path.join(__dirname, 'parking_data_yesterday.json');
 const imagePath = 'original_image.jpg';
 const outputPath = 'modified_image.jpg';
 
@@ -177,7 +178,7 @@ function loadParkingData() {
 }
 
 // Function to save data to file
-function saveParkingData() {
+function saveParkingData(filePath) {
   // Preprocess parkingSlots to handle timeoutHandle as null
   const processedParkingSlots = parkingSlots.map(slot => ({
     ...slot,
@@ -193,12 +194,13 @@ function saveParkingData() {
 
   // Save data to file
   try {
-    fs.writeFileSync(DATA_FILE_PATH, JSON.stringify(data, null, 2), 'utf-8');
+    fs.writeFileSync(filePath, JSON.stringify(data, null, 2), 'utf-8');
     console.log('Data saved successfully to file.');
   } catch (error) {
     console.error('Failed to save data:', error);
   }
-}
+};
+
 // Restore data on startup
 const restoredData = loadParkingData();
 let parkingSlots = restoredData?.parkingSlots || initialSlots;
@@ -327,6 +329,9 @@ app.post("/whatsapp", (req, res) => {
     case messageBody === "decline":
       handleSlotDecline(sender, name);
       break;
+    case messageBody === "ping":
+      handleSlotPing(sender, name);
+      break;
     case messageBody === "help":
       sendWhatsAppMessage(
         sender,
@@ -339,7 +344,7 @@ app.post("/whatsapp", (req, res) => {
         "Unknown command. Please use 'Add me', 'Show all', 'Show parking', 'Show waiting list', 'Cancel', 'Accept', or 'Decline'."
       );
   }
-  saveParkingData();
+  saveParkingData(DATA_FILE_PATH);
   res.status(200).end(); // Respond to Twilio immediately
 });
 
@@ -627,6 +632,7 @@ async function handleShowWaitingList(sender) {
   await sendWhatsAppMessage(sender, message);
 }
 
+
 // Function to handle the 'cancel' command
 function handleCancel(sender, name) {
   const userInWaitingIndex = waitingList.findIndex(
@@ -743,6 +749,52 @@ function handleSlotDecline(sender, name) {
     logAction(sender, name, `Attempted to decline but no pending assignments`);
   }
 }
+
+
+// Function to handle ping to shared parking slots
+function handleSlotPing(sender, name) {
+
+  const localTime = getLocalTime().toLocaleDateString('en-GB');
+
+  let slots = parkingSlots
+
+  if(localTime !== parkingDate){ //if they are the same, it means that /excel-data didn't run yet
+      if (fs.existsSync(yesterday_FILE_PATH)) {
+    try {
+      const data = JSON.parse(fs.readFileSync(yesterday_FILE_PATH, 'utf-8'));
+      
+      slots = data?.parkingSlots
+      
+    } catch (error) {
+      console.error('Error reading parking data file:', error);
+    }
+    }
+  }
+
+  const slot = slots.find(
+    (slot) => slot.phone === sender && slot.status === "assigned"
+  );  
+
+  if (slot) {
+    // List of shared slots
+    const sharedSlots = [569, 570, 571, 572, 573, 574, 575, 576];    
+    
+    if (sharedSlots.includes(slot.number)) {
+      // Determine the paired slot
+      const pairSlot = slot.number % 2 === 0 ? slot.number - 1 : slot.number + 1;
+
+      logAction(sender, name, `Checked shared slot ${slot.number} (Pair: ${pairSlot})`);
+    } else {
+      sendWhatsAppMessage(sender, `You are in slot ${slot.number}, which is not a shared slot.`);
+      logAction(sender, name, `Checked non-shared slot ${slot.number}`);
+    }
+  } else {
+    sendWhatsAppMessage(sender, "You don't have any slot assigned.");
+    logAction(sender, name, "Attempted to check slot but has no assignment.");
+  }
+}
+
+
 
 // Endpoint to configure parking slots via POST request
 app.post("/test", (req, res) => {
@@ -916,7 +968,7 @@ app.post("/excel-data", (req, res) => {
       );
     });
   }
-  saveParkingData();
+  saveParkingData(DATA_FILE_PATH);
   res.status(200).send("Excel data processed successfully.");
 });
 
