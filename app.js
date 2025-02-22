@@ -783,13 +783,14 @@ function handleSlotPing(sender, name) {
     if (sharedSlots.includes(slot.number)) {
       // Determine the paired slot
       // const pairSlot = slot.number % 2 === 0 ? slot.number - 1 : slot.number + 1;
-      const pairSlotNumber = 586;
+      const pairSlotNumber = 841;
 
       const pairSlot = slots.find(
         (slot) => slot.number === pairSlotNumber
       );
 
-      sendWhatsAppMessage(pairSlot.phone, `Your shared slot partner needs you to move your car please :)`);
+      sendWhatsAppMessage(sender, `We've notified ${pairSlot.assignedTo} to move their car.`);
+      sendWhatsAppMessage(pairSlot.phone, `Your shared slot partner ${slot.assignedTo} with slot ${slot.number} needs you to move your car please :)`);
 
       logAction(sender, name, `Checked shared slot ${slot.number} (Pair: ${pairSlotNumber})`);
     } else {
