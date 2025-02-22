@@ -777,13 +777,11 @@ function handleSlotPing(sender, name) {
 
   if (slot) {
     // List of shared slots
-    // const sharedSlots = [569, 570, 571, 572, 573, 574, 575, 576];    
-    const sharedSlots = [586];    
+    const sharedSlots = [569, 570, 571, 572, 573, 574, 575, 576];
     
     if (sharedSlots.includes(slot.number)) {
       // Determine the paired slot
-      // const pairSlot = slot.number % 2 === 0 ? slot.number - 1 : slot.number + 1;
-      const pairSlotNumber = 841;
+      const pairSlotNumber = slot.number % 2 === 0 ? slot.number - 1 : slot.number + 1;
 
       const pairSlot = slots.find(
         (slot) => slot.number === pairSlotNumber
