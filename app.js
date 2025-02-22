@@ -548,6 +548,7 @@ function handleShowImage(sender) {
 // Function to handle the 'show all' command
 async function handleShowAll(sender) {
   await handleShowParking(sender);
+  await new Promise((resolve) => setTimeout(resolve, 500));
   await handleShowWaitingList(sender);
 }
 
