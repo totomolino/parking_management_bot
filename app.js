@@ -789,7 +789,7 @@ function handleSlotPing(sender, name) {
 
       sendWhatsAppMessage(sender, `We've notified ${pairSlot.assignedTo} to move their car.`);
       sendWhatsAppMessage(pairSlot.phone, `Your shared slot partner ${slot.assignedTo} with slot ${slot.number} needs you to move your car please :)`);
-
+      pingPair(to = pairSlot.phone, slot.assignedTo, slot.number);
       logAction(sender, name, `Checked shared slot ${slot.number} (Pair: ${pairSlotNumber})`);
     } else {
       sendWhatsAppMessage(sender, `You are in slot ${slot.number}, which is not a shared slot.`);
@@ -1063,6 +1063,27 @@ function sendWaitingListMessage(to, message) {
   const template_id = "HXe8c2d1da777fa3642c87553e1b978212";
 
   const variables = { 1: message };
+  const variablesJson = JSON.stringify(variables);
+  client.messages
+    .create({
+      from: twilioNumber,
+      to: to,
+      contentSid: template_id,
+      contentVariables: variablesJson,
+      timeout: 5000
+    })
+    .then((message) => console.log("Message sent:", message.body, "to", to))
+    .catch((error) => console.error("Error sending message:", error));
+}
+
+function pingPair(to , assignedTo, number){
+  const client = new twilio(
+    process.env.TWILIO_ACCOUNT_SID,
+    process.env.TWILIO_AUTH_TOKEN
+  );
+  const template_id = "HX77ecf87e3de7a9c0586443df22f2c4ae";
+
+  const variables = { 1: assignedTo + ' | ' + number};
   const variablesJson = JSON.stringify(variables);
   client.messages
     .create({
