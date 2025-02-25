@@ -788,7 +788,7 @@ function handleSlotPing(sender, name) {
       );
 
       sendWhatsAppMessage(sender, `We've notified ${pairSlot.assignedTo} to move their car.`);
-      sendWhatsAppMessage(pairSlot.phone, `Your shared slot partner ${slot.assignedTo} with slot ${slot.number} needs you to move your car please :)`);
+      
       pingPair(to = pairSlot.phone, slot.assignedTo, slot.number);
       logAction(sender, name, `Checked shared slot ${slot.number} (Pair: ${pairSlotNumber})`);
     } else {
