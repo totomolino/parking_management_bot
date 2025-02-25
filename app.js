@@ -1082,7 +1082,7 @@ function pingPair(to , assignedTo, number){
     process.env.TWILIO_AUTH_TOKEN
   );
   const template_id = "HX782c2ad7292677c969d75720ed1e3d69";
-
+  console.log(`Pinging ${assignedTo} with number ${number}`)
   const variables = { 1: assignedTo, 2: number};
   const variablesJson = JSON.stringify(variables);
   client.messages
