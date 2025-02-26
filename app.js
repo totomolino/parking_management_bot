@@ -758,6 +758,8 @@ function handleSlotPing(sender, name) {
 
   let slots = parkingSlots
 
+  console.log(`local time: ${localTime}, parkingDate: ${parkingDate}`);
+
   if(localTime !== parkingDate){ //if they are the same, it means that /excel-data didn't run yet
       if (fs.existsSync(yesterday_FILE_PATH)) {
     try {
