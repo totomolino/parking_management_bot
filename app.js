@@ -897,6 +897,8 @@ app.post("/excel-data", (req, res) => {
   const receivedData = req.body;
   console.log("Data received from Excel:", receivedData);
 
+  saveParkingData(yesterday_FILE_PATH); //saving today's file 
+
   // Create a new Date object based on localTime and add one day
   parkingDate = getNextWorkday(); //changing the date to tomorrow since new assignations are placed
 
