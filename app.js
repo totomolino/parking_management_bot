@@ -924,95 +924,105 @@ function getNextWorkday() {
   return nextDay.toLocaleDateString('en-GB');
 }
 
+function isTodayHoliday() {
+  const today = getLocalTime().toLocaleDateString('en-GB');
+  const holidays = getHolidays();
+  return holidays.has(today);
+}
+
 // Endpoint to receive data from Excel macro
 app.post("/excel-data", (req, res) => {
-  const receivedData = req.body;
-  console.log("Data received from Excel:", receivedData);
-
-  saveParkingData(yesterday_FILE_PATH); //saving today's file 
-
-  // Create a new Date object based on localTime and add one day
-  parkingDate = getNextWorkday(); //changing the date to tomorrow since new assignations are placed
-
-  // Clear all existing timeouts
-  parkingSlots.forEach((slot) => {
-    if (slot.number === 60) {
-      slot.status= "assigned"
-      slot.assignedTo= "Ramses de la Rosa"
-      slot.phone= "whatsapp:+5491169691511"
-      slot.timeoutHandle= null
-      slot.timeoutDate = null;
-      return; // Skip this slot
-    }
-    if (slot.timeoutHandle) {
-      clearTimeout(slot.timeoutHandle);
-      slot.timeoutHandle = null;
-    }
-    slot.status = "available";
-    slot.assignedTo = null;
-    slot.phone = null;
-    slot.timeoutDate = null;
-  });
-
   
+  if(!isTodayHoliday()){    
+    const receivedData = req.body;
+    console.log("Data received from Excel:", receivedData);
 
-  waitingList = [];
+    saveParkingData(yesterday_FILE_PATH); //saving today's file 
 
-  receivedData.forEach((item) => {
-    const person = item.Person;
-    const slotNumber =
-      item.Parking_slot === "WL" ? null : parseInt(item.Parking_slot, 10);
-    const phone = `whatsapp:${item.Number}`;
+    // Create a new Date object based on localTime and add one day
+    parkingDate = getNextWorkday(); //changing the date to tomorrow since new assignations are placed
 
-    if (item.Parking_slot === "WL") {
-      waitingList.push({ name: person, phone });
-      console.log(`${person} is in the waiting list.`);
-      logAction(phone, person, "Added to waiting list via /excel-data");
-    } else if (slotNumber) {
-      const slot = parkingSlots.find((s) => s.number === slotNumber);
-      if (slot) {
-        slot.status = "pending";
-        slot.assignedTo = person;
-        slot.phone = phone;
-        console.log(`${person} has parking slot ${slot.number}.`);
-        logAction(
-          phone,
-          person,
-          `Assigned slot ${slot.number} via /excel-data`
-        );
-
-        // Notify the assigned user with a 2-hour timeout
-        assignSlotToUser(
-          slot,
-          { name: person, phone },
-          2 * 60 * 60 * 1000, // 2 hours in milliseconds
-          "BS"
-        );
+    // Clear all existing timeouts
+    parkingSlots.forEach((slot) => {
+      if (slot.number === 60) {
+        slot.status= "assigned"
+        slot.assignedTo= "Ramses de la Rosa"
+        slot.phone= "whatsapp:+5491169691511"
+        slot.timeoutHandle= null
+        slot.timeoutDate = null;
+        return; // Skip this slot
       }
-    }
-  });
+      if (slot.timeoutHandle) {
+        clearTimeout(slot.timeoutHandle);
+        slot.timeoutHandle = null;
+      }
+      slot.status = "available";
+      slot.assignedTo = null;
+      slot.phone = null;
+      slot.timeoutDate = null;
+    }); 
 
-  // Notify the next person in the waiting list
-  assignNextSlot();
+    waitingList = [];
 
-  // Create message for the waiting list
-  if (waitingList.length > 0) {
-    // Create a personalized message for each member in the waiting list
-    waitingList.forEach((member, i) => {
-        // Create a message that only contains the position of the member on the waiting list
-      const waitingListMessage = `${i + 1}`;
+    receivedData.forEach((item) => {
+      const person = item.Person;
+      const slotNumber =
+        item.Parking_slot === "WL" ? null : parseInt(item.Parking_slot, 10);
+      const phone = `whatsapp:${item.Number}`;
 
-      // Send a WhatsApp message to each waiting list member with their order
-      sendWaitingListMessage(member.phone, waitingListMessage);
-      logAction(
-        member.phone,
-        member.name,
-        `Notified waiting list position ${i + 1} via /excel-data`
-      );
+      if (item.Parking_slot === "WL") {
+        waitingList.push({ name: person, phone });
+        console.log(`${person} is in the waiting list.`);
+        logAction(phone, person, "Added to waiting list via /excel-data");
+      } else if (slotNumber) {
+        const slot = parkingSlots.find((s) => s.number === slotNumber);
+        if (slot) {
+          slot.status = "pending";
+          slot.assignedTo = person;
+          slot.phone = phone;
+          console.log(`${person} has parking slot ${slot.number}.`);
+          logAction(
+            phone,
+            person,
+            `Assigned slot ${slot.number} via /excel-data`
+          );
+
+          // Notify the assigned user with a 2-hour timeout
+          assignSlotToUser(
+            slot,
+            { name: person, phone },
+            2 * 60 * 60 * 1000, // 2 hours in milliseconds
+            "BS"
+          );
+        }
+      }
     });
+
+    // Notify the next person in the waiting list
+    assignNextSlot();
+
+    // Create message for the waiting list
+    if (waitingList.length > 0) {
+      // Create a personalized message for each member in the waiting list
+      waitingList.forEach((member, i) => {
+          // Create a message that only contains the position of the member on the waiting list
+        const waitingListMessage = `${i + 1}`;
+
+        // Send a WhatsApp message to each waiting list member with their order
+        sendWaitingListMessage(member.phone, waitingListMessage);
+        logAction(
+          member.phone,
+          member.name,
+          `Notified waiting list position ${i + 1} via /excel-data`
+        );
+      });
+    }
+    saveParkingData(DATA_FILE_PATH);
+    res.status(200).send("Excel data processed successfully.");
+  }else {
+    res.status(200).send("Skipping day, today is holiday");
   }
-  saveParkingData(DATA_FILE_PATH);
-  res.status(200).send("Excel data processed successfully.");
+  
 });
 
 // Add new endpoint to get parking image
