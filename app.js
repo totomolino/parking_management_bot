@@ -348,6 +348,11 @@ app.post("/whatsapp", (req, res) => {
     case messageBody === "ping":
       handleSlotPing(sender, name);
       break;
+    case messageBody === "dayCheck":
+      sendWhatsAppMessage(
+        sender,
+        getNextWorkday()
+      );
     case messageBody === "help":
       sendWhatsAppMessage(
         sender,
@@ -890,22 +895,31 @@ app.post("/parking_slots", (req, res) => {
   res.status(200).send("Parking slots have been reset successfully.");
 });
 
+// Read holiday dates from CSV
+function getHolidays() {
+  const filePath = path.resolve(holidaysFilePath);
+  const data = fs.readFileSync(filePath, 'utf8');
+  const lines = data.split('\n').slice(1); // Skip header
+  const holidays = lines.map(line => line.split(',')[0].trim()); // Extract dates
+  return new Set(holidays);
+}
+
 function getNextWorkday() {
-    const localTime = getLocalTime();
+  const localTime = getLocalTime();
+  let nextDay = new Date(localTime);
+  nextDay.setDate(nextDay.getDate() + 1); // Start from the next day
 
-    // Create a new Date object based on localTime and add one day
-    let nextDay = new Date(localTime);
-    nextDay.setDate(nextDay.getDate() + 1);
+  const holidays = getHolidays();
 
-    // Check if the next day is a weekend (Saturday or Sunday)
-    if (nextDay.getDay() === 6) { // Saturday
-        nextDay.setDate(nextDay.getDate() + 2); // Move to Monday
-    } else if (nextDay.getDay() === 0) { // Sunday
-        nextDay.setDate(nextDay.getDate() + 1); // Move to Monday
-    }
+  while (
+      nextDay.getDay() === 6 || // Saturday
+      nextDay.getDay() === 0 || // Sunday
+      holidays.has(nextDay.toLocaleDateString('en-GB')) // Check if it's a holiday
+  ) {
+      nextDay.setDate(nextDay.getDate() + 1); // Move to the next day
+  }
 
-    // Log the next workday (skipping weekends) in DD/MM/YYYY format
-    return nextDay.toLocaleDateString('en-GB');
+  return nextDay.toLocaleDateString('en-GB');
 }
 
 // Endpoint to receive data from Excel macro
