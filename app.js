@@ -1046,8 +1046,7 @@ app.post("/update-holidays", (req, res) => {
     description: user.description || ""
   }));
 
-  writeCSV(csvData, res);
-
+  saveHolidays(csvData, res);
 
 });
 
