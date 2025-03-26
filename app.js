@@ -348,7 +348,7 @@ app.post("/whatsapp", (req, res) => {
     case messageBody === "ping":
       handleSlotPing(sender, name);
       break;
-    case messageBody === "dayCheck":
+    case messageBody === "daycheck":
       sendWhatsAppMessage(
         sender,
         getNextWorkday().toString()
