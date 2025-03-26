@@ -18,6 +18,7 @@ const imagePath = 'original_image.jpg';
 const outputPath = 'modified_image.jpg';
 
 let csvData = []; // In-memory storage for CSV data
+let holidaysData = []; // In-memory storage for Holidays data
 const maxRetries = 3;
 
 // Function to read CSV file and populate csvData
@@ -1056,12 +1057,12 @@ app.post("/update-holidays", (req, res) => {
     return res.status(400).json({ message: "Request body must contain a list of holidays." });
   }
 
-  csvData = holidays.map(user => ({
+  holidaysData = holidays.map(user => ({
     date: user.date || "",
     description: user.description || ""
   }));
 
-  saveHolidays(csvData, res);
+  saveHolidays(holidaysData, res);
 
 });
 
