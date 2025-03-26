@@ -351,8 +351,9 @@ app.post("/whatsapp", (req, res) => {
     case messageBody === "dayCheck":
       sendWhatsAppMessage(
         sender,
-        getNextWorkday()
+        getNextWorkday().toString()
       );
+      break;
     case messageBody === "help":
       sendWhatsAppMessage(
         sender,
