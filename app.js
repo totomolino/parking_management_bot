@@ -352,7 +352,7 @@ app.post("/whatsapp", (req, res) => {
     case messageBody === "daycheck":
       sendWhatsAppMessage(
         sender,
-        getNextWorkday().toString()
+        `Next bussines day is: ${getNextWorkday().toString()}, today is holiday? ${isTodayHoliday()}`
       );
       break;
     case messageBody === "help":
