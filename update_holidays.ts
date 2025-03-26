@@ -3,10 +3,12 @@ async function main(workbook: ExcelScript.Workbook) {
         // Set the URL of your API endpoint for parking slots
         const parkingSlotsUrl = "https://brief-stable-penguin.ngrok-free.app/update-holidays";
 
+        const startingRow = 6 //Where headers starts
+
         // Get the "Slots" worksheet
         let slotsSheet = workbook.getWorksheet("Holidays");
-        let lastRow = slotsSheet.getUsedRange().getRowCount();
-        let dataRange = slotsSheet.getRange(`B6:C${lastRow}`); // Adjusted to start at row 4
+        let lastRow = slotsSheet.getUsedRange().getRowCount() + startingRow - 1;
+        let dataRange = slotsSheet.getRange(`B${startingRow + 1}:C${lastRow}`); // Adjusted to start at row 6
 
         // Get data from the range
         let data = dataRange.getValues();
@@ -21,7 +23,7 @@ async function main(workbook: ExcelScript.Workbook) {
 
         // Send the holidays as JSON to the API endpoint
         let holidaysJsonString = JSON.stringify(holidays);
-        console.log("Roster JSON:", holidaysJsonString);
+        console.log("Holiday JSON:", holidaysJsonString);
 
         const response = await fetch(parkingSlotsUrl, {
             method: 'POST',
