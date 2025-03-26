@@ -10,6 +10,7 @@ const csvParser = require('csv-parser');
 const { createCanvas, loadImage } = require('canvas');
 
 const filePath = './roster.csv'; // Path to your CSV file
+const holidaysFilePath = './holidays.csv'; // Path to your CSV file
 // File path for persistence
 const DATA_FILE_PATH = path.join(__dirname, 'parking_data.json');
 const yesterday_FILE_PATH = path.join(__dirname, 'parking_data_yesterday.json');
@@ -99,6 +100,21 @@ function writeCSV(data, res) {
       return res.status(500).json({ message: "Failed to update CSV file." });
     }
     res.status(200).json({ message: "CSV file updated successfully." });
+  });
+}
+
+
+// Function to write CSV data to file
+function saveHolidays(data, res) {
+  // Add headers to CSV
+  const headers = "date,description\n";
+  const updatedCSV = headers + data.map((row) => `${row.date},${row.description}`).join('\n');
+  fs.writeFile(holidaysFilePath, updatedCSV, (err) => {
+    if (err) {
+      console.error("Error writing holidays CSV file:", err);
+      return res.status(500).json({ message: "Failed to update holidays CSV file." });
+    }
+    res.status(200).json({ message: "holidays CSV file updated successfully." });
   });
 }
 
@@ -1008,6 +1024,26 @@ app.post("/update-roster", (req, res) => {
     name: user.name || "",
     phone: user.phone || "",
     priority: user.priority || ""
+  }));
+
+  writeCSV(csvData, res);
+
+
+});
+
+// Endpoint to update the holidays
+app.post("/update-holidays", (req, res) => {
+  console.log("Received request to update the holidays list");
+  const holidays = req.body;
+
+  if (!Array.isArray(holidays) || holidays.length === 0) {
+    console.log("Invalid request: request body must contain a list of holidays.");
+    return res.status(400).json({ message: "Request body must contain a list of holidays." });
+  }
+
+  csvData = holidays.map(user => ({
+    date: user.date || "",
+    description: user.description || ""
   }));
 
   writeCSV(csvData, res);
