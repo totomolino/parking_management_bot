@@ -875,7 +875,7 @@ app.post('/refresh_logs', (req, res) => {
 
     const newLines = allLines
       .slice(startLine)
-      .map((line, idx) => `${startLine + idx + 1},${line}`);
+      .map((line, idx) => `${startLine + idx + 1}|${line}`);
 
     res.json({
       newLines,
