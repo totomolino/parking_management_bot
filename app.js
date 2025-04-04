@@ -846,9 +846,9 @@ app.post("/test", (req, res) => {
 
 
 // Endpoint to refresh logs on excel
-app.get('/refresh_logs', (req, res) => {
+app.post('/refresh_logs', (req, res) => {
   console.log("Received refresh_logs request with param:", req.query.line);
-  const lineParam = req.query.line;
+  const lineParam = req.body.line;
 
   if (!lineParam || isNaN(lineParam)) {
     return res.status(400).json({ error: 'Missing or invalid "line" parameter' });
