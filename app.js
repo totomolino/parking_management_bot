@@ -844,6 +844,41 @@ app.post("/test", (req, res) => {
 
 });
 
+
+// Endpoint to refresh logs on excel
+app.get('/refresh_logs', (req, res) => {
+  const lineParam = req.query.line;
+
+  if (!lineParam || isNaN(lineParam)) {
+    return res.status(400).json({ error: 'Missing or invalid "line" parameter' });
+  }
+
+  const startLine = parseInt(lineParam, 10);
+  const filePath = path.join(__dirname, LOG_FILE);
+
+  try {
+    const lines = fs.readFileSync(filePath, 'utf8').split('\n');
+    const totalLines = lines.length;
+
+    if (startLine >= totalLines) {
+      return res.json({ newLines: [], nextLineNumber: totalLines });
+    }
+
+    // Slice lines from startLine, then map to add line numbers
+    const newLines = lines
+      .slice(startLine)
+      .map((line, index) => `${startLine + index + 1},${line}`)
+      .filter(line => line.trim() !== '');
+
+    res.json({
+      newLines,
+      nextLineNumber: totalLines
+    });
+  } catch (err) {
+    res.status(500).json({ error: 'Error reading the log file' });
+  }
+});
+
 // Endpoint to configure parking slots via POST request
 app.post("/parking_slots", (req, res) => {
   const receivedSlots = req.body;
