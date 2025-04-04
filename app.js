@@ -847,6 +847,7 @@ app.post("/test", (req, res) => {
 
 // Endpoint to refresh logs on excel
 app.get('/refresh_logs', (req, res) => {
+  console.log("Received refresh_logs request with param:", req.query.line);
   const lineParam = req.query.line;
 
   if (!lineParam || isNaN(lineParam)) {
