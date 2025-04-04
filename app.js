@@ -129,7 +129,7 @@ app.use(bodyParser.json()); // Middleware to parse JSON body
 // Enable CORS for all routes
 app.use(cors({
     origin: '*',
-    methods: ['POST', 'OPTIONS'],
+    methods: ['GET','POST', 'OPTIONS'],
     allowedHeaders: ['Content-Type']
 }));
 
