@@ -857,22 +857,28 @@ app.get('/refresh_logs', (req, res) => {
   const filePath = path.join(__dirname, LOG_FILE);
 
   try {
-    const lines = fs.readFileSync(filePath, 'utf8').split('\n');
-    const totalLines = lines.length;
+    const allLines = fs.readFileSync(filePath, 'utf8').split('\n');
 
-    if (startLine >= totalLines) {
-      return res.json({ newLines: [], nextLineNumber: totalLines });
+    const totalLines = allLines.length;
+    
+    // Remove trailing blank line at end if present
+    while (allLines.length && allLines[allLines.length - 1].trim() === '') {
+      allLines.pop();
     }
 
-    // Slice lines from startLine, then map to add line numbers
-    const newLines = lines
+    const validTotal = allLines.length;
+
+    if (startLine >= validTotal) {
+      return res.json({ newLines: [], nextLineNumber: validTotal });
+    }
+
+    const newLines = allLines
       .slice(startLine)
-      .map((line, index) => `${startLine + index + 1},${line}`)
-      .filter(line => line.trim() !== '');
+      .map((line, idx) => `${startLine + idx + 1},${line}`);
 
     res.json({
       newLines,
-      nextLineNumber: totalLines
+      nextLineNumber: validTotal
     });
   } catch (err) {
     res.status(500).json({ error: 'Error reading the log file' });
