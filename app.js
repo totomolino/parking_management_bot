@@ -605,7 +605,8 @@ async function handleShowParking(sender) {
       "You are neither assigned a parking slot nor on the waiting list.";
   }
 
-  message += `\n${generateParkingSlotTable()}`;
+  // message += `\n${generateParkingSlotTable()}`;
+  message += "```" + "\n" + generateParkingSlotTable() + "```";
 
   await sendWhatsAppMessage(sender, message);
 }
