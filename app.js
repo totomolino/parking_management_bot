@@ -352,6 +352,7 @@ app.post("/whatsapp", (req, res) => {
       break;
     case messageBody === "test_new":
       handleTestNew(sender, name);
+      break;
     case messageBody === "daycheck":
       sendWhatsAppMessage(
         sender,
