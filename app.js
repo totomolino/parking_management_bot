@@ -8,6 +8,7 @@ const path = require('path');
 require("dotenv").config(); // Load environment variables from .env file
 const csvParser = require('csv-parser');
 const { createCanvas, loadImage } = require('canvas');
+const { handle } = require("express/lib/application");
 
 const filePath = './roster.csv'; // Path to your CSV file
 const holidaysFilePath = './holidays.csv'; // Path to your CSV file
@@ -349,6 +350,8 @@ app.post("/whatsapp", (req, res) => {
     case messageBody === "ping":
       handleSlotPing(sender, name);
       break;
+    case messageBody === "test_new":
+      handleTestNew(sender, name);
     case messageBody === "daycheck":
       sendWhatsAppMessage(
         sender,
@@ -370,6 +373,11 @@ app.post("/whatsapp", (req, res) => {
   saveParkingData(DATA_FILE_PATH);
   res.status(200).end(); // Respond to Twilio immediately
 });
+
+
+function handleTestNew(sender, name) {
+  sendCancelList(sender);
+};
 
 function getLocalTime(){
   const now = new Date();
@@ -1243,6 +1251,29 @@ function sendMessageWithButtonsFromBusiness(to, slot) {
   const variablesJson = JSON.stringify(variables);
 
   console.log(variables, variablesJson)
+
+  client.messages
+    .create({
+      from: twilioNumber,
+      to: to,
+      contentSid: template_id,
+      contentVariables: variablesJson,
+      timeout: 5000
+    })
+    .then((message) => console.log("Message sent:", message.body))
+    .catch((error) => console.error("Error sending message:", error));
+}
+
+function sendCancelList(to, slot) {
+  const client = new twilio(
+    process.env.TWILIO_ACCOUNT_SID,
+    process.env.TWILIO_AUTH_TOKEN
+  );
+  const template_id = "HXd6c88539a88776e47f525cf3910e9ae3"; // Ensure this template ID is correct and approved
+  
+  // const variables = { 1: `${slot.number}` };
+  const variables = { 1: `${slot}` };
+  const variablesJson = JSON.stringify(variables);
 
   client.messages
     .create({
