@@ -377,7 +377,7 @@ app.post("/whatsapp", (req, res) => {
 
 
 function handleTestNew(sender, name) {
-  sendCancelList(sender);
+  sendCancelList(sender,"836");
 };
 
 function getLocalTime(){
