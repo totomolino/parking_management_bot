@@ -350,6 +350,19 @@ app.post("/whatsapp", (req, res) => {
     case messageBody === "ping":
       handleSlotPing(sender, name);
       break;
+    case messageBody === "reserve":
+      const messageSid = req.body.MessageSid;
+      twilio.messages(messageSid)
+        .fetch()
+        .then(message => {
+          const timestamp = message.dateSent.toISOString();
+          handleReserve(sender, name, timestamp);
+        })
+        .catch(err => {
+          console.error("Failed to get Twilio timestamp", err);
+          // handleReserve(sender, name, null);
+        });
+      break;
     case messageBody === "test_new":
       handleTestNew(sender, name);
       break;
@@ -379,6 +392,12 @@ app.post("/whatsapp", (req, res) => {
 function handleTestNew(sender, name) {
   sendCancelList(sender,"836");
 };
+
+function handleReserve(sender, name, timestamp) {
+  sendWhatsAppMessage(sender,`You are ${name} and you reserved at ${timestamp}`);
+};
+
+
 
 function getLocalTime(){
   const now = new Date();
