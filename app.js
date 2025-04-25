@@ -406,7 +406,14 @@ function handleTestNew(sender, name) {
 };
 
 function handleReserve(sender, name, timestamp) {
-  sendWhatsAppMessage(sender,`You are ${name} and you reserved at ${timestamp}`);
+  const timestamp = new Date();
+          
+  const argentinaTime = timestamp.toLocaleString('en-US', {
+    timeZone: 'America/Argentina/Buenos_Aires',
+    hour12: false,
+  });
+
+  sendWhatsAppMessage(sender,`You are ${name} and you reserved at ${timestamp} (twilio) \n ${argentinaTime} (server calculated)`);
 };
 
 
