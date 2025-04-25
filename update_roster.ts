@@ -23,9 +23,12 @@ async function main(workbook: ExcelScript.Workbook) {
         };
 
         for (let i = 0; i < data.length; i++) {
+            let rawDate = data[i][8];
             let name = data[i][1] as string; // Column B for name
             let title = data[i][6] as string; // Column G for title
-            let date_of_hire = data[i][8] as string; // Column J for phone
+            let date_of_hire = rawDate instanceof Date
+            ? rawDate.toISOString().split('T')[0]
+            : String(rawDate);
             let phone = data[i][9] as string; // Column J for phone
             if (phone === "No") {
                 continue;

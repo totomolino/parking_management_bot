@@ -94,8 +94,8 @@ async function generateParkingImage() {
 // Function to write CSV data to file
 function writeCSV(data, res) {
   // Add headers to CSV
-  const headers = "name,phone,priority\n";
-  const updatedCSV = headers + data.map((row) => `${row.name},${row.phone},${row.priority}`).join('\n');
+  const headers = "name,phone,date_of_hire,priority\n";
+  const updatedCSV = headers + data.map((row) => `${row.name},${row.phone},${row.date_of_hire},${row.priority}`).join('\n');
   fs.writeFile(filePath, updatedCSV, (err) => {
     if (err) {
       console.error("Error writing CSV file:", err);
@@ -1101,6 +1101,7 @@ app.post("/update-roster", (req, res) => {
   csvData = users.map(user => ({
     name: user.name || "",
     phone: user.phone || "",
+    date_of_hire: user.date_of_hire || "",
     priority: user.priority || ""
   }));
 
