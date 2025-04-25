@@ -359,8 +359,16 @@ app.post("/whatsapp", (req, res) => {
       client.messages(messageSid)
         .fetch()
         .then(message => {
-          const timestamp = message.dateSent.toISOString();
-          handleReserve(sender, name, timestamp);
+          // Get the timestamp in Argentina's timezone
+          const timestamp = new Date(message.dateSent);
+          
+          const argentinaTime = timestamp.toLocaleString('en-US', {
+            timeZone: 'America/Argentina/Buenos_Aires',
+            hour12: false,
+          });
+          
+          // Now pass the Argentina timestamp to handleReserve
+          handleReserve(sender, name, argentinaTime);
         })
         .catch(err => {
           console.error("Failed to get Twilio timestamp", err);
