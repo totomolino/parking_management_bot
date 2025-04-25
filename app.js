@@ -9,6 +9,16 @@ require("dotenv").config(); // Load environment variables from .env file
 const csvParser = require('csv-parser');
 const { createCanvas, loadImage } = require('canvas');
 const { handle } = require("express/lib/application");
+const { Pool } = require('pg'); // Import the pg Pool for database connection
+
+// Create a new pool to interact with PostgreSQL
+const pool = new Pool({
+  user: 'postgres',       // Replace with your PostgreSQL username
+  host: 'localhost',      // Replace with your host if needed
+  database: 'parking_database', // Your database name
+  password: 'mySecurePassword123', // Your PostgreSQL password
+  port: 5432,             // Default PostgreSQL port
+});
 
 const filePath = './roster.csv'; // Path to your CSV file
 const holidaysFilePath = './holidays.csv'; // Path to your CSV file
@@ -406,14 +416,9 @@ function handleTestNew(sender, name) {
 };
 
 function handleReserve(sender, name, timestamp) {
-  const timestamp2 = new Date();
-          
-  const argentinaTime = timestamp2.toLocaleString('en-US', {
-    timeZone: 'America/Argentina/Buenos_Aires',
-    hour12: false,
-  });
 
-  sendWhatsAppMessage(sender,`You are ${name} and you reserved at ${timestamp} (twilio) \n ${argentinaTime} (server calculated)`);
+
+  sendWhatsAppMessage(sender,`You are ${name} and you reserved at ${timestamp}`);
 };
 
 
@@ -1115,6 +1120,38 @@ app.post("/excel-data", (req, res) => {
   
 });
 
+async function writeTable(users, res){
+  try {
+    // Loop through each user and insert into the database
+    for (const user of users) {
+      const { name, phone, date_of_hire, priority } = user;
+      const score = 10; // Fixed score for now
+
+      // Insert query to add the user into the "roster" table
+      const query = `
+        INSERT INTO roster (name, phone, date_of_hire, priority, score)
+        VALUES ($1, $2, $3, $4, $5)
+        ON CONFLICT (name) DO UPDATE 
+        SET phone = EXCLUDED.phone, 
+            date_of_hire = EXCLUDED.date_of_hire,
+            priority = EXCLUDED.priority,
+            score = EXCLUDED.score;
+      `;
+
+      // Execute the query
+      await pool.query(query, [name, phone, date_of_hire, priority, score]);
+
+      console.log(`Inserted/Updated user: ${name}`);
+    }
+
+    // Respond with a success message
+    return res.status(200).json({ message: "Roster updated successfully." });
+  } catch (error) {
+    console.error("Error updating roster:", error);
+    return res.status(500).json({ message: "Failed to update roster.", error: error.message });
+  }
+}
+
 // Add new endpoint to get parking image
 app.get("/parking-image", async (req, res) => {
     try {
@@ -1127,7 +1164,7 @@ app.get("/parking-image", async (req, res) => {
 });
 
 // Endpoint to update the user roster data
-app.post("/update-roster", (req, res) => {
+app.post("/update-roster", async (req, res) => {
   console.log("Received request to update roster");
   const users = req.body;
 
@@ -1145,8 +1182,11 @@ app.post("/update-roster", (req, res) => {
 
   writeCSV(csvData, res);
 
+  await writeTable(csvData, res);
 
 });
+
+
 
 // Endpoint to update the holidays
 app.post("/update-holidays", (req, res) => {
