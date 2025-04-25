@@ -406,9 +406,9 @@ function handleTestNew(sender, name) {
 };
 
 function handleReserve(sender, name, timestamp) {
-  const timestamp = new Date();
+  const timestamp2 = new Date();
           
-  const argentinaTime = timestamp.toLocaleString('en-US', {
+  const argentinaTime = timestamp2.toLocaleString('en-US', {
     timeZone: 'America/Argentina/Buenos_Aires',
     hour12: false,
   });
