@@ -1270,7 +1270,7 @@ function sendCancelList(to, slot) {
     process.env.TWILIO_ACCOUNT_SID,
     process.env.TWILIO_AUTH_TOKEN
   );
-  const template_id = "HXd6c88539a88776e47f525cf3910e9ae3"; // Ensure this template ID is correct and approved
+  const template_id = "HXcb161f09ec74224ebe94587318c9bd19"; // Ensure this template ID is correct and approved
   
   // const variables = { 1: `${slot.number}` };
   const variables = { 1: `${slot}` };
