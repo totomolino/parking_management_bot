@@ -9,6 +9,7 @@ node_modules/
 
 # CSV files
 roster.csv
+holidays.csv
 
 # SSH keys (private keys)
 keys.ppk
