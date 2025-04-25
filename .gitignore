@@ -20,6 +20,7 @@ parking_data_bkp.json
 parking_data_bkp_23012025.json
 parking_data_test.json
 parking_data_yesterday.json
+parking*.json
 
 # Package lock (if you choose not to commit it)
 package-lock.json
