@@ -352,7 +352,11 @@ app.post("/whatsapp", (req, res) => {
       break;
     case messageBody === "reserve":
       const messageSid = req.body.MessageSid;
-      twilio.messages(messageSid)
+      const client = new twilio(
+        process.env.TWILIO_ACCOUNT_SID,
+        process.env.TWILIO_AUTH_TOKEN
+      );
+      client.messages(messageSid)
         .fetch()
         .then(message => {
           const timestamp = message.dateSent.toISOString();
