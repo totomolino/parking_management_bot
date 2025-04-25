@@ -1,7 +1,35 @@
+# Node modules
+node_modules/
 
-/node_modules
+# Environment variables
 .env
+
+# Log files
 *.log
+
+# CSV files
 roster.csv
+holidays.csv
+
+# SSH keys (private keys)
 keys.ppk
-parking_data.json
+
+# JSON backups and related files
+parking_data*.json
+parking_data_bkp.json
+parking_data_bkp_23012025.json
+parking_data_test.json
+parking_data_yesterday.json
+parking*.json
+
+# Package lock (if you choose not to commit it)
+package-lock.json
+
+# Backup CSVs
+roster_bkp_032625.csv
+roster_bkp_25042025.csv
+
+# Other backup files
+*.bak
+*.tmp
+
