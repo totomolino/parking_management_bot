@@ -10,7 +10,7 @@ async function main(workbook: ExcelScript.Workbook) {
 
         // Get data from the range
         let data = dataRange.getValues();
-        let roster: Array<{ name: string; phone: string; priority: number }> = [];
+        let roster: Array<{ name: string; phone: string; date_of_hire: string; priority: number }> = [];
 
         // Priority mapping
         const priorityMap: { [key: string]: number } = {
@@ -25,6 +25,7 @@ async function main(workbook: ExcelScript.Workbook) {
         for (let i = 0; i < data.length; i++) {
             let name = data[i][1] as string; // Column B for name
             let title = data[i][6] as string; // Column G for title
+            let date_of_hire = data[i][8] as string; // Column J for phone
             let phone = data[i][9] as string; // Column J for phone
             if (phone === "No") {
                 continue;
@@ -32,7 +33,7 @@ async function main(workbook: ExcelScript.Workbook) {
             // Determine priority based on title
             let priority = priorityMap[title] || 5; // Default priority if title doesn't match
 
-            roster.push({ name, phone, priority });
+            roster.push({ name, phone, date_of_hire, priority });
         }
 
         // Send the roster as JSON to the API endpoint
