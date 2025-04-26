@@ -179,7 +179,7 @@ async function searchUserId(userPhone) {
 }
 
 // Async function to log action into database
-async function logActionToDB(userPhone, userName, action) {
+async function logActionToDB(userPhone, action) {
   try {
     const userId = await searchUserId(userPhone);
     if (!userId) {
@@ -372,33 +372,43 @@ app.post("/whatsapp", (req, res) => {
   switch (true) {
     case messageBody === "add me":
       handleAddMe(sender, name);
+      logActionToDB(sender, "COMMAND_ADD_ME");
       break;
     case messageBody === "show all":
       handleShowAll(sender);
+      logActionToDB(sender, "COMMAND_SHOW_ALL");
       break;
     case messageBody === "show image":
       handleShowImage(sender);
+      logActionToDB(sender, "COMMAND_SHOW_IMAGE");
       break;
     case messageBody === "show parking":
       handleShowParking(sender);
+      logActionToDB(sender, "COMMAND_SHOW_PARKING");
       break;
     case messageBody === "show timeouts":
       handleShowTimeouts(sender);
+      logActionToDB(sender, "COMMAND_SHOW_TIMEOUTS");
       break;
     case messageBody === "show waiting list":
       handleShowWaitingList(sender);
+      logActionToDB(sender, "COMMAND_SHOW_WAITING_LIST");
       break;
     case messageBody === "cancel":
       handleCancel(sender, name);
+      logActionToDB(sender, "COMMAND_CANCEL");
       break;
     case messageBody === "accept":
       handleSlotAccept(sender, name);
+      logActionToDB(sender, "COMMAND_ACCEPT");
       break;
     case messageBody === "decline":
       handleSlotDecline(sender, name);
+      logActionToDB(sender, "COMMAND_DECLINE");
       break;
     case messageBody === "ping":
       handleSlotPing(sender, name);
+      logActionToDB(sender, "COMMAND_PING");
       break;
     case messageBody === "reserve":
       const messageSid = req.body.MessageSid;
@@ -419,6 +429,7 @@ app.post("/whatsapp", (req, res) => {
           
           // Now pass the Argentina timestamp to handleReserve
           handleReserve(sender, name, argentinaTime);
+          logActionToDB(sender, "COMMAND_RESERVE");
         })
         .catch(err => {
           console.error("Failed to get Twilio timestamp", err);
