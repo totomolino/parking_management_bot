@@ -423,7 +423,7 @@ app.post("/whatsapp", (req, res) => {
           // Use Luxon to handle the timestamp properly
           const argentinaTime = DateTime.fromJSDate(new Date(message.dateSent))
             .setZone('America/Argentina/Buenos_Aires')
-            .toISO();
+            .toFormat('yyyy-MM-dd HH:mm:ss');
 
           // Now pass the Argentina timestamp to handleReserve
           handleReserve(sender, name, argentinaTime);
@@ -432,7 +432,7 @@ app.post("/whatsapp", (req, res) => {
           console.error("Failed to get Twilio timestamp, calculating timestamp", err);
           const fallbackTime = DateTime.now()
             .setZone('America/Argentina/Buenos_Aires')
-            .toISO();
+            .toFormat('yyyy-MM-dd HH:mm:ss');
           handleReserve(sender, name, fallbackTime);
         });
       break;
