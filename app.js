@@ -163,7 +163,7 @@ function logAction(userPhone, userName, action) {
 // Async function to search for user ID
 async function searchUserId(userPhone) {
   const query = 'SELECT id FROM roster WHERE phone = $1';
-  const values = [userPhone];
+  const values = [userPhone.replace("whatsapp:","")]; // Remove "whatsapp:" prefix
 
   try {
     const result = await pool.query(query, values);
