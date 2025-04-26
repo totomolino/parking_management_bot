@@ -411,6 +411,7 @@ app.post("/whatsapp", (req, res) => {
       handleSlotPing(sender, name);
       break;
     case messageBody === "reserve":
+      logActionToDB(sender, "COMMAND_RESERVE");
       const messageSid = req.body.MessageSid;
       const client = new twilio(
         process.env.TWILIO_ACCOUNT_SID,
@@ -419,21 +420,20 @@ app.post("/whatsapp", (req, res) => {
       client.messages(messageSid)
         .fetch()
         .then(message => {
-          // Get the timestamp in Argentina's timezone
-          const timestamp = new Date(message.dateSent);
-          
-          const argentinaTime = timestamp.toLocaleString('en-US', {
-            timeZone: 'America/Argentina/Buenos_Aires',
-            hour12: false,
-          });
-          
+          // Use Luxon to handle the timestamp properly
+          const argentinaTime = DateTime.fromJSDate(new Date(message.dateSent))
+            .setZone('America/Argentina/Buenos_Aires')
+            .toISO();
+
           // Now pass the Argentina timestamp to handleReserve
-          logActionToDB(sender, "COMMAND_RESERVE");
           handleReserve(sender, name, argentinaTime);
         })
         .catch(err => {
-          console.error("Failed to get Twilio timestamp", err);
-          // handleReserve(sender, name, null);
+          console.error("Failed to get Twilio timestamp, calculating timestamp", err);
+          const fallbackTime = DateTime.now()
+            .setZone('America/Argentina/Buenos_Aires')
+            .toISO();
+          handleReserve(sender, name, fallbackTime);
         });
       break;
     case messageBody === "test_new":
