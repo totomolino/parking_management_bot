@@ -5,6 +5,7 @@ const cors = require("cors");
 const ngrok = require("@ngrok/ngrok");
 const fs = require("fs"); // Import fs module for logging
 const path = require('path');
+const { DateTime } = require('luxon');//for date manipulation
 require("dotenv").config(); // Load environment variables from .env file
 const csvParser = require('csv-parser');
 const { createCanvas, loadImage } = require('canvas');
@@ -156,6 +157,45 @@ function logAction(userPhone, userName, action) {
       console.error("Error logging action:", err);
     }
   });
+  logActionToDB(userPhone, userName, action); // Log to database as well
+}
+
+// Async function to search for user ID
+async function searchUserId(userPhone) {
+  const query = 'SELECT id FROM roster WHERE phone = $1';
+  const values = [userPhone];
+
+  try {
+    const result = await pool.query(query, values);
+    if (result.rows.length > 0) {
+      return result.rows[0].id;
+    } else {
+      return null;
+    }
+  } catch (err) {
+    console.error("Error searching user ID:", err);
+    throw err;
+  }
+}
+
+// Async function to log action into database
+async function logActionToDB(userPhone, userName, action) {
+  try {
+    const userId = await searchUserId(userPhone);
+    if (!userId) {
+      console.error(`User with phone ${userPhone} not found.`);
+      return;
+    }
+
+    const logTime = DateTime.now().setZone('America/Argentina/Buenos_Aires').toISO();
+    const query = 'INSERT INTO logs (user_id, action, log_time) VALUES ($1, $2, $3)';
+    const values = [userId, action, logTime];
+
+    await pool.query(query, values);
+    console.log("Logged action successfully!");
+  } catch (err) {
+    console.error("Error logging to DB:", err);
+  }
 }
 
 // Initial Parking Slots Configuration
