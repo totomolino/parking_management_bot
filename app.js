@@ -371,44 +371,44 @@ app.post("/whatsapp", (req, res) => {
 
   switch (true) {
     case messageBody === "add me":
-      handleAddMe(sender, name);
       logActionToDB(sender, "COMMAND_ADD_ME");
+      handleAddMe(sender, name);
       break;
     case messageBody === "show all":
-      handleShowAll(sender);
       logActionToDB(sender, "COMMAND_SHOW_ALL");
+      handleShowAll(sender);
       break;
     case messageBody === "show image":
-      handleShowImage(sender);
       logActionToDB(sender, "COMMAND_SHOW_IMAGE");
+      handleShowImage(sender);
       break;
     case messageBody === "show parking":
-      handleShowParking(sender);
       logActionToDB(sender, "COMMAND_SHOW_PARKING");
+      handleShowParking(sender);
       break;
     case messageBody === "show timeouts":
-      handleShowTimeouts(sender);
       logActionToDB(sender, "COMMAND_SHOW_TIMEOUTS");
+      handleShowTimeouts(sender);
       break;
     case messageBody === "show waiting list":
-      handleShowWaitingList(sender);
       logActionToDB(sender, "COMMAND_SHOW_WAITING_LIST");
+      handleShowWaitingList(sender);
       break;
     case messageBody === "cancel":
-      handleCancel(sender, name);
       logActionToDB(sender, "COMMAND_CANCEL");
+      handleCancel(sender, name);
       break;
     case messageBody === "accept":
-      handleSlotAccept(sender, name);
       logActionToDB(sender, "COMMAND_ACCEPT");
+      handleSlotAccept(sender, name);
       break;
     case messageBody === "decline":
-      handleSlotDecline(sender, name);
       logActionToDB(sender, "COMMAND_DECLINE");
+      handleSlotDecline(sender, name);
       break;
     case messageBody === "ping":
-      handleSlotPing(sender, name);
       logActionToDB(sender, "COMMAND_PING");
+      handleSlotPing(sender, name);
       break;
     case messageBody === "reserve":
       const messageSid = req.body.MessageSid;
@@ -428,8 +428,8 @@ app.post("/whatsapp", (req, res) => {
           });
           
           // Now pass the Argentina timestamp to handleReserve
-          handleReserve(sender, name, argentinaTime);
           logActionToDB(sender, "COMMAND_RESERVE");
+          handleReserve(sender, name, argentinaTime);
         })
         .catch(err => {
           console.error("Failed to get Twilio timestamp", err);
@@ -607,7 +607,7 @@ function assignNextSlot(timeoutDuration = 10 * 60 * 1000) {
 }
 
 // Function to handle the 'add me' command
-function handleAddMe(sender, name) {
+function  handleAddMe(sender, name) {
   const userInSlots = parkingSlots.find(
     (slot) => slot.phone === sender && slot.status !== "available"
   );
