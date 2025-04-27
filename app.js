@@ -157,7 +157,7 @@ function logAction(userPhone, userName, action) {
       console.error("Error logging action:", err);
     }
   });
-  logActionToDB(userPhone, userName, action); // Log to database as well
+  logActionToDB(userPhone, action); // Log to database as well
 }
 
 // Async function to search for user ID
@@ -560,7 +560,7 @@ function assignSlotToUser(
       console.log(
         `User ${user.phone} did not respond in time. Releasing slot ${slot.number}.`
       );
-      logAction(user.phone, user.name, `Timeout for slot ${slot.number}`);
+      logActionToDB(user.phone, `Timeout for slot ${slot.number}`);
 
       // Release the slot
       slot.status = "available";
@@ -597,9 +597,8 @@ function assignNextSlot(timeoutDuration = 10 * 60 * 1000) {
   const nextPerson = waitingList[0];
   waitingList.splice(0, 1); // Remove the first from waiting list
 
-  logAction(
+  logActionToDB(
     nextPerson.phone,
-    nextPerson.name,
     `The slot ${availableSlot.number} was free and given to first on WL`
   );
 
@@ -619,9 +618,8 @@ function  handleAddMe(sender, name) {
       sender,
       `You already have parking slot ${slot.number}.`
     );
-    logAction(
+    logActionToDB(
       sender,
-      name,
       `Attempted to add but already has slot ${slot.number}`
     );
     return;
@@ -634,9 +632,8 @@ function  handleAddMe(sender, name) {
         waitingList.indexOf(userInWaiting) + 1
       }.`
     );
-    logAction(
+    logActionToDB(
       sender,
-      name,
       `Attempted to add but already on waiting list at position ${
         waitingList.indexOf(userInWaiting) + 1
       }`
@@ -655,7 +652,7 @@ function  handleAddMe(sender, name) {
       { name, phone: sender },
       10 * 60 * 1000 // 10 minutes in milliseconds
     );
-    logAction(sender, name, `Added and assigned slot ${availableSlot.number}`);
+    logActionToDB(sender, `Added and assigned slot ${availableSlot.number}`);
   } else {
     // Add to waiting list
     waitingList.push({ name, phone: sender });
@@ -663,7 +660,7 @@ function  handleAddMe(sender, name) {
       sender,
       "No available parking slots at the moment. You've been added to the waiting list."
     );
-    logAction(sender, name, `Added to waiting list`);
+    logActionToDB(sender, `Added to waiting list`);
 
     // Optionally notify the next slot availability
     assignNextSlot();
@@ -772,9 +769,8 @@ function handleCancel(sender, name) {
   if (userInWaitingIndex > -1) {
     waitingList.splice(userInWaitingIndex, 1);
     sendWhatsAppMessage(sender, "You've been removed from the waiting list.");
-    logAction(
+    logActionToDB(
       sender,
-      name,
       `Canceled and removed from waiting list at position ${
         userInWaitingIndex + 1
       }`
@@ -797,7 +793,7 @@ function handleCancel(sender, name) {
     slot.phone = null;
     slot.timeoutDate = null;
     sendWhatsAppMessage(sender, `You've released parking slot ${slot.number}.`);
-    logAction(sender, name, `Canceled and released slot ${slot.number}`);
+    logActionToDB(sender, `Canceled and released slot ${slot.number}`);
     assignNextSlot();
     return;
   }
@@ -806,9 +802,8 @@ function handleCancel(sender, name) {
     sender,
     "You're neither on the waiting list nor assigned to any parking slot."
   );
-  logAction(
+  logActionToDB(
     sender,
-    name,
     `Attempted to cancel but not found in slots or waiting list`
   );
 }
@@ -834,14 +829,14 @@ function handleSlotAccept(sender, name) {
       `Congratulations! You've been assigned parking slot ${slot.number} for ${parkingDate}.`
     );
     waitingList = waitingList.filter((user) => user.phone !== sender);
-    logAction(sender, name, `Accepted and assigned slot ${slot.number}`);
+    logActionToDB(sender, `Accepted and assigned slot ${slot.number}`);
     console.log(`Slot ${slot.number} assigned to ${slot.assignedTo}.`);
 
     // Optionally, assign another slot if available
     assignNextSlot();
   } else {
     sendWhatsAppMessage(sender, "You don't have any pending slot assignments.");
-    logAction(sender, name, `Attempted to accept but no pending assignments`);
+    logActionToDB(sender, `Attempted to accept but no pending assignments`);
   }
 }
 
@@ -866,14 +861,14 @@ function handleSlotDecline(sender, name) {
       sender,
       `You've declined parking slot ${slot.number}. The slot is now available for others.`
     );
-    logAction(sender, name, `Declined slot ${slot.number}`);
+    logActionToDB(sender, `Declined slot ${slot.number}`);
     assignNextSlot();
   } else {
     sendWhatsAppMessage(
       sender,
       "You don't have any pending slot assignments to decline."
     );
-    logAction(sender, name, `Attempted to decline but no pending assignments`);
+    logActionToDB(sender, `Attempted to decline but no pending assignments`);
   }
 }
 
@@ -919,14 +914,14 @@ function handleSlotPing(sender, name) {
       sendWhatsAppMessage(sender, `We've notified ${pairSlot.assignedTo} to move their car.`);
       
       pingPair(to = pairSlot.phone, slot.assignedTo, slot.number);
-      logAction(sender, name, `Checked shared slot ${slot.number} (Pair: ${pairSlotNumber})`);
+      logActionToDB(sender,  `Checked shared slot ${slot.number} (Pair: ${pairSlotNumber})`);
     } else {
       sendWhatsAppMessage(sender, `You are in slot ${slot.number}, which is not a shared slot.`);
-      logAction(sender, name, `Checked non-shared slot ${slot.number}`);
+      logActionToDB(sender, `Checked non-shared slot ${slot.number}`);
     }
   } else {
     sendWhatsAppMessage(sender, "You don't have any slot assigned.");
-    logAction(sender, name, "Attempted to check slot but has no assignment.");
+    logActionToDB(sender,  "Attempted to check slot but has no assignment.");
   }
 }
 
@@ -1034,8 +1029,7 @@ app.post("/parking_slots", (req, res) => {
   waitingList = []; // Reset waiting list
 
   console.log("The parking slots have been reset: ", parkingSlots);
-  logAction(
-    "SYSTEM",
+  logActionToDB(
     "SYSTEM",
     "Parking slots have been reset via /parking_slots endpoint"
   );
@@ -1119,7 +1113,7 @@ app.post("/excel-data", (req, res) => {
       if (item.Parking_slot === "WL") {
         waitingList.push({ name: person, phone });
         console.log(`${person} is in the waiting list.`);
-        logAction(phone, person, "Added to waiting list via /excel-data");
+        logActionToDB(phone, "Added to waiting list via /excel-data");
       } else if (slotNumber) {
         const slot = parkingSlots.find((s) => s.number === slotNumber);
         if (slot) {
@@ -1127,9 +1121,8 @@ app.post("/excel-data", (req, res) => {
           slot.assignedTo = person;
           slot.phone = phone;
           console.log(`${person} has parking slot ${slot.number}.`);
-          logAction(
+          logActionToDB(
             phone,
-            person,
             `Assigned slot ${slot.number} via /excel-data`
           );
 
@@ -1156,7 +1149,7 @@ app.post("/excel-data", (req, res) => {
 
         // Send a WhatsApp message to each waiting list member with their order
         sendWaitingListMessage(member.phone, waitingListMessage);
-        logAction(
+        logActionToDB(
           member.phone,
           member.name,
           `Notified waiting list position ${i + 1} via /excel-data`
