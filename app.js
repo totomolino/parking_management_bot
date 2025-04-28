@@ -384,7 +384,7 @@ function generateFullTable() {
 }
 
 // Handle incoming WhatsApp messages
-app.post("/whatsapp", (req, res) => {
+app.post("/whatsapp", async (req, res) => {
   const messageBody = req.body.Body.trim().toLowerCase();
   const sender = req.body.From; // WhatsApp number
   // const name = req.body.ProfileName;
@@ -476,7 +476,7 @@ app.post("/whatsapp", (req, res) => {
     case messageBody === "daycheck":
       sendWhatsAppMessage(
         sender,
-        `Next bussines day is: ${getNextWorkday().toString()}, today is holiday? ${isTodayHoliday()}`
+        `Next bussines day is: ${await getNextWorkday().toString()}, today is holiday? ${await isTodayHoliday()}`
       );
       break;
     case messageBody === "help":
