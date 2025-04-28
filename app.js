@@ -1092,12 +1092,12 @@ async function getHolidays() {
   }
 }
 
-function getNextWorkday() {
+async function getNextWorkday() {
   const localTime = getLocalTime();
   let nextDay = new Date(localTime);
   nextDay.setDate(nextDay.getDate() + 1); // Start from the next day
 
-  const holidays = getHolidays();
+  const holidays = await getHolidays();
 
   while (
       nextDay.getDay() === 6 || // Saturday
@@ -1110,23 +1110,23 @@ function getNextWorkday() {
   return nextDay.toLocaleDateString('en-GB');
 }
 
-function isTodayHoliday() {
+async function isTodayHoliday() {
   const today = getLocalTime().toLocaleDateString('en-GB');
-  const holidays = getHolidays();
+  const holidays = await getHolidays();
   return holidays.has(today);
 }
 
 // Endpoint to receive data from Excel macro
-app.post("/excel-data", (req, res) => {
-  
-  if(!isTodayHoliday()){    
+app.post("/excel-data", async (req, res) => {
+  const todayBool = await isTodayHoliday();
+  if(!todayBool){    
     const receivedData = req.body;
     console.log("Data received from Excel:", receivedData);
 
     saveParkingData(yesterday_FILE_PATH); //saving today's file 
 
     // Create a new Date object based on localTime and add one day
-    parkingDate = getNextWorkday(); //changing the date to tomorrow since new assignations are placed
+    parkingDate = await getNextWorkday(); //changing the date to tomorrow since new assignations are placed
 
     // Clear all existing timeouts
     parkingSlots.forEach((slot) => {
