@@ -118,17 +118,48 @@ function writeCSV(data, res) {
 
 
 // Function to write CSV data to file
-function saveHolidays(data, res) {
-  // Add headers to CSV
-  const headers = "date,description\n";
-  const updatedCSV = headers + data.map((row) => `${row.date},${row.description}`).join('\n');
-  fs.writeFile(holidaysFilePath, updatedCSV, (err) => {
-    if (err) {
-      console.error("Error writing holidays CSV file:", err);
-      return res.status(500).json({ message: "Failed to update holidays CSV file." });
-    }
-    res.status(200).json({ message: "holidays CSV file updated successfully." });
-  });
+// function saveHolidays(data, res) {
+//   // Add headers to CSV
+//   const headers = "date,description\n";
+//   const updatedCSV = headers + data.map((row) => `${row.date},${row.description}`).join('\n');
+//   fs.writeFile(holidaysFilePath, updatedCSV, (err) => {
+//     if (err) {
+//       console.error("Error writing holidays CSV file:", err);
+//       return res.status(500).json({ message: "Failed to update holidays CSV file." });
+//     }
+//     res.status(200).json({ message: "holidays CSV file updated successfully." });
+//   });
+// }
+
+
+// Save holidays into the database
+async function saveHolidays(data, res) {
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+    
+    // Clear existing holidays
+    await client.query('DELETE FROM holidays');
+    
+    // Insert new holidays
+    const insertPromises = data.map(row => {
+      return client.query(
+        'INSERT INTO holidays (date, description) VALUES ($1, $2)',
+        [row.date, row.description]
+      );
+    });
+
+    await Promise.all(insertPromises);
+
+    await client.query('COMMIT');
+    res.status(200).json({ message: 'Holidays updated successfully.' });
+  } catch (err) {
+    await client.query('ROLLBACK');
+    console.error('Error updating holidays in DB:', err);
+    res.status(500).json({ message: 'Failed to update holidays.' });
+  } finally {
+    client.release();
+  }
 }
 
 const app = express();
@@ -1038,12 +1069,24 @@ app.post("/parking_slots", (req, res) => {
 });
 
 // Read holiday dates from CSV
-function getHolidays() {
-  const filePath = path.resolve(holidaysFilePath);
-  const data = fs.readFileSync(filePath, 'utf8');
-  const lines = data.split('\n').slice(1); // Skip header
-  const holidays = lines.map(line => line.split(',')[0].trim()); // Extract dates
-  return new Set(holidays);
+// function getHolidays() {
+//   const filePath = path.resolve(holidaysFilePath);
+//   const data = fs.readFileSync(filePath, 'utf8');
+//   const lines = data.split('\n').slice(1); // Skip header
+//   const holidays = lines.map(line => line.split(',')[0].trim()); // Extract dates
+//   return new Set(holidays);
+// }
+
+// Read holidays from the database
+async function getHolidays() {
+  try {
+    const result = await pool.query('SELECT date FROM holidays');
+    const holidays = result.rows.map(row => row.date.toISOString().split('T')[0]); // format 'YYYY-MM-DD'
+    return new Set(holidays);
+  } catch (err) {
+    console.error('Error fetching holidays from DB:', err);
+    throw err;
+  }
 }
 
 function getNextWorkday() {
