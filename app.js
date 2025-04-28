@@ -140,12 +140,15 @@ async function saveHolidays(data, res) {
     
     // Clear existing holidays
     await client.query('DELETE FROM holidays');
-    
+
     // Insert new holidays
     const insertPromises = data.map(row => {
+      const [day, month, year] = row.date.split('/'); // split "24/03/2025"
+      const formattedDate = `${year}-${month}-${day}`; // "2025-03-24"
+
       return client.query(
         'INSERT INTO holidays (date, description) VALUES ($1, $2)',
-        [row.date, row.description]
+        [formattedDate, row.description]
       );
     });
 
