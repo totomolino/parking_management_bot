@@ -474,9 +474,10 @@ app.post("/whatsapp", async (req, res) => {
       handleTestNew(sender, name);
       break;
     case messageBody === "daycheck":
+      const todaytest = await getNextWorkday().toString();
       sendWhatsAppMessage(
         sender,
-        `Next bussines day is: ${await getNextWorkday().toString()}, today is holiday? ${await isTodayHoliday()}`
+        `Next bussines day is: ${todaytest}, today is holiday? ${await isTodayHoliday()}`
       );
       break;
     case messageBody === "help":
