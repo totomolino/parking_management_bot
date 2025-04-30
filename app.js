@@ -1140,7 +1140,7 @@ async function getNextWorkday() {
   while (
       nextDay.weekday === 6 || // Saturday
       nextDay.weekday === 0 || // Sunday
-      holidays.has(nextDay.toFormat('dd/MM/yyyy')) // Check if it's a holiday
+      holidays.has(nextDay.toFormat('yyyy-MM-dd')) // Check if it's a holiday
   ) {
       nextDay = nextDay.plus({ days: 1 }); // Move to the next day
   }
@@ -1149,7 +1149,7 @@ async function getNextWorkday() {
 }
 
 async function isTodayHoliday() {
-  const today = getLocalTime().toFormat('dd/MM/yyyy');
+  const today = getLocalTime().toFormat('yyyy-MM-dd');
   const holidays = await getHolidays();
   return holidays.has(today);
 }
