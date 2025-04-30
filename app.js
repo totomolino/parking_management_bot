@@ -144,7 +144,7 @@ async function saveHolidays(data, res) {
     // Insert new holidays
     const insertPromises = data.map(row => {
       const [day, month, year] = row.date.split('/'); // split "24/03/2025"
-      const formattedDate = `${year}-${month}-${day}`; // "2025-03-24"
+      const formattedDate = `${day}/${month}/${year}`; // "2025-03-24"
 
       return client.query(
         'INSERT INTO holidays (date, description) VALUES ($1, $2)',
