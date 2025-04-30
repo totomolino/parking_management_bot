@@ -618,10 +618,11 @@ function assignSlotToUser(
 
   // Calculate adjusted timeout duration
   const adjustedTimeout = calculateTimeoutDuration(timeoutDuration);
-  
-  // Save the timeout date as a string in ISO format
-  const timeoutDate = new Date(getLocalTime().getTime() + adjustedTimeout);
-  slot.timeoutDate = timeoutDate.toISOString(); // Save as string
+
+  // Save the timeout date as a string in ISO format using Luxon
+  const localTime = getLocalTime(); // Get Luxon DateTime object
+  const timeoutDate = localTime.plus({ milliseconds: adjustedTimeout }); // Adjust the time with the calculated delay
+  slot.timeoutDate = timeoutDate.toISO(); // Save as ISO string
   
   // Set up the timeout
   slot.timeoutHandle = setTimeout(() => {
