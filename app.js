@@ -1149,7 +1149,7 @@ async function getNextWorkday() {
 }
 
 async function isTodayHoliday() {
-  const today = getLocalTime().toLocaleDateString('en-GB');
+  const today = getLocalTime().toFormat('dd/MM/yyyy');
   const holidays = await getHolidays();
   return holidays.has(today);
 }
