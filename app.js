@@ -1135,6 +1135,7 @@ async function getNextWorkday() {
 
   const holidays = await getHolidays();
   console.log(nextDay);
+  console.log(holidays);
 
   while (
       nextDay.weekday === 6 || // Saturday
