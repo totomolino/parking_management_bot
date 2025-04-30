@@ -144,7 +144,7 @@ async function saveHolidays(data, res) {
     // Insert new holidays
     const insertPromises = data.map(row => {
       const [day, month, year] = row.date.split('/'); // split "24/03/2025"
-      const formattedDate = `${day}/${month}/${year}`; // "2025-03-24"
+      const formattedDate = `${year}-${month}-${day}`; // "2025-03-24"
 
       return client.query(
         'INSERT INTO holidays (date, description) VALUES ($1, $2)',
@@ -1121,7 +1121,9 @@ app.post("/parking_slots", (req, res) => {
 async function getHolidays() {
   try {
     const result = await pool.query('SELECT date FROM holidays');
-    const holidays = result.rows.map(row => row.date.toISOString().split('T')[0]); // format 'YYYY-MM-DD'
+    const holidays = result.rows.map(row => {
+      return DateTime.fromJSDate(row.date).toFormat('dd/MM/yyyy');
+    });
     return new Set(holidays);
   } catch (err) {
     console.error('Error fetching holidays from DB:', err);
