@@ -1099,6 +1099,7 @@ async function getNextWorkday() {
   nextDay.setDate(nextDay.getDate() + 1); // Start from the next day
 
   const holidays = await getHolidays();
+  console.log(holidays);
 
   while (
       nextDay.getDay() === 6 || // Saturday
