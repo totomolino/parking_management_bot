@@ -947,7 +947,7 @@ function handleSlotDecline(sender, name) {
 // Function to handle ping to shared parking slots
 function handleSlotPing(sender, name) {
 
-  const localTime = getLocalTime().toLocaleDateString('en-GB');
+  const localTime = getLocalTime().toFormat('dd/MM/yyyy');
 
   let slots = parkingSlots
 
