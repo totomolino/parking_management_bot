@@ -307,7 +307,7 @@ function saveParkingData(filePath) {
 const restoredData = loadParkingData();
 let parkingSlots = restoredData?.parkingSlots || initialSlots;
 let waitingList = restoredData?.waitingList || [];
-let parkingDate = restoredData?.parkingDate || getLocalTime().toLocaleDateString('en-GB');
+let parkingDate = restoredData?.parkingDate || getLocalTime().toFormat('dd/MM/yyyy');
 
 
 // Health check endpoint
@@ -509,24 +509,30 @@ function handleReserve(sender, name, timestamp) {
 
 
 
-function getLocalTime(){
-  const now = new Date();
-  const options = {
-      timeZone: 'America/Argentina/Buenos_Aires',
-      hour: 'numeric',
-      minute: 'numeric',
-      second: 'numeric',
-      hour12: false
-  };
-  // Get the current hour in Argentina time
-  const localDateTime = new Intl.DateTimeFormat('en-US', options).format(now);
-  const [currentHour, currentMinute, currentSecond] = localDateTime.split(':').map(Number);
+// function getLocalTime(){
+//   const now = new Date();
+//   const options = {
+//       timeZone: 'America/Argentina/Buenos_Aires',
+//       hour: 'numeric',
+//       minute: 'numeric',
+//       second: 'numeric',
+//       hour12: false
+//   };
+//   // Get the current hour in Argentina time
+//   const localDateTime = new Intl.DateTimeFormat('en-US', options).format(now);
+//   const [currentHour, currentMinute, currentSecond] = localDateTime.split(':').map(Number);
 
-  // Create a local time date object
-  const localTime = new Date(now.getTime() - (3 * 60 * 60 * 1000)); // Adjust for GMT-3
-  localTime.setHours(currentHour, currentMinute, currentSecond, 0); // Set to local time
+//   // Create a local time date object
+//   const localTime = new Date(now.getTime() - (3 * 60 * 60 * 1000)); // Adjust for GMT-3
+//   localTime.setHours(currentHour, currentMinute, currentSecond, 0); // Set to local time
+//   return localTime;
+
+// }
+
+function getLocalTime() {
+  // Get current time in Buenos Aires timezone
+  const localTime = DateTime.now().setZone('America/Argentina/Buenos_Aires');
   return localTime;
-
 }
 
 // Helper function to calculate timeout with overnight pause
@@ -561,6 +567,35 @@ function calculateTimeoutDuration(timeoutDuration) {
   console.log(`Overnight Delay: ${finalDelay}`);
 
   return finalDelay; // Return the delay
+}
+
+
+function calculateTimeoutDuration(timeoutDuration) {
+  const localTime = getLocalTime(); // Luxon DateTime
+
+  let finalDelay = timeoutDuration;
+
+  const currentHour = localTime.hour;
+
+  if (currentHour >= 22 || currentHour < 7) {
+    let nextDay7am = localTime;
+    // Set time to 7:10 AM
+    nextDay7am = nextDay7am.set({ hour: 7, minute: 10, second: 0, millisecond: 0 });
+    
+    // If it's after 10 PM, move to the next day
+    if (currentHour >= 22) {
+      nextDay7am = nextDay7am.plus({ days: 1 });
+    }
+
+    // Calculate the delay
+    finalDelay = nextDay7am.toMillis() - localTime.toMillis();
+  }
+
+  console.log(`Current Time: ${localTime.toISO()}`);
+  console.log(`Next 7:10 AM: ${localTime.set({ hour: 7, minute: 10 }).toISO()}`);
+  console.log(`Overnight Delay: ${finalDelay}`);
+
+  return finalDelay;
 }
 
 // Generic function to assign a slot to a user with a timeout
