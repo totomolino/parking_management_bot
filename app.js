@@ -1130,7 +1130,7 @@ async function getHolidays() {
 }
 
 async function getNextWorkday() {
-  const localTime = getLocalTime().toFormat('dd/MM/yyyy');
+  const localTime = getLocalTime();
   let nextDay = localTime.plus({ days: 1 }); // Start from the next day
 
   const holidays = await getHolidays();
