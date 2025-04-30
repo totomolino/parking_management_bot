@@ -1131,8 +1131,7 @@ async function getHolidays() {
 
 async function getNextWorkday() {
   const localTime = getLocalTime().toFormat('dd/MM/yyyy');
-  let nextDay = new Date(localTime);
-  nextDay.setDate(nextDay.getDate() + 1); // Start from the next day
+  let nextDay = localTime.plus({ days: 1 }); // Start from the next day
 
   const holidays = await getHolidays();
   console.log(nextDay);
@@ -1140,12 +1139,12 @@ async function getNextWorkday() {
   while (
       nextDay.getDay() === 6 || // Saturday
       nextDay.getDay() === 0 || // Sunday
-      holidays.has(nextDay.toLocaleDateString('en-GB')) // Check if it's a holiday
+      holidays.has(nextDay.toFormat('dd/MM/yyyy')) // Check if it's a holiday
   ) {
-      nextDay.setDate(nextDay.getDate() + 1); // Move to the next day
+      nextDay = nextDay.plus({ days: 1 }); // Move to the next day
   }
 
-  return nextDay.toLocaleDateString('en-GB');
+  return nextDay.toFormat('dd/MM/yyyy');
 }
 
 async function isTodayHoliday() {
