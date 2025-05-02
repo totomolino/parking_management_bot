@@ -536,38 +536,38 @@ function getLocalTime() {
 }
 
 // Helper function to calculate timeout with overnight pause
-function calculateTimeoutDuration(timeoutDuration) {
+// function calculateTimeoutDuration(timeoutDuration) {
 
-  // Create a local time date object
-  const localTime = getLocalTime();
+//   // Create a local time date object
+//   const localTime = getLocalTime();
 
-  let nextDay7am = new Date(localTime); // Clone the current date
+//   let nextDay7am = new Date(localTime); // Clone the current date
 
-  let finalDelay = timeoutDuration;
+//   let finalDelay = timeoutDuration;
 
-  const currentHour = localTime.getHours(); // Extract the current hour (0–23)
+//   const currentHour = localTime.getHours(); // Extract the current hour (0–23)
 
-  // If current time is after 10 PM or before 7 AM, set the target for the next day
-  if (currentHour >= 22 || currentHour < 7) {
-      // Set the target time to 7:10 AM on the correct day
-      nextDay7am.setHours(7, 10, 0, 0); // Set to 7:10 AM in the local timezone
+//   // If current time is after 10 PM or before 7 AM, set the target for the next day
+//   if (currentHour >= 22 || currentHour < 7) {
+//       // Set the target time to 7:10 AM on the correct day
+//       nextDay7am.setHours(7, 10, 0, 0); // Set to 7:10 AM in the local timezone
     
-      // Adjust the date correctly:
-      if (currentHour >= 22) {
-        nextDay7am.setDate(localTime.getDate() + 1);
-      }
+//       // Adjust the date correctly:
+//       if (currentHour >= 22) {
+//         nextDay7am.setDate(localTime.getDate() + 1);
+//       }
 
-      // Calculate the delay in milliseconds
-      finalDelay = nextDay7am - localTime;      
-  }
+//       // Calculate the delay in milliseconds
+//       finalDelay = nextDay7am - localTime;      
+//   }
  
 
-  console.log(`Current Time: ${localTime}`);
-  console.log(`Next 7:10 AM: ${nextDay7am}`);
-  console.log(`Overnight Delay: ${finalDelay}`);
+//   console.log(`Current Time: ${localTime}`);
+//   console.log(`Next 7:10 AM: ${nextDay7am}`);
+//   console.log(`Overnight Delay: ${finalDelay}`);
 
-  return finalDelay; // Return the delay
-}
+//   return finalDelay; // Return the delay
+// }
 
 
 function calculateTimeoutDuration(timeoutDuration) {
@@ -1151,7 +1151,7 @@ async function getNextWorkday() {
 }
 
 async function isTodayHoliday() {
-  const today = getLocalTime().toFormat('yyyy-MM-dd');
+  const today = getLocalTime().toFormat('dd/MM/yyyy');
   const holidays = await getHolidays();
   return holidays.has(today);
 }
