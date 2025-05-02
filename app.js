@@ -485,7 +485,7 @@ app.post("/whatsapp", async (req, res) => {
       break;
     case messageBody === "reserve":
       logActionToDB(sender, "COMMAND_RESERVE");
-      handleReserve(MessageSid, sender,name);
+      handleReserve(req.body.MessageSid, sender,name);
       break;
     case messageBody === "test_new":
       handleTestNew(sender, name);
