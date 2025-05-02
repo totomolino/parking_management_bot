@@ -216,10 +216,10 @@ async function searchUserId(userPhone) {
 async function saveReservation(userId, timestamp) {
   const query = `
     INSERT INTO reservations (user_id, reservation_timestamp)
-    VALUES ($1, $2)
-    ON CONFLICT (user_id, DATE(reservation_timestamp))
+      VALUES ($1, $2)
+    ON CONFLICT (user_id, reservation_date)
     DO UPDATE SET reservation_timestamp = EXCLUDED.reservation_timestamp
-    RETURNING id;
+    RETURNING id, user_id, reservation_timestamp;
   `;
   const values = [userId, timestamp];
 
