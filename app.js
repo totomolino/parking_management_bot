@@ -11,6 +11,7 @@ const csvParser = require('csv-parser');
 const { createCanvas, loadImage } = require('canvas');
 const { handle } = require("express/lib/application");
 const { Pool } = require('pg'); // Import the pg Pool for database connection
+const res = require("express/lib/response");
 
 // Create a new pool to interact with PostgreSQL
 const pool = new Pool({
@@ -233,23 +234,31 @@ async function saveReservation(userId, timestamp) {
 }
 
 
-//Search if it has a reservation
-async function hasReservation(sender){
-  const query = 'SELECT id FROM reservation WHERE phone = $1';
-  const values = [userPhone.replace("whatsapp:","")]; // Remove "whatsapp:" prefix
+// Check if user has a reservation for tomorrow, but only if assignment hasn't happened
+async function hasReservation(user_id) {
+  const assigned = assignmentFlag(); // Returns true if assignment is done
+
+  if (assigned) {
+    return false; // Don't allow cancel/check if the assignment has been made
+  }
+
+  const query = `
+    SELECT id 
+    FROM reservations 
+    WHERE user_id = $1 
+      AND reservation_date = CURRENT_DATE
+  `;
+  const values = [user_id];
 
   try {
     const result = await pool.query(query, values);
-    if (result.rows.length > 0) {
-      return result.rows[0].id;
-    } else {
-      return null;
-    }
+    return result.rows.length > 0 ? true : false;
   } catch (err) {
-    console.error("Error searching user ID:", err);
+    console.error("Error checking reservation:", err);
     throw err;
-  }  
+  }
 }
+
 
 // Async function to log action into database
 async function logActionToDB(userPhone, action) {
@@ -488,7 +497,8 @@ app.post("/whatsapp", async (req, res) => {
       handleReserve(req.body.MessageSid, sender,name);
       break;
     case messageBody === "test_new":
-      handleTestNew(sender, name);
+      // handleTestNew(sender, name);
+      handleCancelList(sender);
       break;
     case messageBody === "daycheck":
       const todaytest = (await getNextWorkday()).toString();
@@ -884,12 +894,42 @@ async function handleShowWaitingList(sender) {
   await sendWhatsAppMessage(sender, message);
 }
 
+//Return the slot if the user has a assigned slot
+function userHasSlot(sender){
+  return parkingSlots.find(
+    (slot) => slot.phone === sender && slot.status !== "available"
+  );
+}
+
+//Returns the index of the the user is in the waiting list
+function userHasWL(sender){
+  return (waitingList.findIndex(
+    (user) => user.phone === sender
+  ));
+}
 
 
 
-function handleCancelList(sender, name){
+function handleCancelList(sender){
   //Check if the user has a reservation or a slot/waiting list
   const user_id = searchUserId(sender);
+  const reservationFlag = hasReservation(user_id);
+  const userInWaitingIndex = userHasWL(sender);
+  const userInSlots = userHasSlot(sender);
+
+  // If the user has a reservation and has a slot/waiting list, cancel the reservation
+  if(reservationFlag && (userInSlots || userInWaitingIndex > -1)){
+    let messageNum = "0";
+    if(userInSlots){
+      const slot = parkingSlots.find((slot) => slot.phone === sender);
+      messageNum = `slot ${slot.number}`;
+    }else{
+      messageNum = `WL ${userInWaitingIndex + 1}`;
+    }
+    sendCancelList(sender, messageNum);
+  }
+
+
 
 }
 
@@ -1009,6 +1049,15 @@ function handleSlotDecline(sender, name) {
   }
 }
 
+// Function to check if new assignment ran
+function assignmentFlag(){
+  const localTime = getLocalTime().toFormat('dd/MM/yyyy');
+
+  console.log(`local time: ${localTime}, parkingDate: ${parkingDate}`);
+
+  return localTime !== parkingDate //if they are the same, it means that /excel-data didn't run yet
+}
+
 
 // Function to handle ping to shared parking slots
 function handleSlotPing(sender, name) {
@@ -1019,7 +1068,9 @@ function handleSlotPing(sender, name) {
 
   console.log(`local time: ${localTime}, parkingDate: ${parkingDate}`);
 
-  if(localTime !== parkingDate){ //if they are the same, it means that /excel-data didn't run yet
+  const runFlag = assignmentFlag();
+
+  if(runFlag){ //if they are the same, it means that /excel-data didn't run yet
       if (fs.existsSync(yesterday_FILE_PATH)) {
     try {
       const data = JSON.parse(fs.readFileSync(yesterday_FILE_PATH, 'utf-8'));
@@ -1539,15 +1590,14 @@ function sendMessageWithButtonsFromBusiness(to, slot) {
     .catch((error) => console.error("Error sending message:", error));
 }
 
-function sendCancelList(to, slot) {
+function sendCancelList(to, messageNum) {
   const client = new twilio(
     process.env.TWILIO_ACCOUNT_SID,
     process.env.TWILIO_AUTH_TOKEN
   );
-  const template_id = "HXcb161f09ec74224ebe94587318c9bd19"; // Ensure this template ID is correct and approved
+  const template_id = "HXe66d29d52be9510ca8f9f6a84d70b8ba"; // Ensure this template ID is correct and approved
   
-  // const variables = { 1: `${slot.number}` };
-  const variables = { 1: `${slot}` };
+  const variables = { 1: `${messageNum}` };
   const variablesJson = JSON.stringify(variables);
 
   client.messages
