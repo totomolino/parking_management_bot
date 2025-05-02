@@ -914,7 +914,7 @@ function userHasWL(sender){
 async function handleCancelList(sender){
   //Check if the user has a reservation or a slot/waiting list
   const user_id = await searchUserId(sender);
-  const reservationFlag = hasReservation(user_id);
+  const reservationFlag = await hasReservation(user_id);
   const userInWaitingIndex = userHasWL(sender);
   const userInSlots = userHasSlot(sender);
 
