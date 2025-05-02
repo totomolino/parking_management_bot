@@ -212,6 +212,45 @@ async function searchUserId(userPhone) {
   }
 }
 
+// Function to save reservation to the database
+async function saveReservation(userId, timestamp) {
+  const query = `
+    INSERT INTO reservations (user_id, reservation_timestamp)
+    VALUES ($1, $2)
+    ON CONFLICT (user_id, DATE(reservation_timestamp))
+    DO UPDATE SET reservation_timestamp = EXCLUDED.reservation_timestamp
+    RETURNING id;
+  `;
+  const values = [userId, timestamp];
+
+  try {
+    const result = await pool.query(query, values);
+    return result.rows[0].id;
+  } catch (err) {
+    console.error("Error saving reservation:", err);
+    throw err;
+  }
+}
+
+
+//Search if it has a reservation
+async function hasReservation(sender){
+  const query = 'SELECT id FROM reservation WHERE phone = $1';
+  const values = [userPhone.replace("whatsapp:","")]; // Remove "whatsapp:" prefix
+
+  try {
+    const result = await pool.query(query, values);
+    if (result.rows.length > 0) {
+      return result.rows[0].id;
+    } else {
+      return null;
+    }
+  } catch (err) {
+    console.error("Error searching user ID:", err);
+    throw err;
+  }  
+}
+
 // Async function to log action into database
 async function logActionToDB(userPhone, action) {
   try {
@@ -446,29 +485,7 @@ app.post("/whatsapp", async (req, res) => {
       break;
     case messageBody === "reserve":
       logActionToDB(sender, "COMMAND_RESERVE");
-      const messageSid = req.body.MessageSid;
-      const client = new twilio(
-        process.env.TWILIO_ACCOUNT_SID,
-        process.env.TWILIO_AUTH_TOKEN
-      );
-      client.messages(messageSid)
-        .fetch()
-        .then(message => {
-          // Use Luxon to handle the timestamp properly
-          const argentinaTime = DateTime.fromJSDate(new Date(message.dateSent))
-            .setZone('America/Argentina/Buenos_Aires')
-            .toFormat('yyyy-MM-dd HH:mm:ss');
-
-          // Now pass the Argentina timestamp to handleReserve
-          handleReserve(sender, name, argentinaTime);
-        })
-        .catch(err => {
-          console.error("Failed to get Twilio timestamp, calculating timestamp", err);
-          const fallbackTime = DateTime.now()
-            .setZone('America/Argentina/Buenos_Aires')
-            .toFormat('yyyy-MM-dd HH:mm:ss');
-          handleReserve(sender, name, fallbackTime);
-        });
+      handleReserve(MessageSid, sender,name);
       break;
     case messageBody === "test_new":
       handleTestNew(sender, name);
@@ -501,11 +518,51 @@ function handleTestNew(sender, name) {
   sendCancelList(sender,"836");
 };
 
-function handleReserve(sender, name, timestamp) {
+async function getArgentinaTimestamp(messageSid) {
+  const client = new twilio(
+    process.env.TWILIO_ACCOUNT_SID,
+    process.env.TWILIO_AUTH_TOKEN
+  );
 
+  try {
+    const message = await client.messages(messageSid).fetch();
+    return DateTime.fromJSDate(new Date(message.dateSent))
+      .setZone('America/Argentina/Buenos_Aires')
+      .toFormat('yyyy-MM-dd HH:mm:ss');
+  } catch (err) {
+    console.error("Failed to get Twilio timestamp, using fallback", err);
+    return DateTime.now()
+      .setZone('America/Argentina/Buenos_Aires')
+      .toFormat('yyyy-MM-dd HH:mm:ss');
+  }
+}
 
-  sendWhatsAppMessage(sender,`You are ${name} and you reserved at ${timestamp}`);
-};
+async function handleReserve(MessageSid, sender, name) {
+  try {
+    const timestamp = await getArgentinaTimestamp(MessageSid); // Luxon formatted timestamp
+    const userId = await searchUserId(sender);
+
+    // Save reservation
+    const reservationId = await saveReservation(userId, timestamp);
+
+    // Parse timestamp to Luxon DateTime for comparison
+    const reservationTime = DateTime.fromFormat(timestamp, 'yyyy-MM-dd HH:mm:ss', { zone: 'America/Argentina/Buenos_Aires' });
+
+    let message = `You are ${name} and you reserved at ${timestamp}.`;
+
+    // Check if time is before 9:00 AM
+    if (reservationTime.hour < 9) {
+      message += ` Note: Your reservation was made before 9:00 AM, it might not be considered valid.`;
+    }
+
+    await sendWhatsAppMessage(sender, message);
+
+  } catch (err) {
+    console.error("Error handling reservation:", err);
+    await sendWhatsAppMessage(sender, `Sorry ${name}, there was an issue processing your reservation.`);
+  }
+}
+
 
 
 
@@ -825,6 +882,15 @@ async function handleShowWaitingList(sender) {
   message += `\n${generateWaitingListTable()}`;
 
   await sendWhatsAppMessage(sender, message);
+}
+
+
+
+
+function handleCancelList(sender, name){
+  //Check if the user has a reservation or a slot/waiting list
+  const user_id = searchUserId(sender);
+
 }
 
 
