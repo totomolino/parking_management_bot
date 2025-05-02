@@ -12,6 +12,7 @@ const { createCanvas, loadImage } = require('canvas');
 const { handle } = require("express/lib/application");
 const { Pool } = require('pg'); // Import the pg Pool for database connection
 const res = require("express/lib/response");
+const { EsimProfilePage } = require("twilio/lib/rest/supersim/v1/esimProfile");
 
 // Create a new pool to interact with PostgreSQL
 const pool = new Pool({
@@ -917,20 +918,28 @@ async function handleCancelList(sender){
   const userInWaitingIndex = userHasWL(sender);
   const userInSlots = userHasSlot(sender);
 
-  // If the user has a reservation and has a slot/waiting list, cancel the reservation
-  if(reservationFlag && (userInSlots || userInWaitingIndex > -1)){
-    let messageNum = "0";
-    if(userInSlots){
-      const slot = parkingSlots.find((slot) => slot.phone === sender);
-      messageNum = `slot ${slot.number}`;
-    }else{
-      messageNum = `WL ${userInWaitingIndex + 1}`;
-    }
-    sendCancelList(sender, messageNum);
+  let messageNum = "0";
+  if(userInSlots){
+    const slot = parkingSlots.find((slot) => slot.phone === sender);
+    messageNum = `slot ${slot.number}`;
+  }else if (userInWaitingIndex > -1){
+    messageNum = `WL ${userInWaitingIndex + 1}`;
   }
 
+  // If the user has a reservation and has a slot/waiting list, cancel the reservation
+  if(reservationFlag && (userInSlots || userInWaitingIndex > -1)){
 
-
+    sendCancelList(sender, messageNum);
+  }else if(reservationFlag){
+    sendCancelReservation(sender);
+  }else if (userInSlots || userInWaitingIndex > -1){
+    sendReleaseSlotWL(sender, messageNum);
+  }else{
+    sendWhatsAppMessage(
+      sender,
+      "You're neither on the waiting list nor assigned to any parking slot nor reserved for tomorrow."
+    );
+  }
 }
 
 
@@ -1611,6 +1620,48 @@ function sendCancelList(to, messageNum) {
     .then((message) => console.log("Message sent:", message.body))
     .catch((error) => console.error("Error sending message:", error));
 }
+
+function sendCancelReservation(to) {
+  const client = new twilio(
+    process.env.TWILIO_ACCOUNT_SID,
+    process.env.TWILIO_AUTH_TOKEN
+  );
+  const template_id = "HX62f859adf7ac931f6e9683eaf6fb695c"; // Ensure this template ID is correct and approved
+
+  client.messages
+    .create({
+      from: twilioNumber,
+      to: to,
+      contentSid: template_id,
+      timeout: 5000
+    })
+    .then((message) => console.log("Message sent:", message.body))
+    .catch((error) => console.error("Error sending message:", error));
+}
+
+function sendReleaseSlotWL(to, messageNum) {
+  const client = new twilio(
+    process.env.TWILIO_ACCOUNT_SID,
+    process.env.TWILIO_AUTH_TOKEN
+  );
+  const template_id = "HX62f859adf7ac931f6e9683eaf6fb695c"; // Ensure this template ID is correct and approved
+  
+  const variables = { 1: `${messageNum}` };
+  const variablesJson = JSON.stringify(variables);
+
+  client.messages
+    .create({
+      from: twilioNumber,
+      to: to,
+      contentSid: template_id,
+      contentVariables: variablesJson,
+      timeout: 5000
+    })
+    .then((message) => console.log("Message sent:", message.body))
+    .catch((error) => console.error("Error sending message:", error));
+}
+
+
 
 function sendParkingImage(to) {
   const client = new twilio(
