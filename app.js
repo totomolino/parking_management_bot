@@ -1644,7 +1644,7 @@ function sendReleaseSlotWL(to, messageNum) {
     process.env.TWILIO_ACCOUNT_SID,
     process.env.TWILIO_AUTH_TOKEN
   );
-  const template_id = "HX62f859adf7ac931f6e9683eaf6fb695c"; // Ensure this template ID is correct and approved
+  const template_id = "HX6316afb1e5e94c230c4d6ed86b9b9c15"; // Ensure this template ID is correct and approved
   
   const variables = { 1: `${messageNum}` };
   const variablesJson = JSON.stringify(variables);
