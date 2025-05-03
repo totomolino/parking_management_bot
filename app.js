@@ -579,6 +579,7 @@ async function handleReserve(MessageSid, sender, name) {
   }
 }
 
+//TODO : ADD ORDER FUNCTION TO ASSIGN WITH ENDPOINT
 
 
 
