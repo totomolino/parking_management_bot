@@ -622,7 +622,11 @@ async function assignSlots() {
     };
   });
 
-  console.log("Filtered Assignments: ", filteredAssignments);
+  filteredAssignments.forEach(a => {
+    console.log(`${a.name} | ${a.phone} | Slot: ${a.slot}`);
+    // logActionToDB(a.phone, `Assigned to slot ${a.slot}`); //TODO uncomment this line to log the assignment
+  });
+
 }
 
 
