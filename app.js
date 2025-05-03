@@ -481,6 +481,14 @@ app.post("/whatsapp", async (req, res) => {
       logActionToDB(sender, "COMMAND_CANCEL");
       handleCancel(sender, name);
       break;
+    case messageBody.startsWith("release"):
+      logActionToDB(sender, "COMMAND_RELEASE");
+      handleCancel(sender, name);
+      break;
+    case messageBody === "cancel tomorrow reserve":
+      logActionToDB(sender, "COMMAND_CANCEL_RESERVE");
+      handleCancelReserve(sender);
+      break;
     case messageBody === "accept":
       logActionToDB(sender, "COMMAND_ACCEPT");
       handleSlotAccept(sender, name);
@@ -998,6 +1006,37 @@ function handleCancel(sender, name) {
     sender,
     `Attempted to cancel but not found in slots or waiting list`
   );
+}
+
+
+// Function to handle the 'cancel tomorrow reserve' command
+function handleCancelReserve(sender) {
+  const userId = searchUserId(sender);
+  const reservationFlag = hasReservation(userId);
+  if (reservationFlag) {
+    // Cancel the reservation in the database
+    const query = `
+      DELETE FROM reservations 
+      WHERE user_id = $1 
+        AND reservation_date = CURRENT_DATE
+    `;
+    const values = [userId];
+    pool.query(query, values, (err, result) => {
+      if (err) {
+        console.error("Error canceling reservation:", err);
+        sendWhatsAppMessage(sender, "Failed to cancel your reservation.");
+      } else {
+        sendWhatsAppMessage(sender, "Your reservation has been canceled.");
+        logActionToDB(sender, `Canceled reservation`);
+      }
+    });
+  } else {
+    sendWhatsAppMessage(
+      sender,
+      "You don't have a reservation for tomorrow."
+    );
+    logActionToDB(sender, `Attempted to cancel but no reservation found`);
+  }
 }
 
 // Function to handle acceptance of a parking slot
