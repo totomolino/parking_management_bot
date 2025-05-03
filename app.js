@@ -627,28 +627,11 @@ async function assignSlots() {
     // logActionToDB(a.phone, `Assigned to slot ${a.slot}`); //TODO uncomment this line to log the assignment
   });
 
+  return filteredAssignments;
+
 }
 
 
-// function getLocalTime(){
-//   const now = new Date();
-//   const options = {
-//       timeZone: 'America/Argentina/Buenos_Aires',
-//       hour: 'numeric',
-//       minute: 'numeric',
-//       second: 'numeric',
-//       hour12: false
-//   };
-//   // Get the current hour in Argentina time
-//   const localDateTime = new Intl.DateTimeFormat('en-US', options).format(now);
-//   const [currentHour, currentMinute, currentSecond] = localDateTime.split(':').map(Number);
-
-//   // Create a local time date object
-//   const localTime = new Date(now.getTime() - (3 * 60 * 60 * 1000)); // Adjust for GMT-3
-//   localTime.setHours(currentHour, currentMinute, currentSecond, 0); // Set to local time
-//   return localTime;
-
-// }
 
 function getLocalTime() {
   // Get current time in Buenos Aires timezone
@@ -656,39 +639,6 @@ function getLocalTime() {
   return localTime;
 }
 
-// Helper function to calculate timeout with overnight pause
-// function calculateTimeoutDuration(timeoutDuration) {
-
-//   // Create a local time date object
-//   const localTime = getLocalTime();
-
-//   let nextDay7am = new Date(localTime); // Clone the current date
-
-//   let finalDelay = timeoutDuration;
-
-//   const currentHour = localTime.getHours(); // Extract the current hour (0–23)
-
-//   // If current time is after 10 PM or before 7 AM, set the target for the next day
-//   if (currentHour >= 22 || currentHour < 7) {
-//       // Set the target time to 7:10 AM on the correct day
-//       nextDay7am.setHours(7, 10, 0, 0); // Set to 7:10 AM in the local timezone
-    
-//       // Adjust the date correctly:
-//       if (currentHour >= 22) {
-//         nextDay7am.setDate(localTime.getDate() + 1);
-//       }
-
-//       // Calculate the delay in milliseconds
-//       finalDelay = nextDay7am - localTime;      
-//   }
- 
-
-//   console.log(`Current Time: ${localTime}`);
-//   console.log(`Next 7:10 AM: ${nextDay7am}`);
-//   console.log(`Overnight Delay: ${finalDelay}`);
-
-//   return finalDelay; // Return the delay
-// }
 
 
 function calculateTimeoutDuration(timeoutDuration) {
@@ -1373,6 +1323,99 @@ async function isTodayWorkday() {
   const isWorkday = localTime.weekday !== 6 && localTime.weekday !== 0 && !isHoliday;
 
   return { isWorkday, localTime };
+}
+
+//Function to assign slots and comunicate
+async function assignSlotsAndCommunicate(res) {
+    const todayBool = await isTodayHoliday();
+  if(!todayBool){    
+    const receivedData = await assignSlots();
+    console.log("Assignments from db:", receivedData);
+
+    saveParkingData(yesterday_FILE_PATH); //saving today's file 
+
+    // Create a new Date object based on localTime and add one day
+    parkingDate = await getNextWorkday(); //changing the date to tomorrow since new assignations are placed
+
+    // Clear all existing timeouts
+    parkingSlots.forEach((slot) => {
+      if (slot.number === 60) {
+        slot.status= "assigned"
+        slot.assignedTo= "Ramses de la Rosa"
+        slot.phone= "whatsapp:+5491169691511"
+        slot.timeoutHandle= null
+        slot.timeoutDate = null;
+        return; // Skip this slot
+      }
+      if (slot.timeoutHandle) {
+        clearTimeout(slot.timeoutHandle);
+        slot.timeoutHandle = null;
+      }
+      slot.status = "available";
+      slot.assignedTo = null;
+      slot.phone = null;
+      slot.timeoutDate = null;
+    }); 
+
+    waitingList = [];
+
+    receivedData.forEach((item) => {
+      const person = item.Person;
+      const slotNumber =
+        item.Parking_slot === "WL" ? null : parseInt(item.Parking_slot, 10);
+      const phone = `whatsapp:${item.Number}`;
+
+      if (item.Parking_slot === "WL") {
+        waitingList.push({ name: person, phone });
+        console.log(`${person} is in the waiting list.`);
+        logActionToDB(phone, "Added to waiting list via /excel-data");
+      } else if (slotNumber) {
+        const slot = parkingSlots.find((s) => s.number === slotNumber);
+        if (slot) {
+          slot.status = "pending";
+          slot.assignedTo = person;
+          slot.phone = phone;
+          console.log(`${person} has parking slot ${slot.number}.`);
+          logActionToDB(
+            phone,
+            `Assigned slot ${slot.number} via /excel-data`
+          );
+
+          // Notify the assigned user with a 2-hour timeout
+          assignSlotToUser(
+            slot,
+            { name: person, phone },
+            2 * 60 * 60 * 1000, // 2 hours in milliseconds
+            "BS"
+          );
+        }
+      }
+    });
+
+    // Notify the next person in the waiting list
+    assignNextSlot();
+
+    // Create message for the waiting list
+    if (waitingList.length > 0) {
+      // Create a personalized message for each member in the waiting list
+      waitingList.forEach((member, i) => {
+          // Create a message that only contains the position of the member on the waiting list
+        const waitingListMessage = `${i + 1}`;
+
+        // Send a WhatsApp message to each waiting list member with their order
+        sendWaitingListMessage(member.phone, waitingListMessage);
+        logActionToDB(
+          member.phone,
+          member.name,
+          `Notified waiting list position ${i + 1} via /excel-data`
+        );
+      });
+    }
+    saveParkingData(DATA_FILE_PATH);
+    res.status(200).send("Excel data processed successfully.");
+  }else {
+    res.status(200).send("Skipping day, today is holiday");
+  }
 }
 
 
