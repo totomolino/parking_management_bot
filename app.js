@@ -479,7 +479,7 @@ app.post("/whatsapp", async (req, res) => {
       break;
     case messageBody === "cancel":
       logActionToDB(sender, "COMMAND_CANCEL");
-      handleCancel(sender, name);
+      handleCancel(sender, name); //TODO change to handleCancelList
       break;
     case messageBody.startsWith("release"):
       logActionToDB(sender, "COMMAND_RELEASE");
