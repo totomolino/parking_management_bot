@@ -591,42 +591,42 @@ async function handleReserve(MessageSid, sender, name) {
 //TODO : ADD ORDER FUNCTION TO ASSIGN WITH ENDPOINT
 
 // Function to get the assignments for the slots
-function getAssignments() {
-  //Get view today_assignments from db
+async function getAssignments() {
   const query = `SELECT * FROM today_assignments`;
   const values = [];
-  pool.query(query, values, (err, result) => {
-    if (err) {
-      console.error("Error fetching assignments:", err);
-      return null;
-    }
+
+  try {
+    const result = await pool.query(query, values);
     return result.rows;
-  });
+  } catch (err) {
+    console.error("Error fetching assignments:", err);
+    return [];
+  }
 }
 
 
+
 //Function to order reservations and assign slots
-function assignSlots(){
+async function assignSlots() {
   const slotNumbers = parkingSlots
     .filter(slot => slot.number !== 60)
     .map(slot => slot.number);
 
-  const assignments = getAssignments();
+  const assignments = await getAssignments();
 
-  console.log(assignments)
+  console.log(assignments);
 
-  //Filter name and phone from the assignments and adding slot from slotNumbers
   const filteredAssignments = assignments.map((assignment, index) => {
     return {
       name: assignment.name,
       phone: assignment.phone,
       slot: slotNumbers[index]
     };
-  }
-  );
+  });
+
   console.log("Filtered Assignments: ", filteredAssignments);
-  
 }
+
 
 // function getLocalTime(){
 //   const now = new Date();
