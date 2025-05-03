@@ -614,8 +614,6 @@ async function assignSlots() {
 
   const assignments = await getAssignments();
 
-  console.log(assignments);
-
   const filteredAssignments = assignments.map((assignment, index) => {
     return {
       name: assignment.name,
