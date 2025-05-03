@@ -1418,6 +1418,10 @@ async function assignSlotsAndCommunicate(res) {
   }
 }
 
+//Endpoint to assign slots and comunicate
+app.post("/assign-slots", async (req, res) => {
+  await assignSlotsAndCommunicate(res);
+});
 
 
 // Endpoint to receive data from Excel macro
