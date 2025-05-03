@@ -495,8 +495,8 @@ app.post("/whatsapp", async (req, res) => {
       break;
     case messageBody === "reserve":
       logActionToDB(sender, "COMMAND_RESERVE");
-      const isWorkday = await isTodayWorkday();
-      if(isWorkday){
+      const { isWorkday, localTime } = await isTodayWorkday();
+      if(isWorkday && localTime.hour >= 8 && localTime.hour < 17){
         handleReserve(req.body.MessageSid, sender,name);
       }else{
         sendWhatsAppMessage(sender, "You can only reserve on workdays.");
@@ -564,11 +564,11 @@ async function handleReserve(MessageSid, sender, name) {
     // Parse timestamp to Luxon DateTime for comparison
     const reservationTime = DateTime.fromFormat(timestamp, 'yyyy-MM-dd HH:mm:ss', { zone: 'America/Argentina/Buenos_Aires' });
 
-    let message = `You are ${name} and you reserved at ${timestamp}.`;
+    let message = `Reservation confirmed.`;
 
     // Check if time is before 9:00 AM
     if (reservationTime.hour < 9) {
-      message += ` Note: Your reservation was made before 9:00 AM, it might not be considered valid.`;
+      message += ` *Your reservation was made before 9:00 AM, You will get least priority.*`;
     }
 
     await sendWhatsAppMessage(sender, message);
@@ -1290,7 +1290,10 @@ async function isTodayHoliday() {
 async function isTodayWorkday() {
   const localTime = getLocalTime();
   const isHoliday = await isTodayHoliday();
-  return localTime.weekday !== 6 && localTime.weekday !== 0 && !isHoliday;
+
+  const isWorkday = localTime.weekday !== 6 && localTime.weekday !== 0 && !isHoliday;
+
+  return { isWorkday, localTime };
 }
 
 
