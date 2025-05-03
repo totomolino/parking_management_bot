@@ -495,7 +495,12 @@ app.post("/whatsapp", async (req, res) => {
       break;
     case messageBody === "reserve":
       logActionToDB(sender, "COMMAND_RESERVE");
-      handleReserve(req.body.MessageSid, sender,name);
+      const isWorkday = await isTodayWorkday();
+      if(isWorkday){
+        handleReserve(req.body.MessageSid, sender,name);
+      }else{
+        sendWhatsAppMessage(sender, "You can only reserve on workdays.");
+      }
       break;
     case messageBody === "test_new":
       // handleTestNew(sender, name);
@@ -1281,6 +1286,14 @@ async function isTodayHoliday() {
   const holidays = await getHolidays();
   return holidays.has(today);
 }
+
+async function isTodayWorkday() {
+  const localTime = getLocalTime();
+  const isHoliday = await isTodayHoliday();
+  return localTime.weekday !== 6 && localTime.weekday !== 0 && !isHoliday;
+}
+
+
 
 // Endpoint to receive data from Excel macro
 app.post("/excel-data", async (req, res) => {
