@@ -613,6 +613,8 @@ function assignSlots(){
 
   const assignments = getAssignments();
 
+  console.log(assignments)
+
   //Filter name and phone from the assignments and adding slot from slotNumbers
   const filteredAssignments = assignments.map((assignment, index) => {
     return {
