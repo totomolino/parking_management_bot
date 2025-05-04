@@ -1563,7 +1563,7 @@ app.get("/parking-image", async (req, res) => {
 // API route to get data from PostgreSQL
 app.get('/today_assignments', async (req, res) => {
   try {
-    const assignments = assignSlots();
+    const assignments = await assignSlots();
     res.json(assignments);
   } catch (err) {
     console.error(err);
