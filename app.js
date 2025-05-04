@@ -13,6 +13,7 @@ const { handle } = require("express/lib/application");
 const { Pool } = require('pg'); // Import the pg Pool for database connection
 const res = require("express/lib/response");
 const { EsimProfilePage } = require("twilio/lib/rest/supersim/v1/esimProfile");
+const { all } = require("axios");
 
 // Create a new pool to interact with PostgreSQL
 const pool = new Pool({
@@ -607,19 +608,21 @@ async function getAssignments() {
 
 
 //Function to order reservations and assign slots
-async function assignSlots() {
+async function assignSlots(all_flag = false) {
   const slotNumbers = parkingSlots
     .filter(slot => slot.number !== 60)
     .map(slot => slot.number);
 
   const assignments = await getAssignments();
-
-  const filteredAssignments = assignments.map((assignment, index) => {
-    return {
-      name: assignment.name,
-      phone: assignment.phone,
-      slot: slotNumbers[index] ?? 'WL',
-    };
+  
+  let filteredAssignments = assignments.map((assignment, index) => {
+    return all_flag
+      ? { ...assignment, slot: slotNumbers[index] ?? 'WL' }
+      : {
+          name: assignment.name,
+          phone: assignment.phone,
+          slot: slotNumbers[index] ?? 'WL',
+        };
   });
 
   filteredAssignments.forEach(a => {
@@ -628,7 +631,6 @@ async function assignSlots() {
   });
 
   return filteredAssignments;
-
 }
 
 
@@ -1329,7 +1331,7 @@ async function isTodayWorkday() {
 async function assignSlotsAndCommunicate(res) {
     const todayBool = await isTodayHoliday();
   if(!todayBool){    
-    const receivedData = await assignSlots();
+    const receivedData = await assignSlots(false);
     console.log("Assignments from db:", receivedData);
 
     saveParkingData(yesterday_FILE_PATH); //saving today's file 
@@ -1563,7 +1565,7 @@ app.get("/parking-image", async (req, res) => {
 // API route to get data from PostgreSQL
 app.get('/today_assignments', async (req, res) => {
   try {
-    const assignments = await assignSlots();
+    const assignments = await assignSlots(true);
     res.json(assignments);
   } catch (err) {
     console.error(err);
