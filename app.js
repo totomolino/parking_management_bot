@@ -618,7 +618,7 @@ async function assignSlots() {
     return {
       name: assignment.name,
       phone: assignment.phone,
-      slot: slotNumbers[index]
+      slot: slotNumbers[index] ?? 'WL',
     };
   });
 
@@ -1563,8 +1563,8 @@ app.get("/parking-image", async (req, res) => {
 // API route to get data from PostgreSQL
 app.get('/today_assignments', async (req, res) => {
   try {
-    const result = await pool.query('SELECT * FROM today_assignments');
-    res.json(result.rows);
+    const assignments = assignSlots();
+    res.json(assignments);
   } catch (err) {
     console.error(err);
     res.status(500).send('Server Error');
