@@ -1560,6 +1560,17 @@ app.get("/parking-image", async (req, res) => {
     }
 });
 
+// API route to get data from PostgreSQL
+app.get('/today_assignments', async (req, res) => {
+  try {
+    const result = await pool.query('SELECT * FROM today_assignments');
+    res.json(result.rows);
+  } catch (err) {
+    console.error(err);
+    res.status(500).send('Server Error');
+  }
+});
+
 // Endpoint to update the user roster data
 app.post("/update-roster", async (req, res) => {
   console.log("Received request to update roster");
