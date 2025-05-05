@@ -508,8 +508,9 @@ app.post("/whatsapp", async (req, res) => {
       if(isWorkday && localTime.hour >= 8 && localTime.hour < 17){
         handleReserve(req.body.MessageSid, sender,name);
       }else{
-        sendWhatsAppMessage(sender, "You can only reserve on workdays from 9am to 5pm.");
+        sendWhatsAppMessage(sender, `You can only reserve on workdays from 9am to 5pm. Use command "Add me" for WL.`);
       }
+      sendWhatsAppMessage(sender, `You can only reserve on workdays from 9am to 5pm. Use command "Add me" for WL.`);
       break;
     case messageBody === "test_new":
       // handleTestNew(sender, name);
