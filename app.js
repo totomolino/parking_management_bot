@@ -480,7 +480,7 @@ app.post("/whatsapp", async (req, res) => {
       break;
     case messageBody === "cancel":
       logActionToDB(sender, "COMMAND_CANCEL");
-      handleCancel(sender, name); //TODO change to handleCancelList
+      handleCancelList(sender, name); 
       break;
     case messageBody.startsWith("release"):
       logActionToDB(sender, "COMMAND_RELEASE");
@@ -510,7 +510,6 @@ app.post("/whatsapp", async (req, res) => {
       }else{
         sendWhatsAppMessage(sender, `You can only reserve on workdays from 9am to 5pm. Use command "Add me" for WL.`);
       }
-      sendWhatsAppMessage(sender, `You can only reserve on workdays from 9am to 5pm. Use command "Add me" for WL.`);
       break;
     case messageBody === "test_new":
       // handleTestNew(sender, name);
