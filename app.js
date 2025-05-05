@@ -1302,8 +1302,7 @@ async function getNextWorkday() {
   console.log(holidays);
 
   while (
-      nextDay.weekday === 6 || // Saturday
-      nextDay.weekday === 0 || // Sunday
+      nextDay.isWeekend ||
       holidays.has(nextDay.toFormat('dd/MM/yyyy')) // Check if it's a holiday
   ) {
       nextDay = nextDay.plus({ days: 1 }); // Move to the next day
