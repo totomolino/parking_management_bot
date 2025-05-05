@@ -1758,7 +1758,7 @@ function sendCancelList(to, messageNum) {
     process.env.TWILIO_ACCOUNT_SID,
     process.env.TWILIO_AUTH_TOKEN
   );
-  const template_id = "HXe66d29d52be9510ca8f9f6a84d70b8ba"; // Ensure this template ID is correct and approved
+  const template_id = "HX6fcb1c24463e88d8005b3951f555fc97"; // Ensure this template ID is correct and approved
   
   const variables = { 1: `${messageNum}` };
   const variablesJson = JSON.stringify(variables);
