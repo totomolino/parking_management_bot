@@ -452,7 +452,7 @@ app.post("/whatsapp", async (req, res) => {
     return res.status(200).end();
   }
   
-
+  console.log(messageBody);
   switch (true) {
     case messageBody === "add me":
       logActionToDB(sender, "COMMAND_ADD_ME");
