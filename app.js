@@ -250,7 +250,7 @@ async function hasReservation(user_id) {
     WHERE user_id = $1 
       AND reservation_date = CURRENT_DATE
   `;
-  const values = [user_id];
+  const values = [Number(user_id)];
 
   try {
     const result = await pool.query(query, values);
