@@ -1001,9 +1001,9 @@ function handleCancel(sender, name) {
 
 
 // Function to handle the 'cancel tomorrow reserve' command
-function handleCancelReserve(sender) {
-  const userId = searchUserId(sender);
-  const reservationFlag = hasReservation(userId);
+async function handleCancelReserve(sender) {
+  const userId = await searchUserId(sender);
+  const reservationFlag = await hasReservation(userId);
   if (reservationFlag) {
     // Cancel the reservation in the database
     const query = `
