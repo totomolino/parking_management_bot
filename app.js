@@ -591,17 +591,18 @@ async function handleReserve(MessageSid, sender, name) {
 
 //TODO : ADD ORDER FUNCTION TO ASSIGN WITH ENDPOINT
 
+
 // Function to get the assignments for the slots
 async function getAssignments() {
   const now = getLocalTime();
   const hour = now.hour;
   let query = `SELECT * FROM today_assignments`;
   const values = [];
-  
+
   try {
     if (hour >= 17 || hour < 8) {
       // Refresh the materialized view if after 17:00 Argentina time
-      await pool.query(`REFRESH MATERIALIZED VIEW today_assignments_mv`);
+      await pool.query(`SELECT conditional_refresh_mv('today_assignments_mv')`);
       query = `SELECT * FROM today_assignments_mv`;
     }
 
