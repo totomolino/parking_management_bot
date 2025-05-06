@@ -597,9 +597,9 @@ async function getAssignments() {
   const hour = now.hour;
   let query = `SELECT * FROM today_assignments`;
   const values = [];
-  console.log(now, hour);
+  
   try {
-    if (hour >= 17 && hour < 8) {
+    if (hour >= 17 || hour < 8) {
       // Refresh the materialized view if after 17:00 Argentina time
       await pool.query(`REFRESH MATERIALIZED VIEW today_assignments_mv`);
       query = `SELECT * FROM today_assignments_mv`;
