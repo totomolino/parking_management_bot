@@ -375,12 +375,12 @@ app.get("/wake", (_, res) => {
 
 // Function to generate the parking slot table
 function generateParkingSlotTable() {
-  const parkingSlotWidth = 15; // Width for Parking Slot column
+  const parkingSlotWidth = 6; // Width for Parking Slot column
   const personWidth = 20; // Width for Person column
 
   // Header for parking slot table
   let table =
-    "Parking Slot".padEnd(parkingSlotWidth) +
+    "Slot".padEnd(parkingSlotWidth) +
     "| " +
     "Person".padEnd(personWidth) +
     "\n";
@@ -1780,7 +1780,7 @@ function sendCancelReservation(to) {
     process.env.TWILIO_ACCOUNT_SID,
     process.env.TWILIO_AUTH_TOKEN
   );
-  const template_id = "HX62f859adf7ac931f6e9683eaf6fb695c"; // Ensure this template ID is correct and approved
+  const template_id = "HX9f572b1fbee64566dfceadba0d839973"; // Ensure this template ID is correct and approved
 
   client.messages
     .create({
