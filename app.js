@@ -1011,7 +1011,7 @@ function handleCancelReserve(sender) {
       WHERE user_id = $1 
         AND reservation_date = CURRENT_DATE
     `;
-    const values = [userId];
+    const values = [Number(userId)];
     pool.query(query, values, (err, result) => {
       if (err) {
         console.error("Error canceling reservation:", err);
