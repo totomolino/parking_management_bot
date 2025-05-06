@@ -486,7 +486,7 @@ app.post("/whatsapp", async (req, res) => {
       logActionToDB(sender, "COMMAND_RELEASE");
       handleCancel(sender, name);
       break;
-    case messageBody === "cancel reserve":
+    case messageBody === "cancel reserve" || messageBody === "cancel tomorrow reserve":
       logActionToDB(sender, "COMMAND_CANCEL_RESERVE");
       handleCancelReserve(sender);
       break;
