@@ -1780,7 +1780,7 @@ function sendCancelReservation(to) {
     process.env.TWILIO_ACCOUNT_SID,
     process.env.TWILIO_AUTH_TOKEN
   );
-  const template_id = "HX9f572b1fbee64566dfceadba0d839973"; // Ensure this template ID is correct and approved
+  const template_id = "HX289043a2a4bac985d4d78a828cd2220e"; // Ensure this template ID is correct and approved
 
   client.messages
     .create({
