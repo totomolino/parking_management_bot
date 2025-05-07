@@ -439,7 +439,7 @@ app.post("/whatsapp", async (req, res) => {
   const sender = req.body.From; // WhatsApp number
   // const name = req.body.ProfileName;
   
-  const entry = csvData.find((row) => row.phone ===  sender.replace("whatsapp:", ""));
+  const entry = csvData.find((row) => row.phone ===  sender.replace("whatsapp:", "")); //TODO CHANGE TO READ DB INSTEAD OF FILE.
 
   const name = entry ? entry.name : sender;
 
