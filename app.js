@@ -526,11 +526,11 @@ app.post("/whatsapp", async (req, res) => {
     case messageBody === "help":
       const infoMessage = `
 Here are the commands you can use with the bot:
-🔹 reserve – book your parking spot (9am–5pm)
-🔹 cancel – cancel today’s slot or tomorrow’s reservation
-🔹 add me – join today’s waitlist
-🔹 show all – see all today's bookings
-🔹 ping – notify users with shared spots        
+🔹 *reserve* – book your parking spot (9am–5pm)
+🔹 *cancel* – cancel today’s slot or tomorrow’s reservation
+🔹 *add me* – join today’s waitlist
+🔹 *show all* – see all today's bookings
+🔹 *ping* – notify users with shared spots        
       `
       sendWhatsAppMessage(
         sender,
