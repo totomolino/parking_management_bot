@@ -445,9 +445,14 @@ app.post("/whatsapp", async (req, res) => {
 
   // Check if the sender is not found in csvData
   if (!entry) {
+    const loginMessage = `Hi! Here’s how to start using the building’s parking:
+1️⃣ Register your license plate → [https://forms.office.com/r/V8GPjRKtTY]
+Note: access may take up to 24 hours to be activated.
+2️⃣ Register your phone with the bot → [https://forms.office.com/r/0scGm4w6s9] 
+Once both steps are done, you can start booking your daily spot directly on WhatsApp! You can use help to see more info about each command!`
     sendWhatsAppMessage(
       sender,
-      "It looks like your number is not logged in the forms.\nPlease fill https://forms.office.com/r/0scGm4w6s9 and contact Ceci or Majo."
+      loginMessage
     );
     return res.status(200).end();
   }
