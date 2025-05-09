@@ -574,7 +574,7 @@ async function handleReserve(MessageSid, sender, name) {
     // Parse timestamp to Luxon DateTime for comparison
     const reservationTime = DateTime.fromFormat(timestamp, 'yyyy-MM-dd HH:mm:ss', { zone: 'America/Argentina/Buenos_Aires' });
 
-    let message = `Reservation confirmed.`;
+    let message = `Reservation submitted.`;
 
     // Check if time is before 9:00 AM
     if (reservationTime.hour < 9) {
