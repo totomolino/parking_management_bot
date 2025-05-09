@@ -447,14 +447,14 @@ app.post("/whatsapp", async (req, res) => {
   if (!entry) {
     const loginMessage = `Hi! Here’s how to start using the building’s parking:
     
-1️⃣ Register your license plate → [https://forms.office.com/r/V8GPjRKtTY]
+1️⃣ Register your plate → [https://forms.office.com/r/V8GPjRKtTY]
 _Note: access may take up to 24 hours to be activated._
-
-2️⃣ Register your phone with the bot → [https://forms.office.com/r/0scGm4w6s9]
-
+ 
+2️⃣ Register your mobile phone with the bot → [https://forms.office.com/r/0scGm4w6s9]
+ 
 _Note: Both forms are only allowed on ZS laptop or Edge mobile with ZS account._
-
-Once both steps are done, you can start booking your daily spot directly on WhatsApp! You can use *help* to see more info about each command!`
+ 
+Once both steps are completed, you can start booking your daily spot directly on WhatsApp! You can type *help* to see more info about each command!`
     sendWhatsAppMessage(
       sender,
       loginMessage
