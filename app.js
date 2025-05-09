@@ -452,7 +452,7 @@ _Note: access may take up to 24 hours to be activated._
 
 2️⃣ Register your phone with the bot → [https://forms.office.com/r/0scGm4w6s9]
 
-_Note: Both forms are only allowed on zs laptop or Edge mobile with ZS account._
+_Note: Both forms are only allowed on ZS laptop or Edge mobile with ZS account._
 
 Once both steps are done, you can start booking your daily spot directly on WhatsApp! You can use *help* to see more info about each command!`
     sendWhatsAppMessage(
