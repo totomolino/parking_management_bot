@@ -525,12 +525,19 @@ app.post("/whatsapp", async (req, res) => {
       break;
     case messageBody === "help":
       const infoMessage = `
-Here are the commands you can use with the bot:
-🔹 *reserve* – book your parking spot (9am–5pm)
-🔹 *cancel* – cancel today’s slot or tomorrow’s reservation
+Here’s how the parking bot works:
+📅 You must request your reservation one day in advance.
+🕘 The bot works on weekdays from 9am to 5pm.
+📤 Assignments are sent at 5:10pm. You have 2 hours to accept or cancel — after that, your spot is released.
+⏳ Waitlist users have 10 minutes to respond.
+😴 The bot is inactive from 10pm to 7am due to timeout (10 minutes timeout will resume at 7 am).
+🏖️ For holidays, make your request the previous business day.
+Commands:
+🔹 *reserve* – book your spot
+🔹 *cancel* – cancel today’s or tomorrow’s reservation
 🔹 *add me* – join today’s waitlist
-🔹 *show all* – see all today's bookings
-🔹 *ping* – notify users with shared spots        
+🔹 *show all* – see all today’s bookings
+🔹 *ping* – notify shared spot users
       `
       sendWhatsAppMessage(
         sender,
