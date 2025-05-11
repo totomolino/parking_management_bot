@@ -1617,7 +1617,7 @@ app.post("/save_location", async (req, res) => {
         // For demonstration purposes, log the data
         console.log(`User ID: ${user_id}, Latitude: ${latitude}, Longitude: ${longitude}`);
 
-        res.status(200).send("Location received successfully.");
+        res.status(200).json({ message: "Location received successfully." });
     } catch (error) {
         console.error("Error saving parking data:", error);
         res.status(500).send("Error saving parking data");
