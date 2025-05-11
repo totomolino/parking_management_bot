@@ -1603,6 +1603,28 @@ app.get("/parking-image", async (req, res) => {
     }
 });
 
+// Add new endpoint to get parking image
+app.get("/save_location", async (req, res) => {
+    try {
+        // Extract query parameters from the URL
+        const { user_id, latitude, longitude } = req.query;
+
+        // Check if the required parameters are provided
+        if (!user_id || !latitude || !longitude) {
+          return res.status(400).json({ message: "Missing required parameters: user_id, latitude, or longitude." });
+        }
+
+        // For demonstration purposes, log the data
+        console.log(`User ID: ${user_id}, Latitude: ${latitude}, Longitude: ${longitude}`);
+
+        res.status(200).send("Location received successfully.");
+    } catch (error) {
+        console.error("Error saving parking data:", error);
+        res.status(500).send("Error saving parking data");
+    }
+});
+
+
 // API route to get data from PostgreSQL
 app.get('/today_assignments', async (req, res) => {
   try {
