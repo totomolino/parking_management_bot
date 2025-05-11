@@ -1604,7 +1604,7 @@ app.get("/parking-image", async (req, res) => {
 });
 
 // Add new endpoint to get parking image
-app.get("/save_location", async (req, res) => {
+app.post("/save_location", async (req, res) => {
     try {
         // Extract query parameters from the URL
         const { user_id, latitude, longitude } = req.query;
