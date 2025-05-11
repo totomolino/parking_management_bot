@@ -179,7 +179,7 @@ app.use(bodyParser.json()); // Middleware to parse JSON body
 app.use(cors({
     origin: '*',
     methods: ['GET','POST', 'OPTIONS'],
-    allowedHeaders: ['Content-Type']
+    allowedHeaders: ['Content-Type', 'ngrok-skip-browser-warning']
 }));
 
 // Path to the log file
