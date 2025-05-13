@@ -1613,7 +1613,7 @@ async function writeTable(users, res){
       `;
 
       // Execute the query
-      await pool.query(query, [name, phone, date_of_hire, priority, score]);
+      await pool.query(query, [name, phone, date_of_hire, priority]);
 
     }
 
