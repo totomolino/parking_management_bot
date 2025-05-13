@@ -37,18 +37,22 @@ let holidaysData = []; // In-memory storage for Holidays data
 const maxRetries = 3;
 
 // Function to read CSV file and populate csvData
-function readCSV() {
-  fs.createReadStream(filePath)
-    .pipe(csvParser()) // Define column headers
-    .on('data', (row) => {
-      csvData.push(row);
-    })
-    .on('end', () => {
-      console.log('CSV file successfully processed');
-    });
+async function readCSV() {
+  try {
+    const result = await pool.query('SELECT name, phone, date_of_hire, priority FROM roster');
+    csvData = result.rows.map(row => ({
+      name: row.name,
+      phone: row.phone,
+      date_of_hire: row.date_of_hire,
+      priority: row.priority
+    }));
+    console.log('Roster table successfully read from database');
+  } catch (error) {
+    console.error('Error reading roster table from database:', error);
+  }
 }
 
-readCSV();
+await readCSV();
 
 // Configuration for image generation
 const cellWidth = 70;  // Width of each cell in pixels
@@ -1685,8 +1689,6 @@ app.post("/update-roster", async (req, res) => {
     date_of_hire: user.date_of_hire || "",
     priority: user.priority || ""
   }));
-
-  writeCSV(csvData, res);
 
   await writeTable(csvData, res);
 
