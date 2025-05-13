@@ -13,7 +13,7 @@ const { handle } = require("express/lib/application");
 const { Pool } = require('pg'); // Import the pg Pool for database connection
 const res = require("express/lib/response");
 const { EsimProfilePage } = require("twilio/lib/rest/supersim/v1/esimProfile");
-const { all } = require("axios");
+const { all, get } = require("axios");
 
 // Create a new pool to interact with PostgreSQL
 const pool = new Pool({
@@ -521,6 +521,10 @@ Once both steps are completed, you can start booking your daily spot directly on
         sendWhatsAppMessage(sender, `You can only reserve on workdays from 9am to 5pm. Use command "Add me" for WL.`);
       }
       break;
+    case messageBody === "score":
+      logActionToDB(sender, "COMMAND_SCORE");
+      handleScore(sender); //TODO
+      break;
     case messageBody === "test_new":
       // handleTestNew(sender, name);
       // handleCancelList(sender);
@@ -576,6 +580,41 @@ Commands:
 function handleTestNew(sender, name) {
   sendCancelList(sender,"836");
 };
+
+function handleScore(sender) {
+  //Retrieve user ID
+  const userId = searchUserId(sender);
+
+
+
+  //Bring Score from DB using Roster table
+  const query = `
+  select roster.score, b.cancellations
+  from roster
+  join monthly_cancellations b on roster.id = b.id
+  where month = EXTRACT(month FROM current_date) and roster.id = $1;
+  `;
+  const values = [userId];
+  pool.query(query, values, (err, result) => {
+    if (err) {
+      console.error("Error fetching score:", err);
+      sendWhatsAppMessage(sender, "Error fetching your score.");
+      return;
+    }
+
+    if (result.rows.length > 0) {
+      const score = result.rows[0].score;
+      const cancellations = result.rows[0].cancellations;
+      //Send message with current month score and cancellations specifying the month using luxon
+      const month = getLocalTime().toFormat('MMMM');
+      const message = `Your score for ${month} is: ${score}.\nYou have made ${cancellations} cancellations this month.`;
+      sendWhatsAppMessage(sender, message);      
+    } else {
+      sendWhatsAppMessage(sender, "No score found for you.");
+    }
+  });
+
+}
 
 async function getArgentinaTimestamp(messageSid) {
   const client = new twilio(
@@ -1026,7 +1065,7 @@ function handleCancel(sender, name) {
     slot.phone = null;
     slot.timeoutDate = null;
     sendWhatsAppMessage(sender, `You've released parking slot ${slot.number}.`);
-    logActionToDB(sender, `Canceled and released slot ${slot.number}`);
+    logActionToDB(sender, `Released_slot_${slot.number}`);
     assignNextSlot();
     return;
   }
@@ -1566,17 +1605,15 @@ async function writeTable(users, res){
     // Loop through each user and insert into the database
     for (const user of users) {
       const { name, phone, date_of_hire, priority } = user;
-      const score = 10; // Fixed score for now
 
       // Insert query to add the user into the "roster" table
       const query = `
-        INSERT INTO roster (name, phone, date_of_hire, priority, score)
-        VALUES ($1, $2, $3, $4, $5)
+        INSERT INTO roster (name, phone, date_of_hire, priority)
+        VALUES ($1, $2, $3, $4)
         ON CONFLICT (name) DO UPDATE 
         SET phone = EXCLUDED.phone, 
             date_of_hire = EXCLUDED.date_of_hire,
-            priority = EXCLUDED.priority,
-            score = EXCLUDED.score;
+            priority = EXCLUDED.priority;
       `;
 
       // Execute the query
