@@ -587,9 +587,9 @@ async function handleScore(sender) {
 
   //Bring Score from DB using Roster table
   const query = `
-  select roster.score, b.cancellations
+  select roster.score, coalesce(b.cancellations,0) as cancellations
   from roster
-  join monthly_cancellations b on roster.id = b.id
+  left join monthly_cancellations b on roster.id = b.id
   where month = EXTRACT(month FROM current_date) and roster.id = $1;
   `;
   const values = [userId];
