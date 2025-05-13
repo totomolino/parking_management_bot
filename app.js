@@ -581,11 +581,9 @@ function handleTestNew(sender, name) {
   sendCancelList(sender,"836");
 };
 
-function handleScore(sender) {
+async function handleScore(sender) {
   //Retrieve user ID
-  const userId = searchUserId(sender);
-
-
+  const userId = await searchUserId(sender);
 
   //Bring Score from DB using Roster table
   const query = `
@@ -595,24 +593,22 @@ function handleScore(sender) {
   where month = EXTRACT(month FROM current_date) and roster.id = $1;
   `;
   const values = [userId];
-  pool.query(query, values, (err, result) => {
-    if (err) {
-      console.error("Error fetching score:", err);
-      sendWhatsAppMessage(sender, "Error fetching your score.");
-      return;
-    }
+  try {
+    const result = await pool.query(query, values);
 
     if (result.rows.length > 0) {
       const score = result.rows[0].score;
       const cancellations = result.rows[0].cancellations;
-      //Send message with current month score and cancellations specifying the month using luxon
       const month = getLocalTime().toFormat('MMMM');
       const message = `Your score for ${month} is: ${score}.\nYou have made ${cancellations} cancellations this month.`;
-      sendWhatsAppMessage(sender, message);      
+      await sendWhatsAppMessage(sender, message);
     } else {
-      sendWhatsAppMessage(sender, "No score found for you.");
+      await sendWhatsAppMessage(sender, "No score found for you.");
     }
-  });
+  } catch (err) {
+    console.error("Error fetching score:", err);
+    await sendWhatsAppMessage(sender, "Error fetching your score.");
+  }
 
 }
 
