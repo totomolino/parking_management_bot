@@ -52,7 +52,7 @@ async function readCSV() {
   }
 }
 
-await readCSV();
+readCSV();
 
 // Configuration for image generation
 const cellWidth = 70;  // Width of each cell in pixels
