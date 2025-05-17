@@ -1678,8 +1678,8 @@ app.get('/parking-data', async (req, res) => {
   try {
     // use your constants here
     const [todayRaw, yesterdayRaw] = await Promise.all([
-      fs.readFile(DATA_FILE_PATH, 'utf8'),
-      fs.readFile(yesterday_FILE_PATH, 'utf8'),
+      fs.readFileSync(DATA_FILE_PATH, 'utf8'),
+      fs.readFileSync(yesterday_FILE_PATH, 'utf8'),
     ]);
 
     const today = JSON.parse(todayRaw);
