@@ -28,7 +28,7 @@ const filePath = './roster.csv'; // Path to your CSV file
 const holidaysFilePath = './holidays.csv'; // Path to your CSV file
 // File path for persistence
 const DATA_FILE_PATH = path.join(__dirname, 'parking_data.json');
-const YESTERDAY_FILE_PATH = path.join(__dirname, 'parking_data_yesterday.json');
+const yesterday_FILE_PATH = path.join(__dirname, 'parking_data_yesterday.json');
 const imagePath = 'original_image.jpg';
 const outputPath = 'modified_image.jpg';
 
@@ -1197,9 +1197,9 @@ function handleSlotPing(sender, name) {
   const runFlag = assignmentFlag();
 
   if(runFlag){ //if they are the same, it means that /excel-data didn't run yet
-      if (fs.existsSync(YESTERDAY_FILE_PATH)) {
+      if (fs.existsSync(yesterday_FILE_PATH)) {
     try {
-      const data = JSON.parse(fs.readFileSync(YESTERDAY_FILE_PATH, 'utf-8'));
+      const data = JSON.parse(fs.readFileSync(yesterday_FILE_PATH, 'utf-8'));
       
       slots = data?.parkingSlots
       
@@ -1414,7 +1414,7 @@ async function assignSlotsAndCommunicate(res) {
     const receivedData = await assignSlots(false);
     console.log("Assignments from db:", receivedData);
 
-    saveParkingData(YESTERDAY_FILE_PATH); //saving today's file 
+    saveParkingData(yesterday_FILE_PATH); //saving today's file 
 
     // Create a new Date object based on localTime and add one day
     parkingDate = await getNextWorkday(); //changing the date to tomorrow since new assignations are placed
@@ -1513,7 +1513,7 @@ app.post("/excel-data", async (req, res) => {
     const receivedData = req.body;
     console.log("Data received from Excel:", receivedData);
 
-    saveParkingData(YESTERDAY_FILE_PATH); //saving today's file 
+    saveParkingData(yesterday_FILE_PATH); //saving today's file 
 
     // Create a new Date object based on localTime and add one day
     parkingDate = await getNextWorkday(); //changing the date to tomorrow since new assignations are placed
@@ -1679,7 +1679,7 @@ app.get('/parking-data', async (req, res) => {
     // use your constants here
     const [todayRaw, yesterdayRaw] = await Promise.all([
       fs.readFile(DATA_FILE_PATH, 'utf8'),
-      fs.readFile(YESTERDAY_FILE_PATH, 'utf8'),
+      fs.readFile(yesterday_FILE_PATH, 'utf8'),
     ]);
 
     const today = JSON.parse(todayRaw);
