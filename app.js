@@ -557,6 +557,8 @@ Here’s how the parking bot works:
 
 🏖️  For holidays, make your request the previous business day.
 
+❌  *No-shows or cancellations after 8:00 AM* will now count against your usage. *Two or more in a month = temporary loss of prioritization*, even for Cs and above. Prioritization resets monthly with good usage.
+
 
 Commands:
 🔹 *reserve* – book your spot
@@ -564,6 +566,7 @@ Commands:
 🔹 *add me* – join today’s waitlist
 🔹 *show all* – see all today’s bookings
 🔹 *ping* – notify shared spot users
+🔹 *score* – check your current score and month cancellations.
       `
       sendWhatsAppMessage(
         sender,
