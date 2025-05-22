@@ -557,7 +557,7 @@ Here’s how the parking bot works:
 
 🏖️  For holidays, make your request the previous business day.
 
-❌  *No-shows or cancellations after 8:00 AM* will now count against your usage. *Three or more in a month = temporary loss of prioritization*. Prioritization resets monthly with good usage.
+❌  *Cancellations after 8:00 AM* will now count against your usage. *Three or more in a month = temporary loss of prioritization*. Prioritization resets monthly with good usage.
 
 
 Commands:
