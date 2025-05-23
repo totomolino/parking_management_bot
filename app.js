@@ -1464,12 +1464,12 @@ async function assignSlotsAndCommunicate(res) {
     waitingList = [];
 
     receivedData.forEach((item) => {
-      const person = item.Person;
+      const person = item.name;
       const slotNumber =
-        item.Parking_slot === "WL" ? null : parseInt(item.Parking_slot, 10);
-      const phone = `whatsapp:${item.Number}`;
+        item.slot === "WL" ? null : parseInt(item.slot, 10);
+      const phone = `whatsapp:${item.phone}`;
 
-      if (item.Parking_slot === "WL") {
+      if (item.slot === "WL") {
         waitingList.push({ name: person, phone });
         console.log(`${person} is in the waiting list.`);
         logActionToDB(phone, "Added to waiting list via /excel-data");
