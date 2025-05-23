@@ -689,15 +689,16 @@ async function getAssignments() {
   }
 }
 
-async function orderAssignements() {
+async function orderAssignements(res) {
   let query = `SELECT conditional_refresh_mv('today_assignments_mv')`;
   const values = [];
 
   try {
     const result = await pool.query(query, values);
-    return result.rows;
+    res.status(200).json({ message: "Assignments ordered successfully.", data: result.rows });
   } catch (err) {
     console.error("Error ordering the assignments:", err);
+    res.status(500).json({ message: "Error ordering the assignments." });
     return [];
   }
 }
@@ -1528,7 +1529,7 @@ app.post("/assign-slots", async (req, res) => {
 
 //Endpoint to order the assignements
 app.post("/order-assignements", async (req, res) => {
-  await orderAssignements();
+  await orderAssignements(res);
 });
 
 //Endpoint to order the assignements
