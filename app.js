@@ -1542,7 +1542,7 @@ app.post("/send-reminder", async (req, res) => {
 
     // Only send reminders to assigned slots (not slot 60, and only if phone exists)
     const assignedPhones = parkingSlots
-      .filter(slot => slot.number !== 60 && slot.number === 592 && slot.status === "assigned" && slot.phone)
+      .filter(slot => slot.number !== 60 && slot.status === "assigned" && slot.phone)
       .map(slot => slot.phone);
 
     if (assignedPhones.length === 0) {
