@@ -1425,7 +1425,13 @@ async function isTodayWorkday() {
 
 //Function to assign slots and comunicate
 async function assignSlotsAndCommunicate(res) {
-    const todayBool = await isTodayHoliday();
+    let todayBool = false;
+    try {
+      todayBool = await isTodayHoliday();
+    } catch (error) {
+      console.error("Error checking if today is a holiday:", error);
+      return res.status(500).send("Failed to check holiday status.");
+    }
   if(!todayBool){    
     const receivedData = await assignSlots(false);
     console.log("Assignments from db:", receivedData);
@@ -1524,6 +1530,34 @@ app.post("/assign-slots", async (req, res) => {
 //Endpoint to order the assignements
 app.post("/order-assignements", async (req, res) => {
   await orderAssignements();
+});
+
+//Endpoint to order the assignements
+app.post("/send-reminder", async (req, res) => {
+  try {
+    const todayBool = await isTodayHoliday();
+
+    if (todayBool) {
+      return res.status(200).json({ message: "Today is a holiday. No reminders sent." });
+    }
+
+    // Only send reminders to assigned slots (not slot 60, and only if phone exists)
+    const assignedPhones = parkingSlots
+      .filter(slot => slot.number !== 60 && slot.status === "assigned" && slot.phone)
+      .map(slot => slot.phone);
+
+    if (assignedPhones.length === 0) {
+      return res.status(200).json({ message: "No assigned slots to send reminders." });
+    }
+
+    // Send reminders in parallel
+    await Promise.all(assignedPhones.map(phone => sendReminder(phone)));
+
+    res.status(200).json({ message: `Reminders sent to ${assignedPhones.length} users.` });
+  } catch (error) {
+    console.error("Error sending reminders:", error);
+    res.status(500).json({ message: "Failed to send reminders." });
+  }
 });
 
 
@@ -1778,6 +1812,25 @@ async function sendWhatsAppMessage(to, message) {
     console.error("Error sending message:", error);
   }
 }
+
+async function sendReminder(to){
+  const client = new twilio(
+    process.env.TWILIO_ACCOUNT_SID,
+    process.env.TWILIO_AUTH_TOKEN
+  );
+  const template_id = "HX63f982146a2c68a2c1ad95a3a5c0f8be";
+
+  client.messages
+    .create({
+      from: twilioNumber,
+      to: to,
+      contentSid: template_id,
+      timeout: 5000
+    })
+    .then((message) => console.log("Message sent:", message.body))
+    .catch((error) => console.error("Error sending message:", error));
+}
+
 
 function sendTimeoutMessage(to, slot){
   const client = new twilio(
