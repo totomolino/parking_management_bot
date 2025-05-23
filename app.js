@@ -689,6 +689,19 @@ async function getAssignments() {
   }
 }
 
+async function orderAssignements() {
+  let query = `SELECT conditional_refresh_mv('today_assignments_mv')`;
+  const values = [];
+
+  try {
+    const result = await pool.query(query, values);
+    return result.rows;
+  } catch (err) {
+    console.error("Error ordering the assignments:", err);
+    return [];
+  }
+}
+
 
 
 //Function to order reservations and assign slots
@@ -1507,6 +1520,13 @@ async function assignSlotsAndCommunicate(res) {
 app.post("/assign-slots", async (req, res) => {
   await assignSlotsAndCommunicate(res);
 });
+
+//Endpoint to order the assignements
+app.post("/order-assignements", async (req, res) => {
+  await orderAssignements();
+});
+
+
 
 
 // Endpoint to receive data from Excel macro
