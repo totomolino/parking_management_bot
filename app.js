@@ -1827,7 +1827,6 @@ async function sendReminder(to){
       contentSid: template_id,
       timeout: 5000
     })
-    .then((message) => console.log("Message sent:", message.body))
     .catch((error) => console.error("Error sending message:", error));
 }
 
