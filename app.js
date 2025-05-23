@@ -946,8 +946,7 @@ async function handleShowParking(sender) {
       "You are neither assigned a parking slot nor on the waiting list.";
   }
 
-  // message += `\n${generateParkingSlotTable()}`;
-  message += "```" + "\n" + generateParkingSlotTable() + "```";
+  message += `\n${generateParkingSlotTable()}`;
 
   await sendWhatsAppMessage(sender, message);
 }
@@ -1818,7 +1817,7 @@ async function sendReminder(to){
     process.env.TWILIO_ACCOUNT_SID,
     process.env.TWILIO_AUTH_TOKEN
   );
-  const template_id = "HX63f982146a2c68a2c1ad95a3a5c0f8be";
+  const template_id = "HX03b40419642af21c89b1d33546a5d7ba";
 
   client.messages
     .create({
