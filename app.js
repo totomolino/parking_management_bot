@@ -689,6 +689,21 @@ async function getAssignments() {
   }
 }
 
+//Function to get any view from db
+async function getViews(view){
+  let query = `SELECT * FROM ${view}`;
+  const values = [];
+
+  try {
+    const result = await pool.query(query, values);
+    return result.rows;
+  } catch (err) {
+      console.error("Error fetching assignments:", err);
+      return [];
+  }
+}
+
+
 
 
 //Function to order reservations and assign slots
@@ -716,6 +731,7 @@ async function assignSlots(all_flag = false) {
 
   return filteredAssignments;
 }
+
 
 
 
@@ -1670,6 +1686,29 @@ app.get('/today_assignments', async (req, res) => {
   try {
     const assignments = await assignSlots(true);
     res.json(assignments);
+  } catch (err) {
+    console.error(err);
+    res.status(500).send('Server Error');
+  }
+});
+
+
+// API route to get last cancellations from PostgreSQL
+app.get('/cancellations', async (req, res) => {
+  try {
+    const cancellations = await getViews('last_cancellations');
+    res.status(200).json(cancellations);
+  } catch (err) {
+    console.error(err);
+    res.status(500).send('Server Error');
+  }
+});
+
+// API route to get top cancellers from PostgreSQL
+app.get('/cancellations', async (req, res) => {
+  try {
+    const cancellations = await getViews('top_cancellers');
+    res.status(200).json(cancellations);
   } catch (err) {
     console.error(err);
     res.status(500).send('Server Error');
