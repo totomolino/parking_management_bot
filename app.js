@@ -1740,7 +1740,7 @@ app.get('/today_assignments', async (req, res) => {
 
 
 // API route to get last cancellations from PostgreSQL
-app.get('/cancellations', async (req, res) => {
+app.get('/last_cancellations', async (req, res) => {
   try {
     const cancellations = await getViews('last_cancellations');
     res.status(200).json(cancellations);
@@ -1751,7 +1751,7 @@ app.get('/cancellations', async (req, res) => {
 });
 
 // API route to get top cancellers from PostgreSQL
-app.get('/cancellations', async (req, res) => {
+app.get('/top_cancellers', async (req, res) => {
   try {
     const cancellations = await getViews('top_cancellers');
     res.status(200).json(cancellations);
