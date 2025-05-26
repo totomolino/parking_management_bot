@@ -466,7 +466,6 @@ Once both steps are completed, you can start booking your daily spot directly on
     return res.status(200).end();
   }
   
-  console.log(messageBody);
   switch (true) {
     case messageBody === "add me":
       logActionToDB(sender, "COMMAND_ADD_ME");
@@ -724,7 +723,6 @@ async function assignSlots(all_flag = false) {
   });
 
   filteredAssignments.forEach(a => {
-    console.log(`${a.name} | ${a.phone} | Slot: ${a.slot}`);
     // logActionToDB(a.phone, `Assigned to slot ${a.slot}`); //TODO uncomment this line to log the assignment
   });
 
@@ -762,9 +760,9 @@ function calculateTimeoutDuration(timeoutDuration) {
     finalDelay = nextDay7am.toMillis() - localTime.toMillis();
   }
 
-  console.log(`Current Time: ${localTime.toISO()}`);
-  console.log(`Next 7:10 AM: ${localTime.set({ hour: 7, minute: 10 }).toISO()}`);
-  console.log(`Overnight Delay: ${finalDelay}`);
+  // console.log(`Current Time: ${localTime.toISO()}`);
+  // console.log(`Next 7:10 AM: ${localTime.set({ hour: 7, minute: 10 }).toISO()}`);
+  // console.log(`Overnight Delay: ${finalDelay}`);
 
   return finalDelay;
 }
@@ -799,9 +797,9 @@ function assignSlotToUser(
   slot.timeoutHandle = setTimeout(() => {
     // Check if the slot is still pending
     if (slot.status === "pending" && slot.phone === user.phone) {
-      console.log(
-        `User ${user.phone} did not respond in time. Releasing slot ${slot.number}.`
-      );
+      // console.log(
+      //   `User ${user.phone} did not respond in time. Releasing slot ${slot.number}.`
+      // );
       logActionToDB(user.phone, `Timeout for slot ${slot.number}`);
 
       // Release the slot
@@ -817,7 +815,7 @@ function assignSlotToUser(
       // Assign to the next user in the waiting list
       assignNextSlot();
     }
-    console.log(slot);
+    // console.log(slot);
   }, adjustedTimeout);
 }
 
@@ -973,7 +971,7 @@ function handleShowTimeouts(sender) {
     message = message.slice(0, 1597) + "...";
   }
 
-  console.log(message);
+  
   sendWhatsAppMessage(sender, message);
 }
 
@@ -1149,7 +1147,7 @@ function handleSlotAccept(sender, name) {
     );
     waitingList = waitingList.filter((user) => user.phone !== sender);
     logActionToDB(sender, `Accepted and assigned slot ${slot.number}`);
-    console.log(`Slot ${slot.number} assigned to ${slot.assignedTo}.`);
+    
 
     // Optionally, assign another slot if available
     assignNextSlot();
@@ -1195,8 +1193,7 @@ function handleSlotDecline(sender, name) {
 function assignmentFlag(){
   const localTime = getLocalTime().toFormat('dd/MM/yyyy');
 
-  console.log(`local time: ${localTime}, parkingDate: ${parkingDate}`);
-
+  
   return localTime !== parkingDate //if they are the same, it means that /excel-data didn't run yet
 }
 
@@ -1207,9 +1204,7 @@ function handleSlotPing(sender, name) {
   const localTime = getLocalTime().toFormat('dd/MM/yyyy');
 
   let slots = parkingSlots
-
-  console.log(`local time: ${localTime}, parkingDate: ${parkingDate}`);
-
+  
   const runFlag = assignmentFlag();
 
   if(runFlag){ //if they are the same, it means that /excel-data didn't run yet
@@ -1276,7 +1271,7 @@ app.post("/test", (req, res) => {
 
 // Endpoint to refresh logs on excel
 app.post('/refresh_logs', (req, res) => {
-  console.log("Received refresh_logs request with param:", req.body.line);
+  
   const lineParam = req.body.line;
 
   if (!lineParam || isNaN(lineParam)) {
@@ -1395,8 +1390,6 @@ async function getNextWorkday() {
   let nextDay = localTime.plus({ days: 1 }); // Start from the next day
 
   const holidays = await getHolidays();
-  console.log(nextDay);
-  console.log(holidays);
 
   while (
       nextDay.isWeekend ||
@@ -1568,8 +1561,7 @@ app.post("/excel-data", async (req, res) => {
   const todayBool = await isTodayHoliday();
   if(!todayBool){    
     const receivedData = req.body;
-    console.log("Data received from Excel:", receivedData);
-
+    
     saveParkingData(yesterday_FILE_PATH); //saving today's file 
 
     // Create a new Date object based on localTime and add one day
@@ -1806,8 +1798,7 @@ async function sendWhatsAppMessage(to, message) {
       from: twilioNumber,
       to: to,
     });
-
-    console.log("Message sent:", sentMessage.body, "to", to);
+    
   } catch (error) {
     console.error("Error sending message:", error);
   }
@@ -1849,7 +1840,6 @@ function sendTimeoutMessage(to, slot){
       contentVariables: variablesJson,
       timeout: 5000
     })
-    .then((message) => console.log("Message sent:", message.body))
     .catch((error) => console.error("Error sending message:", error));
 }
 
@@ -1870,7 +1860,6 @@ function sendWaitingListMessage(to, message) {
       contentVariables: variablesJson,
       timeout: 5000
     })
-    .then((message) => console.log("Message sent:", message.body, "to", to))
     .catch((error) => console.error("Error sending message:", error));
 }
 
@@ -1882,7 +1871,7 @@ function pingPair(to , assignedTo, number){
   const template_id = "HX782c2ad7292677c969d75720ed1e3d69";
   const variables = { 1: assignedTo, 2: String(number)};
   const variablesJson = JSON.stringify(variables);
-  console.log(`Pinging ${variablesJson}`)
+  
   client.messages
     .create({
       from: twilioNumber,
@@ -1891,7 +1880,6 @@ function pingPair(to , assignedTo, number){
       contentVariables: variablesJson,
       timeout: 5000
     })
-    .then((message) => console.log("Message sent:", message.body, "to", to))
     .catch((error) => console.error("Error sending message:", error));
 }
 
@@ -1915,7 +1903,6 @@ function sendMessageWithButtons(to, slot) {
       contentVariables: variablesJson,
       timeout: 5000
     })
-    .then((message) => console.log("Message sent:", message.body))
     .catch((error) => console.error("Error sending message:", error));
 }
 
@@ -1932,8 +1919,6 @@ function sendMessageWithButtonsFromBusiness(to, slot) {
   const variables = { 1: `${slot.number}` };
   const variablesJson = JSON.stringify(variables);
 
-  console.log(variables, variablesJson)
-
   client.messages
     .create({
       from: twilioNumber,
@@ -1942,7 +1927,6 @@ function sendMessageWithButtonsFromBusiness(to, slot) {
       contentVariables: variablesJson,
       timeout: 5000
     })
-    .then((message) => console.log("Message sent:", message.body))
     .catch((error) => console.error("Error sending message:", error));
 }
 
@@ -1964,7 +1948,6 @@ function sendCancelList(to, messageNum) {
       contentVariables: variablesJson,
       timeout: 5000
     })
-    .then((message) => console.log("Message sent:", message.body))
     .catch((error) => console.error("Error sending message:", error));
 }
 
@@ -1982,7 +1965,6 @@ function sendCancelReservation(to) {
       contentSid: template_id,
       timeout: 5000
     })
-    .then((message) => console.log("Message sent:", message.body))
     .catch((error) => console.error("Error sending message:", error));
 }
 
@@ -2004,7 +1986,6 @@ function sendReleaseSlotWL(to, messageNum) {
       contentVariables: variablesJson,
       timeout: 5000
     })
-    .then((message) => console.log("Message sent:", message.body))
     .catch((error) => console.error("Error sending message:", error));
 }
 
@@ -2032,7 +2013,6 @@ function sendParkingImage(to) {
       contentVariables: variablesJson,
       timeout: 5000
     })
-    .then((message) => console.log("Date template message sent:", message.body, "to", to))
     .catch((error) => console.error("Error sending date template message:", error));
 }
 
