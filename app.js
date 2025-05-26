@@ -626,6 +626,14 @@ async function getArgentinaTimestamp(messageSid) {
 
   try {
     const message = await client.messages(messageSid).fetch();
+
+    // Check if the dateSent is valid
+    if (!message.dateSent) {
+      console.log("Invalid dateSent from Twilio, using fallback.");
+      return DateTime.now()
+        .setZone('America/Argentina/Buenos_Aires')
+        .toFormat('yyyy-MM-dd HH:mm:ss');
+    }
     return DateTime.fromJSDate(new Date(message.dateSent))
       .setZone('America/Argentina/Buenos_Aires')
       .toFormat('yyyy-MM-dd HH:mm:ss');
