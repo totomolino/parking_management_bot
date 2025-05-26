@@ -466,7 +466,6 @@ Once both steps are completed, you can start booking your daily spot directly on
     return res.status(200).end();
   }
   
-  console.log(messageBody);
   switch (true) {
     case messageBody === "add me":
       logActionToDB(sender, "COMMAND_ADD_ME");
@@ -689,6 +688,20 @@ async function getAssignments() {
   }
 }
 
+async function orderAssignements(res) {
+  let query = `SELECT conditional_refresh_mv('today_assignments_mv')`;
+  const values = [];
+
+  try {
+    const result = await pool.query(query, values);
+    res.status(200).json({ message: "Assignments ordered successfully.", data: result.rows });
+  } catch (err) {
+    console.error("Error ordering the assignments:", err);
+    res.status(500).json({ message: "Error ordering the assignments." });
+    return [];
+  }
+}
+
 //Function to get any view from db
 async function getViews(view){
   let query = `SELECT * FROM ${view}`;
@@ -725,7 +738,6 @@ async function assignSlots(all_flag = false) {
   });
 
   filteredAssignments.forEach(a => {
-    console.log(`${a.name} | ${a.phone} | Slot: ${a.slot}`);
     // logActionToDB(a.phone, `Assigned to slot ${a.slot}`); //TODO uncomment this line to log the assignment
   });
 
@@ -764,9 +776,9 @@ function calculateTimeoutDuration(timeoutDuration) {
     finalDelay = nextDay7am.toMillis() - localTime.toMillis();
   }
 
-  console.log(`Current Time: ${localTime.toISO()}`);
-  console.log(`Next 7:10 AM: ${localTime.set({ hour: 7, minute: 10 }).toISO()}`);
-  console.log(`Overnight Delay: ${finalDelay}`);
+  // console.log(`Current Time: ${localTime.toISO()}`);
+  // console.log(`Next 7:10 AM: ${localTime.set({ hour: 7, minute: 10 }).toISO()}`);
+  // console.log(`Overnight Delay: ${finalDelay}`);
 
   return finalDelay;
 }
@@ -801,9 +813,9 @@ function assignSlotToUser(
   slot.timeoutHandle = setTimeout(() => {
     // Check if the slot is still pending
     if (slot.status === "pending" && slot.phone === user.phone) {
-      console.log(
-        `User ${user.phone} did not respond in time. Releasing slot ${slot.number}.`
-      );
+      // console.log(
+      //   `User ${user.phone} did not respond in time. Releasing slot ${slot.number}.`
+      // );
       logActionToDB(user.phone, `Timeout for slot ${slot.number}`);
 
       // Release the slot
@@ -819,7 +831,7 @@ function assignSlotToUser(
       // Assign to the next user in the waiting list
       assignNextSlot();
     }
-    console.log(slot);
+    // console.log(slot);
   }, adjustedTimeout);
 }
 
@@ -949,8 +961,7 @@ async function handleShowParking(sender) {
       "You are neither assigned a parking slot nor on the waiting list.";
   }
 
-  // message += `\n${generateParkingSlotTable()}`;
-  message += "```" + "\n" + generateParkingSlotTable() + "```";
+  message += `\n${generateParkingSlotTable()}`;
 
   await sendWhatsAppMessage(sender, message);
 }
@@ -976,7 +987,7 @@ function handleShowTimeouts(sender) {
     message = message.slice(0, 1597) + "...";
   }
 
-  console.log(message);
+  
   sendWhatsAppMessage(sender, message);
 }
 
@@ -1152,7 +1163,7 @@ function handleSlotAccept(sender, name) {
     );
     waitingList = waitingList.filter((user) => user.phone !== sender);
     logActionToDB(sender, `Accepted and assigned slot ${slot.number}`);
-    console.log(`Slot ${slot.number} assigned to ${slot.assignedTo}.`);
+    
 
     // Optionally, assign another slot if available
     assignNextSlot();
@@ -1198,8 +1209,7 @@ function handleSlotDecline(sender, name) {
 function assignmentFlag(){
   const localTime = getLocalTime().toFormat('dd/MM/yyyy');
 
-  console.log(`local time: ${localTime}, parkingDate: ${parkingDate}`);
-
+  
   return localTime !== parkingDate //if they are the same, it means that /excel-data didn't run yet
 }
 
@@ -1210,9 +1220,7 @@ function handleSlotPing(sender, name) {
   const localTime = getLocalTime().toFormat('dd/MM/yyyy');
 
   let slots = parkingSlots
-
-  console.log(`local time: ${localTime}, parkingDate: ${parkingDate}`);
-
+  
   const runFlag = assignmentFlag();
 
   if(runFlag){ //if they are the same, it means that /excel-data didn't run yet
@@ -1279,7 +1287,7 @@ app.post("/test", (req, res) => {
 
 // Endpoint to refresh logs on excel
 app.post('/refresh_logs', (req, res) => {
-  console.log("Received refresh_logs request with param:", req.body.line);
+  
   const lineParam = req.body.line;
 
   if (!lineParam || isNaN(lineParam)) {
@@ -1398,8 +1406,6 @@ async function getNextWorkday() {
   let nextDay = localTime.plus({ days: 1 }); // Start from the next day
 
   const holidays = await getHolidays();
-  console.log(nextDay);
-  console.log(holidays);
 
   while (
       nextDay.isWeekend ||
@@ -1428,7 +1434,13 @@ async function isTodayWorkday() {
 
 //Function to assign slots and comunicate
 async function assignSlotsAndCommunicate(res) {
-    const todayBool = await isTodayHoliday();
+    let todayBool = false;
+    try {
+      todayBool = await isTodayHoliday();
+    } catch (error) {
+      console.error("Error checking if today is a holiday:", error);
+      return res.status(500).send("Failed to check holiday status.");
+    }
   if(!todayBool){    
     const receivedData = await assignSlots(false);
     console.log("Assignments from db:", receivedData);
@@ -1461,12 +1473,12 @@ async function assignSlotsAndCommunicate(res) {
     waitingList = [];
 
     receivedData.forEach((item) => {
-      const person = item.Person;
+      const person = item.name;
       const slotNumber =
-        item.Parking_slot === "WL" ? null : parseInt(item.Parking_slot, 10);
-      const phone = `whatsapp:${item.Number}`;
+        item.slot === "WL" ? null : parseInt(item.slot, 10);
+      const phone = `whatsapp:${item.phone}`;
 
-      if (item.Parking_slot === "WL") {
+      if (item.slot === "WL") {
         waitingList.push({ name: person, phone });
         console.log(`${person} is in the waiting list.`);
         logActionToDB(phone, "Added to waiting list via /excel-data");
@@ -1524,14 +1536,48 @@ app.post("/assign-slots", async (req, res) => {
   await assignSlotsAndCommunicate(res);
 });
 
+//Endpoint to order the assignements
+app.post("/order-assignements", async (req, res) => {
+  await orderAssignements(res);
+});
+
+//Endpoint to order the assignements
+app.post("/send-reminder", async (req, res) => {
+  try {
+    const todayBool = await isTodayHoliday();
+
+    if (todayBool) {
+      return res.status(200).json({ message: "Today is a holiday. No reminders sent." });
+    }
+
+    // Only send reminders to assigned slots (not slot 60, and only if phone exists)
+    const assignedPhones = parkingSlots
+      .filter(slot => slot.number !== 60 && slot.status === "assigned" && slot.phone)
+      .map(slot => slot.phone);
+
+    if (assignedPhones.length === 0) {
+      return res.status(200).json({ message: "No assigned slots to send reminders." });
+    }
+
+    // Send reminders in parallel
+    await Promise.all(assignedPhones.map(phone => sendReminder(phone)));
+
+    res.status(200).json({ message: `Reminders sent to ${assignedPhones.length} users.` });
+  } catch (error) {
+    console.error("Error sending reminders:", error);
+    res.status(500).json({ message: "Failed to send reminders." });
+  }
+});
+
+
+
 
 // Endpoint to receive data from Excel macro
 app.post("/excel-data", async (req, res) => {
   const todayBool = await isTodayHoliday();
   if(!todayBool){    
     const receivedData = req.body;
-    console.log("Data received from Excel:", receivedData);
-
+    
     saveParkingData(yesterday_FILE_PATH); //saving today's file 
 
     // Create a new Date object based on localTime and add one day
@@ -1791,12 +1837,29 @@ async function sendWhatsAppMessage(to, message) {
       from: twilioNumber,
       to: to,
     });
-
-    console.log("Message sent:", sentMessage.body, "to", to);
+    
   } catch (error) {
     console.error("Error sending message:", error);
   }
 }
+
+async function sendReminder(to){
+  const client = new twilio(
+    process.env.TWILIO_ACCOUNT_SID,
+    process.env.TWILIO_AUTH_TOKEN
+  );
+  const template_id = "HX03b40419642af21c89b1d33546a5d7ba";
+
+  client.messages
+    .create({
+      from: twilioNumber,
+      to: to,
+      contentSid: template_id,
+      timeout: 5000
+    })
+    .catch((error) => console.error("Error sending message:", error));
+}
+
 
 function sendTimeoutMessage(to, slot){
   const client = new twilio(
@@ -1816,7 +1879,6 @@ function sendTimeoutMessage(to, slot){
       contentVariables: variablesJson,
       timeout: 5000
     })
-    .then((message) => console.log("Message sent:", message.body))
     .catch((error) => console.error("Error sending message:", error));
 }
 
@@ -1837,7 +1899,6 @@ function sendWaitingListMessage(to, message) {
       contentVariables: variablesJson,
       timeout: 5000
     })
-    .then((message) => console.log("Message sent:", message.body, "to", to))
     .catch((error) => console.error("Error sending message:", error));
 }
 
@@ -1849,7 +1910,7 @@ function pingPair(to , assignedTo, number){
   const template_id = "HX782c2ad7292677c969d75720ed1e3d69";
   const variables = { 1: assignedTo, 2: String(number)};
   const variablesJson = JSON.stringify(variables);
-  console.log(`Pinging ${variablesJson}`)
+  
   client.messages
     .create({
       from: twilioNumber,
@@ -1858,7 +1919,6 @@ function pingPair(to , assignedTo, number){
       contentVariables: variablesJson,
       timeout: 5000
     })
-    .then((message) => console.log("Message sent:", message.body, "to", to))
     .catch((error) => console.error("Error sending message:", error));
 }
 
@@ -1882,7 +1942,6 @@ function sendMessageWithButtons(to, slot) {
       contentVariables: variablesJson,
       timeout: 5000
     })
-    .then((message) => console.log("Message sent:", message.body))
     .catch((error) => console.error("Error sending message:", error));
 }
 
@@ -1899,8 +1958,6 @@ function sendMessageWithButtonsFromBusiness(to, slot) {
   const variables = { 1: `${slot.number}` };
   const variablesJson = JSON.stringify(variables);
 
-  console.log(variables, variablesJson)
-
   client.messages
     .create({
       from: twilioNumber,
@@ -1909,7 +1966,6 @@ function sendMessageWithButtonsFromBusiness(to, slot) {
       contentVariables: variablesJson,
       timeout: 5000
     })
-    .then((message) => console.log("Message sent:", message.body))
     .catch((error) => console.error("Error sending message:", error));
 }
 
@@ -1931,7 +1987,6 @@ function sendCancelList(to, messageNum) {
       contentVariables: variablesJson,
       timeout: 5000
     })
-    .then((message) => console.log("Message sent:", message.body))
     .catch((error) => console.error("Error sending message:", error));
 }
 
@@ -1949,7 +2004,6 @@ function sendCancelReservation(to) {
       contentSid: template_id,
       timeout: 5000
     })
-    .then((message) => console.log("Message sent:", message.body))
     .catch((error) => console.error("Error sending message:", error));
 }
 
@@ -1971,7 +2025,6 @@ function sendReleaseSlotWL(to, messageNum) {
       contentVariables: variablesJson,
       timeout: 5000
     })
-    .then((message) => console.log("Message sent:", message.body))
     .catch((error) => console.error("Error sending message:", error));
 }
 
@@ -1999,7 +2052,6 @@ function sendParkingImage(to) {
       contentVariables: variablesJson,
       timeout: 5000
     })
-    .then((message) => console.log("Date template message sent:", message.body, "to", to))
     .catch((error) => console.error("Error sending date template message:", error));
 }
 
