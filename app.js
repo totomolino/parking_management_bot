@@ -1527,7 +1527,6 @@ async function assignSlotsAndCommunicate(res) {
         sendWaitingListMessage(member.phone, waitingListMessage);
         logActionToDB(
           member.phone,
-          member.name,
           `Notified waiting list position ${i + 1} via /excel-data`
         );
       });
@@ -1660,7 +1659,6 @@ app.post("/excel-data", async (req, res) => {
         sendWaitingListMessage(member.phone, waitingListMessage);
         logActionToDB(
           member.phone,
-          member.name,
           `Notified waiting list position ${i + 1} via /excel-data`
         );
       });
