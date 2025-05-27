@@ -1,0 +1,7 @@
+First:
+sudo -i -u postgres
+
+Then:
+psql
+
+
