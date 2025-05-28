@@ -1871,7 +1871,6 @@ async function sendReminder(to, slotNumber) {
   const variables = { 1: String(slotNumber), 2: waitingListUser };
   const variablesJson = JSON.stringify(variables);
 
-  console.log(variablesJson);
 
   client.messages
     .create({
