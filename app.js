@@ -1567,7 +1567,7 @@ app.post("/send-reminder", async (req, res) => {
     // Send reminders in parallel, passing both phone and slot number
     await Promise.all(assignedSlots.map(({ phone, number }) => sendReminder(phone, number)));
 
-    res.status(200).json({ message: `Reminders sent to ${assignedPhones.length} users.` });
+    res.status(200).json({ message: `Reminders sent to ${assignedSlots.length} users.` });
   } catch (error) {
     console.error("Error sending reminders:", error);
     res.status(500).json({ message: "Failed to send reminders." });
