@@ -1869,14 +1869,16 @@ async function sendReminder(to, slotNumber) {
   const waitingListUser = waitingList.length > 0 ? waitingList[0].name : "someone";
 
   const variables = { 1: slotNumber, 2: waitingListUser };
-  // const variablesJson = JSON.stringify(variables);
+  const variablesJson = JSON.stringify(variables);
+
+  console.log(variablesJson);
 
   client.messages
     .create({
       from: twilioNumber,
       to: to,
       contentSid: template_id,
-      contentVariables: variables,
+      contentVariables: variablesJson,
       timeout: 5000
     })
     .catch((error) => console.error("Error sending message:", error));
