@@ -529,9 +529,7 @@ Once both steps are completed, you can start booking your daily spot directly on
       handleScore(sender); //TODO
       break;
     case messageBody === "test_new":
-      // handleTestNew(sender, name);
-      // handleCancelList(sender);
-      assignSlots();
+      sendReminder(sender)
       break;
     case messageBody === "daycheck":
       const todaytest = (await getNextWorkday()).toString();
@@ -1558,16 +1556,16 @@ app.post("/send-reminder", async (req, res) => {
     }
 
     // Only send reminders to assigned slots (not slot 60, and only if phone exists)
-    const assignedPhones = parkingSlots
-      .filter(slot => slot.number !== 60 && slot.status === "assigned" && slot.phone)
-      .map(slot => slot.phone);
+    const assignedSlots = parkingSlots
+      .filter(slot => slot.number !== 60 && slot.status === "assigned" && slot.phone && slot.number === 594)
+      .map(slot => ({ phone: slot.phone, number: slot.number }));
 
-    if (assignedPhones.length === 0) {
+    if (assignedSlots.length === 0) {
       return res.status(200).json({ message: "No assigned slots to send reminders." });
     }
 
-    // Send reminders in parallel
-    await Promise.all(assignedPhones.map(phone => sendReminder(phone)));
+    // Send reminders in parallel, passing both phone and slot number
+    await Promise.all(assignedSlots.map(({ phone, number }) => sendReminder(phone, number)));
 
     res.status(200).json({ message: `Reminders sent to ${assignedPhones.length} users.` });
   } catch (error) {
@@ -1767,6 +1765,17 @@ app.get('/top_cancellers', async (req, res) => {
   }
 });
 
+// API route to get monthly cancellations from PostgreSQL
+app.get('/monthly_cancellations', async (req, res) => {
+  try {
+    const cancellations = await getViews('monthly_cancellations');
+    res.status(200).json(cancellations);
+  } catch (err) {
+    console.error(err);
+    res.status(500).send('Server Error');
+  }
+});
+
 // Endpoint: returns both today's and yesterday's parking data
 app.get('/parking-data', async (req, res) => {
   try {
@@ -1849,18 +1858,25 @@ async function sendWhatsAppMessage(to, message) {
   }
 }
 
-async function sendReminder(to){
+async function sendReminder(to, slotNumber) {
   const client = new twilio(
     process.env.TWILIO_ACCOUNT_SID,
     process.env.TWILIO_AUTH_TOKEN
   );
-  const template_id = "HX03b40419642af21c89b1d33546a5d7ba";
+  const template_id = "HX897b5d5c9fa344f048119f103810d0c2";
+
+  //retrieving first in waiting list
+  const waitingListUser = waitingList.length > 0 ? waitingList[0].name : "someone";
+
+  const variables = { 1: slotNumber, 2: waitingListUser };
+  const variablesJson = JSON.stringify(variables);
 
   client.messages
     .create({
       from: twilioNumber,
       to: to,
       contentSid: template_id,
+      contentVariables: variablesJson,
       timeout: 5000
     })
     .catch((error) => console.error("Error sending message:", error));
