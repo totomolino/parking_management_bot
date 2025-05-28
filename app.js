@@ -1868,7 +1868,7 @@ async function sendReminder(to, slotNumber) {
   //retrieving first in waiting list
   const waitingListUser = waitingList.length > 0 ? waitingList[0].name : "someone";
 
-  const variables = { 1: slotNumber, 2: waitingListUser };
+  const variables = { 1: String(slotNumber), 2: waitingListUser };
   const variablesJson = JSON.stringify(variables);
 
   console.log(variablesJson);
