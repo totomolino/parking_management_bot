@@ -622,25 +622,27 @@ async function getArgentinaTimestamp(messageSid) {
     process.env.TWILIO_AUTH_TOKEN
   );
 
-  try {
-    const message = await client.messages(messageSid).fetch();
-
-    // Check if the dateSent is valid
-    if (!message.dateSent) {
-      console.log("Invalid dateSent from Twilio, using fallback.");
-      return DateTime.now()
-        .setZone('America/Argentina/Buenos_Aires')
-        .toFormat('yyyy-MM-dd HH:mm:ss');
+  let retries = 0;
+  let message = null;
+  while (retries < 3) {
+    try {
+      message = await client.messages(messageSid).fetch();
+      if (message && message.dateSent) {
+        return DateTime.fromJSDate(new Date(message.dateSent))
+          .setZone('America/Argentina/Buenos_Aires')
+          .toFormat('yyyy-MM-dd HH:mm:ss');
+      }
+    } catch (err) {
+      console.error(`Failed to get Twilio timestamp (attempt ${retries + 1}), retrying...`, err);
     }
-    return DateTime.fromJSDate(new Date(message.dateSent))
-      .setZone('America/Argentina/Buenos_Aires')
-      .toFormat('yyyy-MM-dd HH:mm:ss');
-  } catch (err) {
-    console.error("Failed to get Twilio timestamp, using fallback", err);
-    return DateTime.now()
-      .setZone('America/Argentina/Buenos_Aires')
-      .toFormat('yyyy-MM-dd HH:mm:ss');
+    retries++;
+    // Small delay before retrying
+    await new Promise(resolve => setTimeout(resolve, 500));
   }
+  console.log("Invalid dateSent from Twilio, using fallback.");
+  return DateTime.now()
+    .setZone('America/Argentina/Buenos_Aires')
+    .toFormat('yyyy-MM-dd HH:mm:ss');
 }
 
 async function handleReserve(MessageSid, sender, name) {
