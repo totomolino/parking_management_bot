@@ -702,6 +702,10 @@ async function orderAssignements(res) {
 
   try {
     const result = await pool.query(query, values);
+    if (!result.rows || result.rows.length === 0) {
+      res.status(500).json({ message: "No assignments were ordered. Operation failed." });
+      return [];
+    }
     res.status(200).json({ message: "Assignments ordered successfully.", data: result.rows });
   } catch (err) {
     console.error("Error ordering the assignments:", err);
@@ -1452,6 +1456,10 @@ async function assignSlotsAndCommunicate(res) {
   if(!todayBool){    
     const receivedData = await assignSlots(false);
     console.log("Assignments from db:", receivedData);
+
+    if (!Array.isArray(receivedData) || receivedData.length === 0) {
+      return res.status(500).send("No assignments found. Aborting process.");
+    }
 
     saveParkingData(yesterday_FILE_PATH); //saving today's file 
 
