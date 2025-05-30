@@ -696,8 +696,11 @@ async function getAssignments() {
   }
 }
 
-async function orderAssignements(res) {
+async function orderAssignements(res, force_flag = false) {
   let query = `SELECT conditional_refresh_mv('today_assignments_mv')`;
+  if (force_flag) {
+    query = `SELECT conditional_refresh_mv('today_assignments_mv', TRUE)`;
+  }
   const values = [];
 
   try {
@@ -1454,9 +1457,17 @@ async function assignSlotsAndCommunicate(res) {
       return res.status(500).send("Failed to check holiday status.");
     }
   if(!todayBool){    
-    const receivedData = await assignSlots(false);
-    console.log("Assignments from db:", receivedData);
-
+       
+    // Try up to 3 times to get non-empty assignments
+    let receivedData = [];
+    let attempts = 0;
+    while (attempts < 3) {
+      receivedData = await assignSlots(false);
+      console.log("Assignments from db:", receivedData);
+      if (Array.isArray(receivedData) && receivedData.length > 0) break;
+      await orderAssignements(res, true); // Force refresh the assignments
+      attempts++;
+    }
     if (!Array.isArray(receivedData) || receivedData.length === 0) {
       return res.status(500).send("No assignments found. Aborting process.");
     }
