@@ -1774,6 +1774,31 @@ app.get('/roster', async (req, res) => {
   }
 });
 
+// API route to get roster data from PostgreSQL
+app.get('/twilio-balance', async (req, res) => {
+  try {
+    const accountSid = process.env.TWILIO_ACCOUNT_SID;
+    const authToken  = process.env.TWILIO_AUTH_TOKEN;
+
+    if (!accountSid || !authToken) {
+      console.error('Twilio credentials missing');
+      return res.status(500).json({ error: 'Twilio credentials not configured.' });
+    }
+
+    // Initialize the Twilio client
+    const client = twilio(accountSid, authToken);
+
+    // Fetch the balance (returns { accountSid, balance, currency }) :contentReference[oaicite:0]{index=0}
+    const data = await client.balance.fetch();
+
+    // Return only the bits your React app needs
+    res.status(200).json({ balance: `${data.balance} ${data.currency}` });
+  } catch (err) {
+    console.error('Error fetching Twilio balance:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
 
 // API route to get last cancellations from PostgreSQL
 app.get('/last_cancellations', async (req, res) => {
