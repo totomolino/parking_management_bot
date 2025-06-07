@@ -1763,6 +1763,17 @@ app.get('/today_assignments', async (req, res) => {
   }
 });
 
+// API route to get roster data from PostgreSQL
+app.get('/roster', async (req, res) => {
+  try {
+    const cancellations = await getViews('roster');
+    res.status(200).json(cancellations);
+  } catch (err) {
+    console.error(err);
+    res.status(500).send('Server Error');
+  }
+});
+
 
 // API route to get last cancellations from PostgreSQL
 app.get('/last_cancellations', async (req, res) => {
