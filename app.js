@@ -1874,18 +1874,55 @@ app.get('/parking-data', async (req, res) => {
   }
 });
 
+async function change_score(user) {
+  const userId = user.user_id;
+  const newScore = user.possible_new_score;
 
-// API route to calculate Cancellers and comunicate
+  // 1) Flag the user
+  await getQuery(`SELECT flag_user(${userId}, ${newScore});`);
+
+  // 2) Fetch their updated score
+  const rows = await getQuery(`
+    SELECT newscore
+      FROM roster
+     WHERE id = ${userId};
+  `);
+
+  // 3) Return the score (or 0 if undefined)
+  return rows[0]?.newscore ?? 0;
+}
+
+
+// API route to calculate Cancellers and communicate
 app.post('/penalize', async (req, res) => {
   try {
+    // 1. load data
     const penalize = await getViews('current_month_punished');
-    const max = await getMaxPermitido();
-    res.status(200).json({penalize,max});
+    const max      = await getMaxPermitido();
+
+    // 2. call change_score for each user
+    const penalizeWithNewScores = await Promise.all(
+      penalize.map(async user => {
+        // assume change_score returns the updated score (number)
+        const newScore = await change_score(user);
+        return {
+          ...user,
+          possible_new_score: newScore
+        };
+      })
+    );
+
+    // 3. respond with the enriched list + max
+    res.status(200).json({
+      penalize: penalizeWithNewScores,
+      max
+    });
   } catch (err) {
     console.error(err);
     res.status(500).send('Server Error');
   }
 });
+
 
 // Endpoint to update the user roster data
 app.post("/update-roster", async (req, res) => {
