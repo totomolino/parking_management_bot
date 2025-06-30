@@ -745,13 +745,15 @@ async function getQuery(query){
 }
 
 
-async function getMaxPermitido(){
-  const result = await getQuery("select max(value) from parking_config where key = 'maxPermitido'")
-
-  return result[0].value
+async function getMaxPermitido() {
+  const result = await getQuery(`
+    SELECT
+      MAX(value)::int AS maxPermitido
+    FROM parking_config
+    WHERE key = 'maxPermitido'
+  `);
+  return result[0].maxPermitido || 0;
 }
-
-
 
 
 //Function to order reservations and assign slots
