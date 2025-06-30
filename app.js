@@ -529,9 +529,7 @@ Once both steps are completed, you can start booking your daily spot directly on
       handleScore(sender); //TODO
       break;
     case messageBody === "test_new":
-      // handleTestNew(sender, name);
-      // handleCancelList(sender);
-      assignSlots();
+      sendReminder(sender)
       break;
     case messageBody === "daycheck":
       const todaytest = (await getNextWorkday()).toString();
@@ -593,9 +591,9 @@ async function handleScore(sender) {
 
   //Bring Score from DB using Roster table
   const query = `
-  select roster.score, coalesce(b.cancellations,0) as cancellations
+  select roster.score, coalesce(b.cancellation_count,0) as cancellations
   from roster
-  left join (select * from monthly_cancellations where month = EXTRACT(month FROM current_date)) b on roster.id = b.user_id
+  left join (select * from monthly_cancellations where EXTRACT(month FROM cancellation_month) = EXTRACT(month FROM current_date)) b on roster.id = b.user_id
   where roster.id = $1;
   `;
   const values = [userId];
@@ -624,17 +622,27 @@ async function getArgentinaTimestamp(messageSid) {
     process.env.TWILIO_AUTH_TOKEN
   );
 
-  try {
-    const message = await client.messages(messageSid).fetch();
-    return DateTime.fromJSDate(new Date(message.dateSent))
-      .setZone('America/Argentina/Buenos_Aires')
-      .toFormat('yyyy-MM-dd HH:mm:ss');
-  } catch (err) {
-    console.error("Failed to get Twilio timestamp, using fallback", err);
-    return DateTime.now()
-      .setZone('America/Argentina/Buenos_Aires')
-      .toFormat('yyyy-MM-dd HH:mm:ss');
+  let retries = 0;
+  let message = null;
+  while (retries < 3) {
+    try {
+      message = await client.messages(messageSid).fetch();
+      if (message && message.dateSent) {
+        return DateTime.fromJSDate(new Date(message.dateSent))
+          .setZone('America/Argentina/Buenos_Aires')
+          .toFormat('yyyy-MM-dd HH:mm:ss');
+      }
+    } catch (err) {
+      console.error(`Failed to get Twilio timestamp (attempt ${retries + 1}), retrying...`, err);
+    }
+    retries++;
+    // Small delay before retrying
+    await new Promise(resolve => setTimeout(resolve, 500));
   }
+  console.log("Invalid dateSent from Twilio, using fallback.");
+  return DateTime.now()
+    .setZone('America/Argentina/Buenos_Aires')
+    .toFormat('yyyy-MM-dd HH:mm:ss');
 }
 
 async function handleReserve(MessageSid, sender, name) {
@@ -688,12 +696,19 @@ async function getAssignments() {
   }
 }
 
-async function orderAssignements(res) {
+async function orderAssignements(res, force_flag = false) {
   let query = `SELECT conditional_refresh_mv('today_assignments_mv')`;
+  if (force_flag) {
+    query = `SELECT conditional_refresh_mv('today_assignments_mv', TRUE)`;
+  }
   const values = [];
 
   try {
     const result = await pool.query(query, values);
+    if (!result.rows || result.rows.length === 0) {
+      res.status(500).json({ message: "No assignments were ordered. Operation failed." });
+      return [];
+    }
     res.status(200).json({ message: "Assignments ordered successfully.", data: result.rows });
   } catch (err) {
     console.error("Error ordering the assignments:", err);
@@ -1462,8 +1477,20 @@ async function assignSlotsAndCommunicate(res) {
       return res.status(500).send("Failed to check holiday status.");
     }
   if(!todayBool){    
-    const receivedData = await assignSlots(false);
-    console.log("Assignments from db:", receivedData);
+       
+    // Try up to 3 times to get non-empty assignments
+    let receivedData = [];
+    let attempts = 0;
+    while (attempts < 3) {
+      receivedData = await assignSlots(false);
+      console.log("Assignments from db:", receivedData);
+      if (Array.isArray(receivedData) && receivedData.length > 0) break;
+      await orderAssignements(res, true); // Force refresh the assignments
+      attempts++;
+    }
+    if (!Array.isArray(receivedData) || receivedData.length === 0) {
+      return res.status(500).send("No assignments found. Aborting process.");
+    }
 
     saveParkingData(yesterday_FILE_PATH); //saving today's file 
 
@@ -1539,7 +1566,6 @@ async function assignSlotsAndCommunicate(res) {
         sendWaitingListMessage(member.phone, waitingListMessage);
         logActionToDB(
           member.phone,
-          member.name,
           `Notified waiting list position ${i + 1} via /excel-data`
         );
       });
@@ -1571,18 +1597,18 @@ app.post("/send-reminder", async (req, res) => {
     }
 
     // Only send reminders to assigned slots (not slot 60, and only if phone exists)
-    const assignedPhones = parkingSlots
+    const assignedSlots = parkingSlots
       .filter(slot => slot.number !== 60 && slot.status === "assigned" && slot.phone)
-      .map(slot => slot.phone);
+      .map(slot => ({ phone: slot.phone, number: slot.number }));
 
-    if (assignedPhones.length === 0) {
+    if (assignedSlots.length === 0) {
       return res.status(200).json({ message: "No assigned slots to send reminders." });
     }
 
-    // Send reminders in parallel
-    await Promise.all(assignedPhones.map(phone => sendReminder(phone)));
+    // Send reminders in parallel, passing both phone and slot number
+    await Promise.all(assignedSlots.map(({ phone, number }) => sendReminder(phone, number)));
 
-    res.status(200).json({ message: `Reminders sent to ${assignedPhones.length} users.` });
+    res.status(200).json({ message: `Reminders sent to ${assignedSlots.length} users.` });
   } catch (error) {
     console.error("Error sending reminders:", error);
     res.status(500).json({ message: "Failed to send reminders." });
@@ -1672,7 +1698,6 @@ app.post("/excel-data", async (req, res) => {
         sendWaitingListMessage(member.phone, waitingListMessage);
         logActionToDB(
           member.phone,
-          member.name,
           `Notified waiting list position ${i + 1} via /excel-data`
         );
       });
@@ -1758,6 +1783,42 @@ app.get('/today_assignments', async (req, res) => {
   }
 });
 
+// API route to get roster data from PostgreSQL
+app.get('/roster', async (req, res) => {
+  try {
+    const cancellations = await getViews('roster');
+    res.status(200).json(cancellations);
+  } catch (err) {
+    console.error(err);
+    res.status(500).send('Server Error');
+  }
+});
+
+// API route to get roster data from PostgreSQL
+app.get('/twilio-balance', async (req, res) => {
+  try {
+    const accountSid = process.env.TWILIO_ACCOUNT_SID;
+    const authToken  = process.env.TWILIO_AUTH_TOKEN;
+
+    if (!accountSid || !authToken) {
+      console.error('Twilio credentials missing');
+      return res.status(500).json({ error: 'Twilio credentials not configured.' });
+    }
+
+    // Initialize the Twilio client
+    const client = twilio(accountSid, authToken);
+
+    // Fetch the balance (returns { accountSid, balance, currency }) :contentReference[oaicite:0]{index=0}
+    const data = await client.balance.fetch();
+
+    // Return only the bits your React app needs
+    res.status(200).json({ balance: `${data.balance} ${data.currency}` });
+  } catch (err) {
+    console.error('Error fetching Twilio balance:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
 
 // API route to get last cancellations from PostgreSQL
 app.get('/last_cancellations', async (req, res) => {
@@ -1774,6 +1835,17 @@ app.get('/last_cancellations', async (req, res) => {
 app.get('/top_cancellers', async (req, res) => {
   try {
     const cancellations = await getViews('top_cancellers');
+    res.status(200).json(cancellations);
+  } catch (err) {
+    console.error(err);
+    res.status(500).send('Server Error');
+  }
+});
+
+// API route to get monthly cancellations from PostgreSQL
+app.get('/monthly_cancellations', async (req, res) => {
+  try {
+    const cancellations = await getViews('monthly_cancellations');
     res.status(200).json(cancellations);
   } catch (err) {
     console.error(err);
@@ -1876,18 +1948,26 @@ async function sendWhatsAppMessage(to, message) {
   }
 }
 
-async function sendReminder(to){
+async function sendReminder(to, slotNumber) {
   const client = new twilio(
     process.env.TWILIO_ACCOUNT_SID,
     process.env.TWILIO_AUTH_TOKEN
   );
-  const template_id = "HX03b40419642af21c89b1d33546a5d7ba";
+  const template_id = "HX897b5d5c9fa344f048119f103810d0c2";
+
+  //retrieving first in waiting list
+  const waitingListUser = waitingList.length > 0 ? waitingList[0].name : "someone";
+
+  const variables = { 1: String(slotNumber), 2: waitingListUser };
+  const variablesJson = JSON.stringify(variables);
+
 
   client.messages
     .create({
       from: twilioNumber,
       to: to,
       contentSid: template_id,
+      contentVariables: variablesJson,
       timeout: 5000
     })
     .catch((error) => console.error("Error sending message:", error));
