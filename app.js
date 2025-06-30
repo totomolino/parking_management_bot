@@ -716,6 +716,26 @@ async function getViews(view){
   }
 }
 
+//Function to get any view from db
+async function getQuery(query){
+  const values = [];
+
+  try {
+    const result = await pool.query(query, values);
+    return result.rows;
+  } catch (err) {
+      console.error("Error fetching assignments:", err);
+      return [];
+  }
+}
+
+
+async function getMaxPermitido(){
+  const result = await getQuery("select max(value) from parking_config where key = 'maxPermitido'")
+
+  return result[0].value
+}
+
 
 
 
@@ -1777,6 +1797,19 @@ app.get('/parking-data', async (req, res) => {
   } catch (err) {
     console.error('Failed to load parking data:', err);
     res.status(500).json({ message: 'Error loading parking data' });
+  }
+});
+
+
+// API route to calculate Cancellers and comunicate
+app.post('/penalize', async (req, res) => {
+  try {
+    const penalize = await getViews('current_month_punished');
+    const max = await getMaxPermitido();
+    res.status(200).json({penalize,max});
+  } catch (err) {
+    console.error(err);
+    res.status(500).send('Server Error');
   }
 });
 
