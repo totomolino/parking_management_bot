@@ -748,12 +748,11 @@ async function getQuery(query){
 async function getMaxPermitido() {
   const result = await getQuery(`
     SELECT
-      MAX(value)::int AS maxPermitido
+      MAX(value)::int AS maxpermitido
     FROM parking_config
     WHERE key = 'maxPermitido'
   `);
-  console.log(result);
-  return result[0].maxPermitido || 0;
+  return result[0].maxpermitido || 0;
 }
 
 
