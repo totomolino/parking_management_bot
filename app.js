@@ -752,6 +752,7 @@ async function getMaxPermitido() {
     FROM parking_config
     WHERE key = 'maxPermitido'
   `);
+  console.log(result);
   return result[0].maxPermitido || 0;
 }
 
