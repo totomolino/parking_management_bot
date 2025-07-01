@@ -563,11 +563,14 @@ Here’s how the parking bot works:
 
 🏖️  For holidays, make your request the previous business day.
 
-❌  Cancellations:
-🕰️  Any cancellation after 8:00 AM will count toward your monthly score, so please try to avoid last-minute changes whenever possible.
-2️⃣  You have ${maxPermitido} free late cancellations per month. If you go over that, your score and prioritization for the next month will be affected.
-      👉 _Example: If you cancel ${maxPermitido + 1} times in a month, you’ll lose prioritization and start the next month with only ${maxPermitido - 1} free cancellation._
-      👉 _Example: If you cancel ${maxPermitido + 2} times, you’ll lose prioritization and start the next month with no free cancellations._
+❌  *Cancellations*:
+
+🕰️  Any cancellation *after 8:00 AM* will count toward your monthly score, so please try to avoid last-minute changes whenever possible.
+
+2️⃣  You have *${maxPermitido} free late cancellations per month*. If you go over that, your score and prioritization for the next month will be affected.
+      👉 _Example: If you cancel *${maxPermitido + 1} times* in a month, you’ll lose prioritization and start the next month with only *${maxPermitido - 1} free cancellation*._
+      👉 _Example: If you cancel *${maxPermitido + 2} times*, you’ll lose prioritization and start the next month with *no free cancellations*._
+      
 ✅  Your score resets every month with good usage.
 
 Commands:
