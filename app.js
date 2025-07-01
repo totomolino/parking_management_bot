@@ -1947,7 +1947,7 @@ app.post('/penalize', async (req, res) => {
         // a) derive first name & penalty month name (cancellation_month +1)
         const firstName = name.split(' ')[0];
         const penaltyMonthName = DateTime
-          .fromISO(cancellation_month)
+          .fromJSDate(new Date(cancellation_month), { zone: 'utc' })
           .plus({ months: 1 })
           .toFormat('LLLL');
 
@@ -2056,11 +2056,11 @@ async function comunicatePenalty(phone, firstName, penaltyMonthName, cancellatio
   const template_id = "HX9c4483f6e91a3b712baddd3153c3ae34"
 
   const variables = {
-    1: firstName,
-    2: cancellationCount,
-    3: maxAllowed,
-    4: penaltyMonthName,
-    5: newScore
+    1: String(firstName),
+    2: String(cancellationCount),
+    3: String(maxAllowed),
+    4: String(penaltyMonthName),
+    5: String(newScore)
   };
   const variablesJson = JSON.stringify(variables);
   try {
