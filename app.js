@@ -543,8 +543,8 @@ Once both steps are completed, you can start booking your daily spot directly on
       const infoMessage1 = `
 🚗 *License Plate Registration*
 To access the parking floors, your license plate must be registered with the building.
-Complete this form — registration may take up to 24 hours to be processed:
-👉 Register your license plate
+Complete this form. _Registration may take up to 24 hours to be processed_:
+👉 Register your license plate: https://forms.office.com/r/V8GPjRKtTY
 📍 *Location*
 ZS parking is located at *Juana Azurduy 1584*, floors *3SS and 4SS* of the building.
 `
@@ -564,11 +564,11 @@ Here’s how the parking bot works:
 🏖️  For holidays, make your request the previous business day.
 
 ❌  Cancellations:
-    Any cancellation after 8:00 AM will count toward your monthly score, so please try to avoid last-minute changes whenever possible.
-    You have ${maxPermitido} free late cancellations per month. If you go over that, your score and prioritization for the next month will be affected.
+🕰️  Any cancellation after 8:00 AM will count toward your monthly score, so please try to avoid last-minute changes whenever possible.
+2️⃣  You have ${maxPermitido} free late cancellations per month. If you go over that, your score and prioritization for the next month will be affected.
       👉 _Example: If you cancel ${maxPermitido + 1} times in a month, you’ll lose prioritization and start the next month with only ${maxPermitido - 1} free cancellation._
       👉 _Example: If you cancel ${maxPermitido + 2} times, you’ll lose prioritization and start the next month with no free cancellations._
-    Your score resets every month with good usage.
+✅  Your score resets every month with good usage.
 
 Commands:
 🔹 *reserve* – book your spot
