@@ -1965,8 +1965,7 @@ app.post('/penalize', async (req, res) => {
           month:        penaltyMonthName,
           cancellations: Number(cancellation_count),
           max_allowed:   maxAllowed,
-          new_score:     newScore,
-          notification:  message
+          new_score:     newScore
         };
       })
     );
