@@ -2053,7 +2053,7 @@ async function comunicatePenalty(phone, firstName, penaltyMonthName, cancellatio
     process.env.TWILIO_ACCOUNT_SID,
     process.env.TWILIO_AUTH_TOKEN
   );
-  const template_id = "HX9c4483f6e91a3b712baddd3153c3ae34"
+  const template_id = "HX433b179a721b295adb750c8f84db0b5e"
 
   const variables = {
     1: String(firstName),
