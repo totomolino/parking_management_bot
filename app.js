@@ -542,6 +542,15 @@ Once both steps are completed, you can start booking your daily spot directly on
       const maxPermitido = await getMaxPermitido();
 
       const infoMessage = `
+🚗 *License Plate Registration*
+To access the parking floors, your license plate must be registered with the building.
+Complete this form — registration may take up to 24 hours to be processed:
+👉 Register your license plate
+📍 *Location*
+ZS parking is located at *Juana Azurduy 1584*, floors *3SS and 4SS* of the building.
+
+------------------------------------------
+
 Here’s how the parking bot works:
 
 📅  You must request your reservation one day in advance.
@@ -559,8 +568,8 @@ Here’s how the parking bot works:
 ❌  Cancellations:
     Any cancellation after 8:00 AM will count toward your monthly score, so please try to avoid last-minute changes whenever possible.
     You have ${maxPermitido} free late cancellations per month. If you go over that, your score and prioritization for the next month will be affected.
-      👉 Example: If you cancel ${maxPermitido + 1} times in a month, you’ll lose prioritization and start the next month with only ${maxPermitido - 1} free cancellation.
-      👉 Example: If you cancel ${maxPermitido + 2} times, you’ll lose prioritization and start the next month with no free cancellations.
+      👉 _Example: If you cancel ${maxPermitido + 1} times in a month, you’ll lose prioritization and start the next month with only ${maxPermitido - 1} free cancellation._
+      👉 _Example: If you cancel ${maxPermitido + 2} times, you’ll lose prioritization and start the next month with no free cancellations._
     Your score resets every month with good usage.
 
 Commands:
