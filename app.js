@@ -540,17 +540,15 @@ Once both steps are completed, you can start booking your daily spot directly on
       break;
     case messageBody === "help":
       const maxPermitido = await getMaxPermitido();
-
-      const infoMessage = `
+      const infoMessage1 = `
 🚗 *License Plate Registration*
 To access the parking floors, your license plate must be registered with the building.
 Complete this form — registration may take up to 24 hours to be processed:
 👉 Register your license plate
 📍 *Location*
 ZS parking is located at *Juana Azurduy 1584*, floors *3SS and 4SS* of the building.
-
-------------------------------------------
-
+`
+      const infoMessage2 = `
 Here’s how the parking bot works:
 
 📅  You must request your reservation one day in advance.
@@ -580,10 +578,16 @@ Commands:
 🔹 *ping* – notify shared spot users
 🔹 *score* – check your current score and month cancellations.
       `
-      sendWhatsAppMessage(
+      await sendWhatsAppMessage(
         sender,
-        infoMessage
+        infoMessage1
       );
+
+      await sendWhatsAppMessage(
+        sender,
+        infoMessage2
+      );
+
       break;
     default:
       sendWhatsAppMessage(
