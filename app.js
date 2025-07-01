@@ -1914,31 +1914,69 @@ async function change_score(user) {
   return rows[0]?.newscore ?? 0;
 }
 
+async function getPhone(userId) {
 
-// API route to calculate Cancellers and communicate
+  const rows = await getQuery(`
+    SELECT phone
+      FROM roster
+     WHERE id = ${userId};
+  `);
+  // Return the phone number or null if not found
+  //Formatting to send via twilio
+  return rows[0]?.phone ? `whatsapp:${rows[0].phone}` : null;
+}
+
+
+// API route to calculate Cancellers, communicate, and return a pretty payload
 app.post('/penalize', async (req, res) => {
   try {
-    // 1. load data
-    const penalize = await getViews('current_month_punished');
-    const max      = await getMaxPermitido();
+    // 1) Load data
+    const punished   = await getViews('current_month_punished');
+    const maxAllowed = await getMaxPermitido();
 
-    // 2. call change_score for each user
-    const penalizeWithNewScores = await Promise.all(
-      penalize.map(async user => {
-        // assume change_score returns the updated score (number)
+    // 2) Process each user
+    const penalizedUsers = await Promise.all(
+      punished.map(async user => {
+        const {
+          user_id,
+          name,
+          cancellation_month,
+          cancellation_count
+        } = user;
+
+        // a) derive first name & penalty month name (cancellation_month +1)
+        const firstName = name.split(' ')[0];
+        const penaltyMonthName = DateTime
+          .fromISO(cancellation_month)
+          .plus({ months: 1 })
+          .toFormat('LLLL');
+
+        // b) compute & flag new score
         const newScore = await change_score(user);
+
+        const phone = await getPhone(user_id)
+
+        await comunicatePenalty(phone, firstName, penaltyMonthName, cancellation_count, maxAllowed, newScore);
+
+        // d) return a “pretty” object
         return {
-          ...user,
-          possible_new_score: newScore
+          user_id,
+          name:         firstName,
+          month:        penaltyMonthName,
+          cancellations: Number(cancellation_count),
+          max_allowed:   maxAllowed,
+          new_score:     newScore,
+          notification:  message
         };
       })
     );
 
-    // 3. respond with the enriched list + max
+    // 3) Respond
     res.status(200).json({
-      penalize: penalizeWithNewScores,
-      max
+      max_allowed_cancellations_next_month: maxAllowed,
+      penalized_users: penalizedUsers
     });
+
   } catch (err) {
     console.error(err);
     res.status(500).send('Server Error');
@@ -2006,6 +2044,38 @@ async function sendWhatsAppMessage(to, message) {
     
   } catch (error) {
     console.error("Error sending message:", error);
+  }
+}
+
+
+async function comunicatePenalty(phone, firstName, penaltyMonthName, cancellationCount, maxAllowed, newScore) {
+
+ const client = new twilio(
+    process.env.TWILIO_ACCOUNT_SID,
+    process.env.TWILIO_AUTH_TOKEN
+  );
+  const template_id = "HX9c4483f6e91a3b712baddd3153c3ae34"
+
+  const variables = {
+    1: firstName,
+    2: cancellationCount,
+    3: maxAllowed,
+    4: penaltyMonthName,
+    5: newScore
+  };
+  const variablesJson = JSON.stringify(variables);
+  try {
+    await client.messages.create({
+      from: twilioNumber,
+      to: "whatsapp:+5491166070996",
+      contentSid: template_id,
+      contentVariables: variablesJson,
+      timeout: 5000
+    });
+    console.log(`Penalty notification sent to ${firstName} (${phone})`);
+  } catch (error) {
+    console.error(`Error sending penalty notification to ${firstName} (${phone}):`, error
+    );
   }
 }
 
