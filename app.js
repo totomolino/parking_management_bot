@@ -2066,7 +2066,7 @@ async function comunicatePenalty(phone, firstName, penaltyMonthName, cancellatio
   try {
     await client.messages.create({
       from: twilioNumber,
-      to: "whatsapp:+5491166070996",
+      to: phone,
       contentSid: template_id,
       contentVariables: variablesJson,
       timeout: 5000
