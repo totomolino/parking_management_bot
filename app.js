@@ -1905,13 +1905,13 @@ async function change_score(user) {
 
   // 2) Fetch their updated score
   const rows = await getQuery(`
-    SELECT newscore
+    SELECT score
       FROM roster
      WHERE id = ${userId};
   `);
 
   // 3) Return the score (or 0 if undefined)
-  return rows[0]?.newscore ?? 0;
+  return rows[0]?.score ?? 0;
 }
 
 async function getPhone(userId) {
