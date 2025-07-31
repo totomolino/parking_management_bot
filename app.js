@@ -1914,6 +1914,24 @@ async function change_score(user) {
   return rows[0]?.score ?? 0;
 }
 
+async function restore_score(user) {
+  const userId = user.user_id;
+
+  // 1) Flag the user
+  await getQuery(`SELECT unflag_user(${userId});`);
+  
+
+  // 2) Fetch their updated score
+  const rows = await getQuery(`
+    SELECT score
+      FROM roster
+     WHERE id = ${userId};
+  `);
+
+  // 3) Return the score (or 0 if undefined)
+  return rows[0]?.score ?? 0;
+}
+
 async function getPhone(userId) {
 
   const rows = await getQuery(`
@@ -1931,10 +1949,17 @@ async function getPhone(userId) {
 app.post('/penalize', async (req, res) => {
   try {
     // 1) Load data
-    const punished   = await getViews('current_month_punished');
-    const maxAllowed = await getMaxPermitido();
+    const punished        = await getViews('current_month_punished');
+    let   toDepenalizeRaw = await getViews('current_month_depenalized');
+    const maxAllowed      = await getMaxPermitido();
 
-    // 2) Process each user
+    // 2) Filter out punished users from depenalized list
+    if (punished.length > 0) {
+      const punishedIds = new Set(punished.map(u => u.user_id));
+      toDepenalizeRaw = toDepenalizeRaw.filter(u => !punishedIds.has(u.user_id));
+    }
+
+    // 2) Process each user (penalize)
     const penalizedUsers = await Promise.all(
       punished.map(async user => {
         const {
@@ -1953,10 +1978,16 @@ app.post('/penalize', async (req, res) => {
 
         // b) compute & flag new score
         const newScore = await change_score(user);
+        const phone    = await getPhone(user_id);
 
-        const phone = await getPhone(user_id)
-
-        await comunicatePenalty(phone, firstName, penaltyMonthName, cancellation_count, maxAllowed, newScore);
+        await comunicatePenalty(
+          phone,
+          firstName,
+          penaltyMonthName,
+          cancellation_count,
+          maxAllowed,
+          newScore
+        );
 
         // d) return a “pretty” object
         return {
@@ -1970,10 +2001,45 @@ app.post('/penalize', async (req, res) => {
       })
     );
 
-    // 3) Respond
+    // 3) Process each user (de-penalize)
+    const depenalizedUsers = await Promise.all(
+      toDepenalizeRaw.map(async user => {
+        const { user_id, name, cancellation_month } = user;
+
+        // a) derive first name & release month name (same month)
+        const firstName      = name.split(' ')[0];
+        const releaseMonthName = DateTime
+          .fromJSDate(new Date(cancellation_month), { zone: 'utc' })
+          .toFormat('LLLL');
+
+        // b) compute & flag new score
+        // const newScore = await restore_score(user);
+        const newScore = '2'
+        // const phone = await getPhone(user_id);
+        const phone = 'whatsapp:+5491166070996'; // Hardcoded phone for testing
+
+        await comunicateDepenalize(
+          phone,
+          firstName,
+          releaseMonthName,
+          newScore
+        );
+
+        // d) return a “pretty” object
+        return {
+          user_id,
+          name:      firstName,
+          month:     releaseMonthName,
+          new_score: newScore
+        };
+      })
+    );
+
+    // 4) Respond
     res.status(200).json({
       max_allowed_cancellations_next_month: maxAllowed,
-      penalized_users: penalizedUsers
+      penalized_users:     penalizedUsers,
+      depenalized_users:   depenalizedUsers
     });
 
   } catch (err) {
@@ -2077,6 +2143,39 @@ async function comunicatePenalty(phone, firstName, penaltyMonthName, cancellatio
     );
   }
 }
+
+async function comunicateDepenalize(phone, firstName, penaltyMonthName, cancellationCount, maxAllowed, newScore) {
+
+ const client = new twilio(
+    process.env.TWILIO_ACCOUNT_SID,
+    process.env.TWILIO_AUTH_TOKEN
+  );
+  const template_id = "HX7d7b85b675d1cefb56fd261dde72cc76"
+
+  const variables = {
+    1: String(firstName),
+    2: String(cancellationCount),
+    3: String(maxAllowed),
+    4: String(penaltyMonthName),
+    5: String(newScore)
+  };
+  const variablesJson = JSON.stringify(variables);
+  try {
+    await client.messages.create({
+      from: twilioNumber,
+      to: phone,
+      contentSid: template_id,
+      contentVariables: variablesJson,
+      timeout: 5000
+    });
+    console.log(`De-Penalty notification sent to ${firstName} (${phone})`);
+  } catch (error) {
+    console.error(`Error sending de-penalty notification to ${firstName} (${phone}):`, error
+    );
+  }
+}
+
+
 
 async function sendReminder(to, slotNumber) {
   const client = new twilio(
