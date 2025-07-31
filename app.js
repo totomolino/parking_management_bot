@@ -2150,7 +2150,7 @@ async function comunicateDepenalize(phone, firstName, penaltyMonthName, cancella
     process.env.TWILIO_ACCOUNT_SID,
     process.env.TWILIO_AUTH_TOKEN
   );
-  const template_id = "HX7d7b85b675d1cefb56fd261dde72cc76"
+  const template_id = "HX482c98c4cdcf806a50a3ad0db1223a34"
 
   const variables = {
     1: String(firstName),
