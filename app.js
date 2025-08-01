@@ -2022,6 +2022,8 @@ app.post('/penalize', async (req, res) => {
           phone,
           firstName,
           releaseMonthName,
+          rcancellation_count,
+          maxAllowed,
           newScore
         );
 
