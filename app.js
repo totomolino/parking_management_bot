@@ -2004,12 +2004,12 @@ app.post('/penalize', async (req, res) => {
     // 3) Process each user (de-penalize)
     const depenalizedUsers = await Promise.all(
       toDepenalizeRaw.map(async user => {
-        const { user_id, name, cancellation_month } = user;
+        const { user_id, name, last_month, last_month_cancellation_count } = user;
 
         // a) derive first name & release month name (same month)
         const firstName      = name.split(' ')[0];
         const releaseMonthName = DateTime
-          .fromJSDate(new Date(cancellation_month), { zone: 'utc' })
+          .fromJSDate(new Date(last_month), { zone: 'utc' })
           .toFormat('LLLL');
 
         // b) compute & flag new score
@@ -2022,7 +2022,7 @@ app.post('/penalize', async (req, res) => {
           phone,
           firstName,
           releaseMonthName,
-          rcancellation_count,
+          last_month_cancellation_count,
           maxAllowed,
           newScore
         );
