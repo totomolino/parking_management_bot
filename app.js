@@ -2004,19 +2004,17 @@ app.post('/penalize', async (req, res) => {
     // 3) Process each user (de-penalize)
     const depenalizedUsers = await Promise.all(
       toDepenalizeRaw.map(async user => {
-        const { user_id, name, last_month, last_month_cancellation_count } = user;
+        const { user_id, name, current_month, last_month_cancellation_count } = user;
 
         // a) derive first name & release month name (same month)
         const firstName      = name.split(' ')[0];
         const releaseMonthName = DateTime
-          .fromJSDate(new Date(last_month), { zone: 'utc' })
+          .fromJSDate(new Date(current_month), { zone: 'utc' })
           .toFormat('LLLL');
 
         // b) compute & flag new score
-        // const newScore = await restore_score(user);
-        const newScore = '2'
-        // const phone = await getPhone(user_id);
-        const phone = 'whatsapp:+5491166070996'; // Hardcoded phone for testing
+        const newScore = await restore_score(user);
+        const phone = await getPhone(user_id);
 
         await comunicateDepenalize(
           phone,
