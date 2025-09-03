@@ -1738,12 +1738,12 @@ async function writeTable(users, res){
   try {
     // Loop through each user and insert into the database
     for (const user of users) {
-      const { name, phone, date_of_hire, priority } = user;
+      const { name, phone, date_of_hire, priority, zs_id } = user;
 
       // Insert query to add the user into the "roster" table
       const query = `
-        INSERT INTO roster (name, phone, date_of_hire, priority)
-        VALUES ($1, $2, $3, $4)
+        INSERT INTO roster (name, phone, date_of_hire, priority, zs_id)
+        VALUES ($1, $2, $3, $4, $5)
         ON CONFLICT (name) DO UPDATE 
         SET phone = EXCLUDED.phone, 
             date_of_hire = EXCLUDED.date_of_hire,
@@ -1751,7 +1751,7 @@ async function writeTable(users, res){
       `;
 
       // Execute the query
-      await pool.query(query, [name, phone, date_of_hire, priority]);
+      await pool.query(query, [name, phone, date_of_hire, priority, zs_id]);
 
     }
 
@@ -2063,7 +2063,8 @@ app.post("/update-roster", async (req, res) => {
     name: user.name || "",
     phone: user.phone || "",
     date_of_hire: user.date_of_hire || "",
-    priority: user.priority || ""
+    priority: user.priority || "",
+	zs_id: user.zs_id || ""
   }));
 
   await writeTable(csvData, res);
