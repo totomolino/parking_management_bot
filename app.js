@@ -1747,7 +1747,8 @@ async function writeTable(users, res){
         ON CONFLICT (name) DO UPDATE 
         SET phone = EXCLUDED.phone, 
             date_of_hire = EXCLUDED.date_of_hire,
-            priority = EXCLUDED.priority;
+            priority = EXCLUDED.priority,
+			zs_id = EXCLUDED.zs_id;
       `;
 
       // Execute the query
