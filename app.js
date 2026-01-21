@@ -309,14 +309,14 @@ const initialSlots = [
 }));
 
 // Add slot 60 with pre-assigned values
-// initialSlots.push({
-//   number: 60,
-//   status: "assigned",
-//   assignedTo: "Ramses de la Rosa",
-//   phone: "whatsapp:+5491169691511",
-//   timeoutHandle: null,
-//   timeoutDate: null,
-// });
+initialSlots.push({
+  number: 60,
+  status: "assigned",
+  assignedTo: "Ramses de la Rosa",
+  phone: "whatsapp:+5491169691511",
+  timeoutHandle: null,
+  timeoutDate: null,
+});
 
 // Function to load data from file
 function loadParkingData() {
@@ -781,7 +781,7 @@ async function getMaxPermitido() {
 //Function to order reservations and assign slots
 async function assignSlots(all_flag = false) {
   const slotNumbers = parkingSlots
-    // .filter(slot => slot.number !== 60)
+    .filter(slot => slot.number !== 60)
     .map(slot => slot.number);
 
   const assignments = await getAssignments();
@@ -1415,16 +1415,16 @@ app.post("/parking_slots", (req, res) => {
   }));
 
   // Ensure slot 60 is included with the assigned values if it's not in receivedSlots
-  // if (!parkingSlots.some(slot => slot.number === 60)) {
-  //   parkingSlots.push({
-  //     number: 60,
-  //     status: "assigned",
-  //     assignedTo: "Ramses de la Rosa",
-  //     phone: "whatsapp:+5491169691511",
-  //     timeoutHandle: null,
-  //     timeoutDate: null,
-  //   });
-  // }
+  if (!parkingSlots.some(slot => slot.number === 60)) {
+    parkingSlots.push({
+      number: 60,
+      status: "assigned",
+      assignedTo: "Ramses de la Rosa",
+      phone: "whatsapp:+5491169691511",
+      timeoutHandle: null,
+      timeoutDate: null,
+    });
+  }
 
   waitingList = []; // Reset waiting list
 
@@ -1523,14 +1523,14 @@ async function assignSlotsAndCommunicate(res) {
 
     // Clear all existing timeouts
     parkingSlots.forEach((slot) => {
-      // if (slot.number === 60) {
-      //   slot.status= "assigned"
-      //   slot.assignedTo= "Ramses de la Rosa"
-      //   slot.phone= "whatsapp:+5491169691511"
-      //   slot.timeoutHandle= null
-      //   slot.timeoutDate = null;
-      //   return; // Skip this slot
-      // }
+      if (slot.number === 60) {
+        slot.status= "assigned"
+        slot.assignedTo= "Ramses de la Rosa"
+        slot.phone= "whatsapp:+5491169691511"
+        slot.timeoutHandle= null
+        slot.timeoutDate = null;
+        return; // Skip this slot
+      }
       if (slot.timeoutHandle) {
         clearTimeout(slot.timeoutHandle);
         slot.timeoutHandle = null;
@@ -1655,14 +1655,14 @@ app.post("/excel-data", async (req, res) => {
 
     // Clear all existing timeouts
     parkingSlots.forEach((slot) => {
-      // if (slot.number === 60) {
-      //   slot.status= "assigned"
-      //   slot.assignedTo= "Ramses de la Rosa"
-      //   slot.phone= "whatsapp:+5491169691511"
-      //   slot.timeoutHandle= null
-      //   slot.timeoutDate = null;
-      //   return; // Skip this slot
-      // }
+      if (slot.number === 60) {
+        slot.status= "assigned"
+        slot.assignedTo= "Ramses de la Rosa"
+        slot.phone= "whatsapp:+5491169691511"
+        slot.timeoutHandle= null
+        slot.timeoutDate = null;
+        return; // Skip this slot
+      }
       if (slot.timeoutHandle) {
         clearTimeout(slot.timeoutHandle);
         slot.timeoutHandle = null;
