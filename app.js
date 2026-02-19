@@ -449,16 +449,22 @@ app.post("/whatsapp", async (req, res) => {
 
   // Check if the sender is not found in csvData
   if (!entry) {
-    const loginMessage = `Hi! Here’s how to start using the building’s parking:
-    
-1️⃣ Register your plate → [https://forms.office.com/r/V8GPjRKtTY]
-_Note: access may take up to 24 hours to be activated._
+    const loginMessage = `*Hi! First things first, let’s get you set up with parking access and the bot* 🚗🤖
  
-2️⃣ Register your mobile phone with the bot → [https://forms.office.com/r/0scGm4w6s9]
+1️⃣ *Register your plate →* [https://forms.office.com/r/V8GPjRKtTY]
+_Note: Access may take up to 24 hours to be activated. You will not receive a confirmation email. If your information was submitted correctly, you will be able to access the building once it is activated._
  
-_Note: Both forms are only allowed on ZS laptop or Edge mobile with ZS account._
+2️⃣ *Register your mobile phone with the bot →* [https://forms.office.com/r/0scGm4w6s9]
+_Note: Both forms must be completed using a ZS laptop or Edge mobile with your ZS account._
+Once both steps are completed, you can start booking your daily spot directly on WhatsApp. Type “*help*” to see the available commands.
  
-Once both steps are completed, you can start booking your daily spot directly on WhatsApp! You can type *help* to see more info about each command!`
+🤔 *Still can’t interact with the bot?*
+If you completed the first two forms and waited 2 hours but still cannot interact with the bot, we may be missing some information from you. In that case, please complete this additional form:
+👉 [https://forms.office.com/r/Wtim5YsCa9]
+After submitting it, wait about 2 hours and then type “*help*” again.
+
+If you receive the instructions, it means you’re all set and can interact with the bot.
+If you continue to experience issues after this, please reach out to someone from the *Support Services team!*`
     sendWhatsAppMessage(
       sender,
       loginMessage
@@ -529,7 +535,8 @@ Once both steps are completed, you can start booking your daily spot directly on
       handleScore(sender); //TODO
       break;
     case messageBody === "test_new":
-      sendReminder(sender)
+      // sendReminder(sender)+
+      sendWhatsAppMessage(sender,loginMessage);
       break;
     case messageBody === "daycheck":
       const todaytest = (await getNextWorkday()).toString();
