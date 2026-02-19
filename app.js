@@ -450,20 +450,20 @@ app.post("/whatsapp", async (req, res) => {
   // Check if the sender is not found in csvData
   const loginMessage = `*Hi! First things first, let’s get you set up with parking access and the bot* 🚗🤖
 
-  1️⃣ *Register your plate →* [https://forms.office.com/r/V8GPjRKtTY]
-  _Note: Access may take up to 24 hours to be activated. You will not receive a confirmation email. If your information was submitted correctly, you will be able to access the building once it is activated._
+1️⃣ *Register your plate →* [https://forms.office.com/r/V8GPjRKtTY]
+_Note: Access may take up to 24 hours to be activated. You will not receive a confirmation email. If your information was submitted correctly, you will be able to access the building once it is activated._
 
-  2️⃣ *Register your mobile phone with the bot →* [https://forms.office.com/r/0scGm4w6s9]
-  _Note: Both forms must be completed using a ZS laptop or Edge mobile with your ZS account._
-  Once both steps are completed, you can start booking your daily spot directly on WhatsApp. Type “*help*” to see the available commands.
+2️⃣ *Register your mobile phone with the bot →* [https://forms.office.com/r/0scGm4w6s9]
+_Note: Both forms must be completed using a ZS laptop or Edge mobile with your ZS account._
+Once both steps are completed, you can start booking your daily spot directly on WhatsApp. Type “*help*” to see the available commands.
 
-  🤔 *Still can’t interact with the bot?*
-  If you completed the first two forms and waited 2 hours but still cannot interact with the bot, we may be missing some information from you. In that case, please complete this additional form:
-  👉 [https://forms.office.com/r/Wtim5YsCa9]
-  After submitting it, wait about 2 hours and then type “*help*” again.
+🤔 *Still can’t interact with the bot?*
+If you completed the first two forms and waited 2 hours but still cannot interact with the bot, we may be missing some information from you. In that case, please complete this additional form:
+👉 [https://forms.office.com/r/Wtim5YsCa9]
+After submitting it, wait about 2 hours and then type “*help*” again.
 
-  If you receive the instructions, it means you’re all set and can interact with the bot.
-  If you continue to experience issues after this, please reach out to someone from the *Support Services team!*`
+If you receive the instructions, it means you’re all set and can interact with the bot.
+If you continue to experience issues after this, please reach out to someone from the *Support Services team!*`
   if (!entry) {
     sendWhatsAppMessage(
       sender,
