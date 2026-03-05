@@ -288,17 +288,12 @@ async function logActionToDB(userPhone, action) {
 
 // Initial Parking Slots Configuration
 const initialSlots = [
-  832,
-  834,
-  835,
-  836,
-  837,
-  838,
-  839,
-  840,
-  841,
-  ...Array.from({ length: 10 }, (_, i) => 585 + i), // 585 to 594
-  ...Array.from({ length: 8 }, (_, i) => 569 + i), // 569 to 576
+  // --- 4º SUB (800s) ---
+  814, 815, 816, 817, 839, 840, 841, 832, 834, 835, 836, 837, 838,
+
+  // --- 3º SUB (500s) ---
+  616, 585, 586, 587, 588, 589, 590, 591, 592, 593, 594, 596, 597, 598, 569,
+  570, 571, 572, 573, 574, 575, 576, 579, 580, 581, 582,
 ].map((slotNumber) => ({
   number: slotNumber,
   status: "available", // possible statuses: 'available', 'pending', 'assigned'
@@ -1308,7 +1303,7 @@ function handleSlotPing(sender, name) {
 
   if (slot) {
     // List of shared slots
-    const sharedSlots = [569, 570, 571, 572, 573, 574, 575, 576];
+    const sharedSlots = [569, 570, 571, 572, 573, 574, 575, 576, 579, 580, 581, 582];
     
     if (sharedSlots.includes(slot.number)) {
       // Determine the paired slot
