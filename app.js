@@ -4,33 +4,33 @@ const twilio = require("twilio");
 const cors = require("cors");
 const ngrok = require("@ngrok/ngrok");
 const fs = require("fs"); // Import fs module for logging
-const path = require('path');
-const { DateTime } = require('luxon');//for date manipulation
+const path = require("path");
+const { DateTime } = require("luxon"); //for date manipulation
 require("dotenv").config(); // Load environment variables from .env file
-const csvParser = require('csv-parser');
-const { createCanvas, loadImage } = require('canvas');
+const csvParser = require("csv-parser");
+const { createCanvas, loadImage } = require("canvas");
 const { handle } = require("express/lib/application");
-const { Pool } = require('pg'); // Import the pg Pool for database connection
+const { Pool } = require("pg"); // Import the pg Pool for database connection
 const res = require("express/lib/response");
 const { EsimProfilePage } = require("twilio/lib/rest/supersim/v1/esimProfile");
 const { all, get } = require("axios");
 
 // Create a new pool to interact with PostgreSQL
 const pool = new Pool({
-  user: 'postgres',       // Replace with your PostgreSQL username
-  host: 'localhost',      // Replace with your host if needed
-  database: 'parking_database', // Your database name
-  password: 'mySecurePassword123', // Your PostgreSQL password
-  port: 5432,             // Default PostgreSQL port
+  user: "postgres", // Replace with your PostgreSQL username
+  host: "localhost", // Replace with your host if needed
+  database: "parking_database", // Your database name
+  password: "mySecurePassword123", // Your PostgreSQL password
+  port: 5432, // Default PostgreSQL port
 });
 
-const filePath = './roster.csv'; // Path to your CSV file
-const holidaysFilePath = './holidays.csv'; // Path to your CSV file
+const filePath = "./roster.csv"; // Path to your CSV file
+const holidaysFilePath = "./holidays.csv"; // Path to your CSV file
 // File path for persistence
-const DATA_FILE_PATH = path.join(__dirname, 'parking_data.json');
-const yesterday_FILE_PATH = path.join(__dirname, 'parking_data_yesterday.json');
-const imagePath = 'original_image.jpg';
-const outputPath = 'modified_image.jpg';
+const DATA_FILE_PATH = path.join(__dirname, "parking_data.json");
+const yesterday_FILE_PATH = path.join(__dirname, "parking_data_yesterday.json");
+const imagePath = "original_image.jpg";
+const outputPath = "modified_image.jpg";
 
 let csvData = []; // In-memory storage for CSV data
 let holidaysData = []; // In-memory storage for Holidays data
@@ -39,81 +39,90 @@ const maxRetries = 3;
 // Function to read CSV file and populate csvData
 async function readCSV() {
   try {
-    const result = await pool.query('SELECT name, phone, date_of_hire, priority FROM roster');
-    csvData = result.rows.map(row => ({
+    const result = await pool.query(
+      "SELECT name, phone, date_of_hire, priority FROM roster"
+    );
+    csvData = result.rows.map((row) => ({
       name: row.name,
       phone: row.phone,
       date_of_hire: row.date_of_hire,
-      priority: row.priority
+      priority: row.priority,
     }));
-    console.log('Roster table successfully read from database');
+    console.log("Roster table successfully read from database");
   } catch (error) {
-    console.error('Error reading roster table from database:', error);
+    console.error("Error reading roster table from database:", error);
   }
 }
 
 readCSV();
 
 // Configuration for image generation
-const cellWidth = 70;  // Width of each cell in pixels
+const cellWidth = 70; // Width of each cell in pixels
 const cellHeight = 22; // Height of each cell in pixels
 
 // Function to modify parking slot image
 async function generateParkingImage() {
-    try {
-        const image = await loadImage(imagePath);
-        const canvas = createCanvas(image.width, image.height);
-        const ctx = canvas.getContext('2d');
+  try {
+    const image = await loadImage(imagePath);
+    const canvas = createCanvas(image.width, image.height);
+    const ctx = canvas.getContext("2d");
 
-        ctx.drawImage(image, 0, 0);
-        ctx.font = '15px Liberation Mono';
-        ctx.fillStyle = 'black';
+    ctx.drawImage(image, 0, 0);
+    ctx.font = "15px Liberation Mono";
+    ctx.fillStyle = "black";
 
-        const textPositions = {};
+    const textPositions = {};
 
-        // First pack of slots (C3 to C11)
-        parkingSlots.slice(0, 9).forEach((slot, i) => {
-            const row = 4 + i;
-            const position = `${(2 * cellWidth) + 5},${(row * cellHeight) - 5}`;
-            textPositions[position] = slot.assignedTo || '';
-        });
+    // First pack of slots (C3 to C11)
+    parkingSlots.slice(0, 9).forEach((slot, i) => {
+      const row = 4 + i;
+      const position = `${2 * cellWidth + 5},${row * cellHeight - 5}`;
+      textPositions[position] = slot.assignedTo || "";
+    });
 
-        // Second pack of slots (C17 to C34)
-        parkingSlots.slice(9).forEach((slot, i) => {
-            const row = 17 + i;
-            const position = `${(2 * cellWidth) + 5},${(row * cellHeight) - 5}`;
-            textPositions[position] = slot.assignedTo || '';
-        });
+    // Second pack of slots (C17 to C34)
+    parkingSlots.slice(9).forEach((slot, i) => {
+      const row = 17 + i;
+      const position = `${2 * cellWidth + 5},${row * cellHeight - 5}`;
+      textPositions[position] = slot.assignedTo || "";
+    });
 
-        // Waiting list (Column H, starting from row 25)
-        waitingList.forEach((person, i) => {
-            if (i < 18) { // Limit to 18 waiting list entries
-                const row = 25 + i;
-                const position = `${(7 * cellWidth) + 5},${(row * cellHeight) - 5}`;
-                textPositions[position] = person.name;
-            }
-        });
+    // Waiting list (Column H, starting from row 25)
+    waitingList.forEach((person, i) => {
+      if (i < 18) {
+        // Limit to 18 waiting list entries
+        const row = 25 + i;
+        const position = `${7 * cellWidth + 5},${row * cellHeight - 5}`;
+        textPositions[position] = person.name;
+      }
+    });
 
-        // Draw all text positions
-        for (const [position, text] of Object.entries(textPositions)) {
-            const [x, y] = position.split(',').map(Number);
-            ctx.fillText(text, x, y);
-        }
-
-        const buffer = canvas.toBuffer('image/jpeg');
-        fs.writeFileSync(outputPath, buffer);
-        return outputPath;
-    } catch (error) {
-        console.error('Error generating parking image:', error);
-        throw error;
+    // Draw all text positions
+    for (const [position, text] of Object.entries(textPositions)) {
+      const [x, y] = position.split(",").map(Number);
+      ctx.fillText(text, x, y);
     }
+
+    const buffer = canvas.toBuffer("image/jpeg");
+    fs.writeFileSync(outputPath, buffer);
+    return outputPath;
+  } catch (error) {
+    console.error("Error generating parking image:", error);
+    throw error;
+  }
 }
 
 // Function to write CSV data to file
 function writeCSV(data, res) {
   // Add headers to CSV
   const headers = "name,phone,date_of_hire,priority\n";
-  const updatedCSV = headers + data.map((row) => `${row.name},${row.phone},${row.date_of_hire},${row.priority}`).join('\n');
+  const updatedCSV =
+    headers +
+    data
+      .map(
+        (row) => `${row.name},${row.phone},${row.date_of_hire},${row.priority}`
+      )
+      .join("\n");
   fs.writeFile(filePath, updatedCSV, (err) => {
     if (err) {
       console.error("Error writing CSV file:", err);
@@ -122,7 +131,6 @@ function writeCSV(data, res) {
     res.status(200).json({ message: "CSV file updated successfully." });
   });
 }
-
 
 // Function to write CSV data to file
 // function saveHolidays(data, res) {
@@ -138,53 +146,54 @@ function writeCSV(data, res) {
 //   });
 // }
 
-
 // Save holidays into the database
 async function saveHolidays(data, res) {
   const client = await pool.connect();
   try {
-    await client.query('BEGIN');
-    
+    await client.query("BEGIN");
+
     // Clear existing holidays
-    await client.query('DELETE FROM holidays');
+    await client.query("DELETE FROM holidays");
 
     // Insert new holidays
-    const insertPromises = data.map(row => {
-      const [day, month, year] = row.date.split('/'); // split "24/03/2025"
+    const insertPromises = data.map((row) => {
+      const [day, month, year] = row.date.split("/"); // split "24/03/2025"
       const formattedDate = `${year}-${month}-${day}`; // "2025-03-24"
 
       return client.query(
-        'INSERT INTO holidays (date, description) VALUES ($1, $2)',
+        "INSERT INTO holidays (date, description) VALUES ($1, $2)",
         [formattedDate, row.description]
       );
     });
 
     await Promise.all(insertPromises);
 
-    await client.query('COMMIT');
-    res.status(200).json({ message: 'Holidays updated successfully.' });
+    await client.query("COMMIT");
+    res.status(200).json({ message: "Holidays updated successfully." });
   } catch (err) {
-    await client.query('ROLLBACK');
-    console.error('Error updating holidays in DB:', err);
-    res.status(500).json({ message: 'Failed to update holidays.' });
+    await client.query("ROLLBACK");
+    console.error("Error updating holidays in DB:", err);
+    res.status(500).json({ message: "Failed to update holidays." });
   } finally {
     client.release();
   }
 }
 
 const app = express();
-const port = 3000;  // HTTP port
-const twilioNumber = "whatsapp:+12023351857"
+const port = 3000; // HTTP port
+const twilioNumber = "whatsapp:+12023351857";
 
 // Middleware setup
 app.use(bodyParser.urlencoded({ extended: false }));
 app.use(bodyParser.json()); // Middleware to parse JSON body
 // Enable CORS for all routes
-app.use(cors({
-    origin: '*',
-    methods: ['GET','POST', 'OPTIONS'],
-    allowedHeaders: ['Content-Type', 'ngrok-skip-browser-warning']
-}));
+app.use(
+  cors({
+    origin: "*",
+    methods: ["GET", "POST", "OPTIONS"],
+    allowedHeaders: ["Content-Type", "ngrok-skip-browser-warning"],
+  })
+);
 
 // Path to the log file
 const LOG_FILE = "bot_actions.log";
@@ -192,7 +201,10 @@ const LOG_FILE = "bot_actions.log";
 // Function to log actions to a text file
 function logAction(userPhone, userName, action) {
   const timestamp = getLocalTime();
-  const logEntry = `${timestamp}|${userPhone.replace("whatsapp:","")}|${userName}|${action}\n`;
+  const logEntry = `${timestamp}|${userPhone.replace(
+    "whatsapp:",
+    ""
+  )}|${userName}|${action}\n`;
   fs.appendFile(LOG_FILE, logEntry, (err) => {
     if (err) {
       console.error("Error logging action:", err);
@@ -203,8 +215,8 @@ function logAction(userPhone, userName, action) {
 
 // Async function to search for user ID
 async function searchUserId(userPhone) {
-  const query = 'SELECT id FROM roster WHERE phone = $1';
-  const values = [userPhone.replace("whatsapp:","")]; // Remove "whatsapp:" prefix
+  const query = "SELECT id FROM roster WHERE phone = $1";
+  const values = [userPhone.replace("whatsapp:", "")]; // Remove "whatsapp:" prefix
 
   try {
     const result = await pool.query(query, values);
@@ -239,7 +251,6 @@ async function saveReservation(userId, timestamp) {
   }
 }
 
-
 // Check if user has a reservation for tomorrow, but only if assignment hasn't happened
 async function hasReservation(user_id) {
   const assigned = assignmentFlag(); // Returns true if assignment is done
@@ -265,7 +276,6 @@ async function hasReservation(user_id) {
   }
 }
 
-
 // Async function to log action into database
 async function logActionToDB(userPhone, action) {
   try {
@@ -275,8 +285,11 @@ async function logActionToDB(userPhone, action) {
       return;
     }
 
-    const logTime = DateTime.now().setZone('America/Argentina/Buenos_Aires').toISO();
-    const query = 'INSERT INTO logs (user_id, action, log_time) VALUES ($1, $2, $3)';
+    const logTime = DateTime.now()
+      .setZone("America/Argentina/Buenos_Aires")
+      .toISO();
+    const query =
+      "INSERT INTO logs (user_id, action, log_time) VALUES ($1, $2, $3)";
     const values = [userId, action, logTime];
 
     await pool.query(query, values);
@@ -317,21 +330,21 @@ initialSlots.push({
 function loadParkingData() {
   if (fs.existsSync(DATA_FILE_PATH)) {
     try {
-      const data = JSON.parse(fs.readFileSync(DATA_FILE_PATH, 'utf-8'));
-      console.log('Data loaded successfully from file.');
+      const data = JSON.parse(fs.readFileSync(DATA_FILE_PATH, "utf-8"));
+      console.log("Data loaded successfully from file.");
       return data;
     } catch (error) {
-      console.error('Error reading parking data file:', error);
+      console.error("Error reading parking data file:", error);
     }
   }
-  console.log('No data file found, using default values.');
+  console.log("No data file found, using default values.");
   return { parkingSlots: initialSlots, waitingList: [] };
 }
 
 // Function to save data to file
 function saveParkingData(filePath) {
   // Preprocess parkingSlots to handle timeoutHandle as null
-  const processedParkingSlots = parkingSlots.map(slot => ({
+  const processedParkingSlots = parkingSlots.map((slot) => ({
     ...slot,
     timeoutHandle: null, // Set timeoutHandle as null for saving
   }));
@@ -345,19 +358,19 @@ function saveParkingData(filePath) {
 
   // Save data to file
   try {
-    fs.writeFileSync(filePath, JSON.stringify(data, null, 2), 'utf-8');
-    console.log('Data saved successfully to file.');
+    fs.writeFileSync(filePath, JSON.stringify(data, null, 2), "utf-8");
+    console.log("Data saved successfully to file.");
   } catch (error) {
-    console.error('Failed to save data:', error);
+    console.error("Failed to save data:", error);
   }
-};
+}
 
 // Restore data on startup
 const restoredData = loadParkingData();
 let parkingSlots = restoredData?.parkingSlots || initialSlots;
 let waitingList = restoredData?.waitingList || [];
-let parkingDate = restoredData?.parkingDate || getLocalTime().toFormat('dd/MM/yyyy');
-
+let parkingDate =
+  restoredData?.parkingDate || getLocalTime().toFormat("dd/MM/yyyy");
 
 // Health check endpoint
 app.get("/health", (_, res) => {
@@ -437,8 +450,10 @@ app.post("/whatsapp", async (req, res) => {
   const messageBody = req.body.Body.trim().toLowerCase();
   const sender = req.body.From; // WhatsApp number
   // const name = req.body.ProfileName;
-  
-  const entry = csvData.find((row) => row.phone ===  sender.replace("whatsapp:", "")); //TODO CHANGE TO READ DB INSTEAD OF FILE.
+
+  const entry = csvData.find(
+    (row) => row.phone === sender.replace("whatsapp:", "")
+  ); //TODO CHANGE TO READ DB INSTEAD OF FILE.
 
   const name = entry ? entry.name : sender;
 
@@ -458,15 +473,12 @@ If you completed the first two forms and waited 2 hours but still cannot interac
 After submitting it, wait about 2 hours and then type “*help*” again.
 
 If you receive the instructions, it means you’re all set and can interact with the bot.
-If you continue to experience issues after this, please reach out to someone from the *Support Services team!*`
+If you continue to experience issues after this, please reach out to someone from the *Support Services team!*`;
   if (!entry) {
-    sendWhatsAppMessage(
-      sender,
-      loginMessage
-    );
+    sendWhatsAppMessage(sender, loginMessage);
     return res.status(200).end();
   }
-  
+
   switch (true) {
     case messageBody === "add me":
       logActionToDB(sender, "COMMAND_ADD_ME");
@@ -494,13 +506,14 @@ If you continue to experience issues after this, please reach out to someone fro
       break;
     case messageBody === "cancel":
       logActionToDB(sender, "COMMAND_CANCEL");
-      handleCancelList(sender, name); 
+      handleCancelList(sender, name);
       break;
     case messageBody.startsWith("release"):
       logActionToDB(sender, "COMMAND_RELEASE");
       handleCancel(sender, name);
       break;
-    case messageBody === "cancel reserve" || messageBody === "cancel tomorrow reserve":
+    case messageBody === "cancel reserve" ||
+      messageBody === "cancel tomorrow reserve":
       logActionToDB(sender, "COMMAND_CANCEL_RESERVE");
       handleCancelReserve(sender);
       break;
@@ -519,10 +532,13 @@ If you continue to experience issues after this, please reach out to someone fro
     case messageBody === "reserve":
       logActionToDB(sender, "COMMAND_RESERVE");
       const { isWorkday, localTime } = await isTodayWorkday();
-      if(isWorkday && localTime.hour >= 8 && localTime.hour < 17){
-        handleReserve(req.body.MessageSid, sender,name);
-      }else{
-        sendWhatsAppMessage(sender, `You can only reserve on workdays from 9am to 5pm. Use command "Add me" for WL.`);
+      if (isWorkday && localTime.hour >= 8 && localTime.hour < 17) {
+        handleReserve(req.body.MessageSid, sender, name);
+      } else {
+        sendWhatsAppMessage(
+          sender,
+          `You can only reserve on workdays from 9am to 5pm. Use command "Add me" for WL.`
+        );
       }
       break;
     case messageBody === "score":
@@ -531,7 +547,7 @@ If you continue to experience issues after this, please reach out to someone fro
       break;
     case messageBody === "test_new":
       // sendReminder(sender)+
-      sendWhatsAppMessage(sender,loginMessage);
+      sendWhatsAppMessage(sender, loginMessage);
       break;
     case messageBody === "daycheck":
       const todaytest = (await getNextWorkday()).toString();
@@ -549,7 +565,7 @@ Complete this form. _Registration may take up to 24 hours to be processed_:
 👉 Register your license plate: https://forms.office.com/r/V8GPjRKtTY
 📍 *Location*
 ZS parking is located at *Juana Azurduy 1584*, floors *3SS and 4SS* of the building.
-`
+`;
       const infoMessage2 = `
 Here’s how the parking bot works:
 
@@ -570,8 +586,14 @@ Here’s how the parking bot works:
 🕰️  Any cancellation *after 8:00 AM* will count toward your monthly score, so please try to avoid last-minute changes whenever possible.
 
 2️⃣  You have *${maxPermitido} free late cancellations per month*. If you go over that, your score and prioritization for the next month will be affected.
-      👉 _Example: If you cancel *${maxPermitido + 1} times* in a month, you’ll lose prioritization and start the next month with only *${maxPermitido - 1} free cancellation*._
-      👉 _Example: If you cancel *${maxPermitido + 2} times*, you’ll lose prioritization and start the next month with *no free cancellations*._
+      👉 _Example: If you cancel *${
+        maxPermitido + 1
+      } times* in a month, you’ll lose prioritization and start the next month with only *${
+        maxPermitido - 1
+      } free cancellation*._
+      👉 _Example: If you cancel *${
+        maxPermitido + 2
+      } times*, you’ll lose prioritization and start the next month with *no free cancellations*._
       
 ✅  Your score resets every month with good usage.
 
@@ -582,16 +604,10 @@ Commands:
 🔹 *show all* – see all today’s bookings
 🔹 *ping* – notify shared spot users
 🔹 *score* – check your current score and month cancellations.
-      `
-      await sendWhatsAppMessage(
-        sender,
-        infoMessage1
-      );
+      `;
+      await sendWhatsAppMessage(sender, infoMessage1);
 
-      await sendWhatsAppMessage(
-        sender,
-        infoMessage2
-      );
+      await sendWhatsAppMessage(sender, infoMessage2);
 
       break;
     default:
@@ -604,10 +620,9 @@ Commands:
   res.status(200).end(); // Respond to Twilio immediately
 });
 
-
 function handleTestNew(sender, name) {
-  sendCancelList(sender,"836");
-};
+  sendCancelList(sender, "836");
+}
 
 async function handleScore(sender) {
   //Retrieve user ID
@@ -617,7 +632,7 @@ async function handleScore(sender) {
   const query = `
   select roster.score, coalesce(b.cancellation_count,0) as cancellations
   from roster
-  left join (select * from monthly_cancellations where EXTRACT(month FROM cancellation_month) = EXTRACT(month FROM current_date)) b on roster.id = b.user_id
+  left join (select * from monthly_cancellations where EXTRACT(month FROM cancellation_month) = EXTRACT(month FROM current_date) AND EXTRACT(year FROM cancellation_month) = EXTRACT(year FROM current_date)) b on roster.id = b.user_id
   where roster.id = $1;
   `;
   const values = [userId];
@@ -627,7 +642,7 @@ async function handleScore(sender) {
     if (result.rows.length > 0) {
       const score = result.rows[0].score;
       const cancellations = result.rows[0].cancellations;
-      const month = getLocalTime().toFormat('MMMM');
+      const month = getLocalTime().toFormat("MMMM");
       const message = `Your score for ${month} is: ${score}.\nYou have made ${cancellations} cancellations this month.`;
       await sendWhatsAppMessage(sender, message);
     } else {
@@ -637,7 +652,6 @@ async function handleScore(sender) {
     console.error("Error fetching score:", err);
     await sendWhatsAppMessage(sender, "Error fetching your score.");
   }
-
 }
 
 async function getArgentinaTimestamp(messageSid) {
@@ -653,20 +667,23 @@ async function getArgentinaTimestamp(messageSid) {
       message = await client.messages(messageSid).fetch();
       if (message && message.dateSent) {
         return DateTime.fromJSDate(new Date(message.dateSent))
-          .setZone('America/Argentina/Buenos_Aires')
-          .toFormat('yyyy-MM-dd HH:mm:ss');
+          .setZone("America/Argentina/Buenos_Aires")
+          .toFormat("yyyy-MM-dd HH:mm:ss");
       }
     } catch (err) {
-      console.error(`Failed to get Twilio timestamp (attempt ${retries + 1}), retrying...`, err);
+      console.error(
+        `Failed to get Twilio timestamp (attempt ${retries + 1}), retrying...`,
+        err
+      );
     }
     retries++;
     // Small delay before retrying
-    await new Promise(resolve => setTimeout(resolve, 500));
+    await new Promise((resolve) => setTimeout(resolve, 500));
   }
   console.log("Invalid dateSent from Twilio, using fallback.");
   return DateTime.now()
-    .setZone('America/Argentina/Buenos_Aires')
-    .toFormat('yyyy-MM-dd HH:mm:ss');
+    .setZone("America/Argentina/Buenos_Aires")
+    .toFormat("yyyy-MM-dd HH:mm:ss");
 }
 
 async function handleReserve(MessageSid, sender, name) {
@@ -678,7 +695,11 @@ async function handleReserve(MessageSid, sender, name) {
     const reservationId = await saveReservation(userId, timestamp);
 
     // Parse timestamp to Luxon DateTime for comparison
-    const reservationTime = DateTime.fromFormat(timestamp, 'yyyy-MM-dd HH:mm:ss', { zone: 'America/Argentina/Buenos_Aires' });
+    const reservationTime = DateTime.fromFormat(
+      timestamp,
+      "yyyy-MM-dd HH:mm:ss",
+      { zone: "America/Argentina/Buenos_Aires" }
+    );
 
     let message = `Reservation submitted.`;
 
@@ -688,15 +709,16 @@ async function handleReserve(MessageSid, sender, name) {
     }
 
     await sendWhatsAppMessage(sender, message);
-
   } catch (err) {
     console.error("Error handling reservation:", err);
-    await sendWhatsAppMessage(sender, `Sorry ${name}, there was an issue processing your reservation.`);
+    await sendWhatsAppMessage(
+      sender,
+      `Sorry ${name}, there was an issue processing your reservation.`
+    );
   }
 }
 
 //TODO : ADD ORDER FUNCTION TO ASSIGN WITH ENDPOINT
-
 
 // Function to get the assignments for the slots
 async function getAssignments() {
@@ -730,10 +752,17 @@ async function orderAssignements(res, force_flag = false) {
   try {
     const result = await pool.query(query, values);
     if (!result.rows || result.rows.length === 0) {
-      res.status(500).json({ message: "No assignments were ordered. Operation failed." });
+      res
+        .status(500)
+        .json({ message: "No assignments were ordered. Operation failed." });
       return [];
     }
-    res.status(200).json({ message: "Assignments ordered successfully.", data: result.rows });
+    res
+      .status(200)
+      .json({
+        message: "Assignments ordered successfully.",
+        data: result.rows,
+      });
   } catch (err) {
     console.error("Error ordering the assignments:", err);
     res.status(500).json({ message: "Error ordering the assignments." });
@@ -742,7 +771,7 @@ async function orderAssignements(res, force_flag = false) {
 }
 
 //Function to get any view from db
-async function getViews(view){
+async function getViews(view) {
   let query = `SELECT * FROM ${view}`;
   const values = [];
 
@@ -750,24 +779,23 @@ async function getViews(view){
     const result = await pool.query(query, values);
     return result.rows;
   } catch (err) {
-      console.error("Error fetching assignments:", err);
-      return [];
+    console.error("Error fetching assignments:", err);
+    return [];
   }
 }
 
 //Function to get any view from db
-async function getQuery(query){
+async function getQuery(query) {
   const values = [];
 
   try {
     const result = await pool.query(query, values);
     return result.rows;
   } catch (err) {
-      console.error("Error fetching assignments:", err);
-      return [];
+    console.error("Error fetching assignments:", err);
+    return [];
   }
 }
-
 
 async function getMaxPermitido() {
   const result = await getQuery(`
@@ -779,42 +807,36 @@ async function getMaxPermitido() {
   return result[0].maxpermitido || 0;
 }
 
-
 //Function to order reservations and assign slots
 async function assignSlots(all_flag = false) {
   const slotNumbers = parkingSlots
-    .filter(slot => slot.number !== 60)
-    .map(slot => slot.number);
+    .filter((slot) => slot.number !== 60)
+    .map((slot) => slot.number);
 
   const assignments = await getAssignments();
-  
+
   let filteredAssignments = assignments.map((assignment, index) => {
     return all_flag
-      ? { ...assignment, slot: slotNumbers[index] ?? 'WL' }
+      ? { ...assignment, slot: slotNumbers[index] ?? "WL" }
       : {
           name: assignment.name,
           phone: assignment.phone,
-          slot: slotNumbers[index] ?? 'WL',
+          slot: slotNumbers[index] ?? "WL",
         };
   });
 
-  filteredAssignments.forEach(a => {
+  filteredAssignments.forEach((a) => {
     // logActionToDB(a.phone, `Assigned to slot ${a.slot}`); //TODO uncomment this line to log the assignment
   });
 
   return filteredAssignments;
 }
 
-
-
-
 function getLocalTime() {
   // Get current time in Buenos Aires timezone
-  const localTime = DateTime.now().setZone('America/Argentina/Buenos_Aires');
+  const localTime = DateTime.now().setZone("America/Argentina/Buenos_Aires");
   return localTime;
 }
-
-
 
 function calculateTimeoutDuration(timeoutDuration) {
   const localTime = getLocalTime(); // Luxon DateTime
@@ -826,8 +848,13 @@ function calculateTimeoutDuration(timeoutDuration) {
   if (currentHour >= 22 || currentHour < 7) {
     let nextDay7am = localTime;
     // Set time to 7:10 AM
-    nextDay7am = nextDay7am.set({ hour: 7, minute: 10, second: 0, millisecond: 0 });
-    
+    nextDay7am = nextDay7am.set({
+      hour: 7,
+      minute: 10,
+      second: 0,
+      millisecond: 0,
+    });
+
     // If it's after 10 PM, move to the next day
     if (currentHour >= 22) {
       nextDay7am = nextDay7am.plus({ days: 1 });
@@ -856,9 +883,9 @@ function assignSlotToUser(
   slot.phone = user.phone;
 
   // Notify the user with interactive buttons
-  if(message === 'BS'){
-    sendMessageWithButtonsFromBusiness(user.phone, slot)
-  }else{
+  if (message === "BS") {
+    sendMessageWithButtonsFromBusiness(user.phone, slot);
+  } else {
     sendMessageWithButtons(user.phone, slot);
   }
 
@@ -869,7 +896,7 @@ function assignSlotToUser(
   const localTime = getLocalTime(); // Get Luxon DateTime object
   const timeoutDate = localTime.plus({ milliseconds: adjustedTimeout }); // Adjust the time with the calculated delay
   slot.timeoutDate = timeoutDate.toISO(); // Save as ISO string
-  
+
   // Set up the timeout
   slot.timeoutHandle = setTimeout(() => {
     // Check if the slot is still pending
@@ -923,7 +950,7 @@ function assignNextSlot(timeoutDuration = 10 * 60 * 1000) {
 }
 
 // Function to handle the 'add me' command
-function  handleAddMe(sender, name) {
+function handleAddMe(sender, name) {
   const userInSlots = parkingSlots.find(
     (slot) => slot.phone === sender && slot.status !== "available"
   );
@@ -984,10 +1011,8 @@ function  handleAddMe(sender, name) {
   }
 }
 
-
-
 function handleShowImage(sender) {
-  sendParkingImage(sender)
+  sendParkingImage(sender);
 }
 
 // Function to handle the 'show all' command
@@ -1036,9 +1061,13 @@ function handleShowTimeouts(sender) {
     const slot = item.number.toString();
     const person = item.assignedTo || "Available";
     const timeoutHandle = item.timeoutHandle
-      ? `${Math.ceil((item.timeoutHandle._idleStart + item.timeoutHandle._idleTimeout - Date.now()) / 60000)} minutes`
+      ? `${Math.ceil(
+          (item.timeoutHandle._idleStart +
+            item.timeoutHandle._idleTimeout -
+            Date.now()) /
+            60000
+        )} minutes`
       : "N/A";
-
 
     message += `${slot}|${person}|${timeoutHandle}\n`;
   });
@@ -1048,10 +1077,8 @@ function handleShowTimeouts(sender) {
     message = message.slice(0, 1597) + "...";
   }
 
-  
   sendWhatsAppMessage(sender, message);
 }
-
 
 // Function to handle the 'show waiting list' command
 async function handleShowWaitingList(sender) {
@@ -1073,22 +1100,18 @@ async function handleShowWaitingList(sender) {
 }
 
 //Return the slot if the user has a assigned slot
-function userHasSlot(sender){
+function userHasSlot(sender) {
   return parkingSlots.find(
     (slot) => slot.phone === sender && slot.status !== "available"
   );
 }
 
 //Returns the index of the the user is in the waiting list
-function userHasWL(sender){
-  return (waitingList.findIndex(
-    (user) => user.phone === sender
-  ));
+function userHasWL(sender) {
+  return waitingList.findIndex((user) => user.phone === sender);
 }
 
-
-
-async function handleCancelList(sender){
+async function handleCancelList(sender) {
   //Check if the user has a reservation or a slot/waiting list
   const user_id = await searchUserId(sender);
   const reservationFlag = await hasReservation(user_id);
@@ -1096,29 +1119,27 @@ async function handleCancelList(sender){
   const userInSlots = userHasSlot(sender);
 
   let messageNum = "0";
-  if(userInSlots){
+  if (userInSlots) {
     const slot = parkingSlots.find((slot) => slot.phone === sender);
     messageNum = `slot ${slot.number}`;
-  }else if (userInWaitingIndex > -1){
+  } else if (userInWaitingIndex > -1) {
     messageNum = `WL ${userInWaitingIndex + 1}`;
   }
 
   // If the user has a reservation and has a slot/waiting list, cancel the reservation
-  if(reservationFlag && (userInSlots || userInWaitingIndex > -1)){
-
+  if (reservationFlag && (userInSlots || userInWaitingIndex > -1)) {
     sendCancelList(sender, messageNum);
-  }else if(reservationFlag){
+  } else if (reservationFlag) {
     sendCancelReservation(sender);
-  }else if (userInSlots || userInWaitingIndex > -1){
+  } else if (userInSlots || userInWaitingIndex > -1) {
     sendReleaseSlotWL(sender, messageNum);
-  }else{
+  } else {
     sendWhatsAppMessage(
       sender,
       "You're neither on the waiting list nor assigned to any parking slot nor reserved for tomorrow."
     );
   }
 }
-
 
 // Function to handle the 'cancel' command
 function handleCancel(sender, name) {
@@ -1171,7 +1192,6 @@ function handleCancel(sender, name) {
   );
 }
 
-
 // Function to handle the 'cancel tomorrow reserve' command
 async function handleCancelReserve(sender) {
   const userId = await searchUserId(sender);
@@ -1194,10 +1214,7 @@ async function handleCancelReserve(sender) {
       }
     });
   } else {
-    sendWhatsAppMessage(
-      sender,
-      "You don't have a reservation for tomorrow."
-    );
+    sendWhatsAppMessage(sender, "You don't have a reservation for tomorrow.");
     logActionToDB(sender, `Attempted to cancel but no reservation found`);
   }
 }
@@ -1216,7 +1233,7 @@ function handleSlotAccept(sender, name) {
     }
 
     slot.status = "assigned";
-    slot.assignedTo = slot.assignedTo.replace(' (Pending)', '') || name; //Assign name only if it's empty (waiting list)
+    slot.assignedTo = slot.assignedTo.replace(" (Pending)", "") || name; //Assign name only if it's empty (waiting list)
     slot.timeoutDate = null;
     sendWhatsAppMessage(
       sender,
@@ -1224,7 +1241,6 @@ function handleSlotAccept(sender, name) {
     );
     waitingList = waitingList.filter((user) => user.phone !== sender);
     logActionToDB(sender, `Accepted and assigned slot ${slot.number}`);
-    
 
     // Optionally, assign another slot if available
     assignNextSlot();
@@ -1267,67 +1283,72 @@ function handleSlotDecline(sender, name) {
 }
 
 // Function to check if new assignment ran
-function assignmentFlag(){
-  const localTime = getLocalTime().toFormat('dd/MM/yyyy');
+function assignmentFlag() {
+  const localTime = getLocalTime().toFormat("dd/MM/yyyy");
 
-  
-  return localTime !== parkingDate //if they are the same, it means that /excel-data didn't run yet
+  return localTime !== parkingDate; //if they are the same, it means that /excel-data didn't run yet
 }
-
 
 // Function to handle ping to shared parking slots
 function handleSlotPing(sender, name) {
+  const localTime = getLocalTime().toFormat("dd/MM/yyyy");
 
-  const localTime = getLocalTime().toFormat('dd/MM/yyyy');
+  let slots = parkingSlots;
 
-  let slots = parkingSlots
-  
   const runFlag = assignmentFlag();
 
-  if(runFlag){ //if they are the same, it means that /excel-data didn't run yet
-      if (fs.existsSync(yesterday_FILE_PATH)) {
-    try {
-      const data = JSON.parse(fs.readFileSync(yesterday_FILE_PATH, 'utf-8'));
-      
-      slots = data?.parkingSlots
-      
-    } catch (error) {
-      console.error('Error reading parking data file:', error);
-    }
+  if (runFlag) {
+    //if they are the same, it means that /excel-data didn't run yet
+    if (fs.existsSync(yesterday_FILE_PATH)) {
+      try {
+        const data = JSON.parse(fs.readFileSync(yesterday_FILE_PATH, "utf-8"));
+
+        slots = data?.parkingSlots;
+      } catch (error) {
+        console.error("Error reading parking data file:", error);
+      }
     }
   }
 
   const slot = slots.find(
     (slot) => slot.phone === sender && slot.status === "assigned"
-  );  
+  );
 
   if (slot) {
     // List of shared slots
-    const sharedSlots = [569, 570, 571, 572, 573, 574, 575, 576, 579, 580, 581, 582];
-    
+    const sharedSlots = [
+      569, 570, 571, 572, 573, 574, 575, 576, 579, 580, 581, 582,
+    ];
+
     if (sharedSlots.includes(slot.number)) {
       // Determine the paired slot
-      const pairSlotNumber = slot.number % 2 === 0 ? slot.number - 1 : slot.number + 1;
+      const pairSlotNumber =
+        slot.number % 2 === 0 ? slot.number - 1 : slot.number + 1;
 
-      const pairSlot = slots.find(
-        (slot) => slot.number === pairSlotNumber
+      const pairSlot = slots.find((slot) => slot.number === pairSlotNumber);
+
+      sendWhatsAppMessage(
+        sender,
+        `We've notified ${pairSlot.assignedTo} to move their car.`
       );
 
-      sendWhatsAppMessage(sender, `We've notified ${pairSlot.assignedTo} to move their car.`);
-      
-      pingPair(to = pairSlot.phone, slot.assignedTo, slot.number);
-      logActionToDB(sender,  `Checked shared slot ${slot.number} (Pair: ${pairSlotNumber})`);
+      pingPair((to = pairSlot.phone), slot.assignedTo, slot.number);
+      logActionToDB(
+        sender,
+        `Checked shared slot ${slot.number} (Pair: ${pairSlotNumber})`
+      );
     } else {
-      sendWhatsAppMessage(sender, `You are in slot ${slot.number}, which is not a shared slot.`);
+      sendWhatsAppMessage(
+        sender,
+        `You are in slot ${slot.number}, which is not a shared slot.`
+      );
       logActionToDB(sender, `Checked non-shared slot ${slot.number}`);
     }
   } else {
     sendWhatsAppMessage(sender, "You don't have any slot assigned.");
-    logActionToDB(sender,  "Attempted to check slot but has no assignment.");
+    logActionToDB(sender, "Attempted to check slot but has no assignment.");
   }
 }
-
-
 
 // Endpoint to configure parking slots via POST request
 app.post("/test", (req, res) => {
@@ -1339,32 +1360,29 @@ app.post("/test", (req, res) => {
       .status(400)
       .json({ message: "Invalid input: expected an array of slot numbers" });
   }
-  return res
-  .status(200)
-  .json({ message: receivedSlots });
-
+  return res.status(200).json({ message: receivedSlots });
 });
 
-
 // Endpoint to refresh logs on excel
-app.post('/refresh_logs', (req, res) => {
-  
+app.post("/refresh_logs", (req, res) => {
   const lineParam = req.body.line;
 
   if (!lineParam || isNaN(lineParam)) {
-    return res.status(400).json({ error: 'Missing or invalid "line" parameter' });
+    return res
+      .status(400)
+      .json({ error: 'Missing or invalid "line" parameter' });
   }
 
   const startLine = parseInt(lineParam, 10);
   const filePath = path.join(__dirname, LOG_FILE);
 
   try {
-    const allLines = fs.readFileSync(filePath, 'utf8').split('\n');
+    const allLines = fs.readFileSync(filePath, "utf8").split("\n");
 
     const totalLines = allLines.length;
-    
+
     // Remove trailing blank line at end if present
-    while (allLines.length && allLines[allLines.length - 1].trim() === '') {
+    while (allLines.length && allLines[allLines.length - 1].trim() === "") {
       allLines.pop();
     }
 
@@ -1380,10 +1398,10 @@ app.post('/refresh_logs', (req, res) => {
 
     res.json({
       newLines,
-      nextLineNumber: validTotal
+      nextLineNumber: validTotal,
     });
   } catch (err) {
-    res.status(500).json({ error: 'Error reading the log file' });
+    res.status(500).json({ error: "Error reading the log file" });
   }
 });
 
@@ -1417,7 +1435,7 @@ app.post("/parking_slots", (req, res) => {
   }));
 
   // Ensure slot 60 is included with the assigned values if it's not in receivedSlots
-  if (!parkingSlots.some(slot => slot.number === 60)) {
+  if (!parkingSlots.some((slot) => slot.number === 60)) {
     parkingSlots.push({
       number: 60,
       status: "assigned",
@@ -1451,13 +1469,13 @@ app.post("/parking_slots", (req, res) => {
 // Read holidays from the database
 async function getHolidays() {
   try {
-    const result = await pool.query('SELECT date FROM holidays');
-    const holidays = result.rows.map(row => {
-      return DateTime.fromJSDate(row.date).toFormat('dd/MM/yyyy');
+    const result = await pool.query("SELECT date FROM holidays");
+    const holidays = result.rows.map((row) => {
+      return DateTime.fromJSDate(row.date).toFormat("dd/MM/yyyy");
     });
     return new Set(holidays);
   } catch (err) {
-    console.error('Error fetching holidays from DB:', err);
+    console.error("Error fetching holidays from DB:", err);
     throw err;
   }
 }
@@ -1469,17 +1487,17 @@ async function getNextWorkday() {
   const holidays = await getHolidays();
 
   while (
-      nextDay.isWeekend ||
-      holidays.has(nextDay.toFormat('dd/MM/yyyy')) // Check if it's a holiday
+    nextDay.isWeekend ||
+    holidays.has(nextDay.toFormat("dd/MM/yyyy")) // Check if it's a holiday
   ) {
-      nextDay = nextDay.plus({ days: 1 }); // Move to the next day
+    nextDay = nextDay.plus({ days: 1 }); // Move to the next day
   }
 
-  return nextDay.toFormat('dd/MM/yyyy');
+  return nextDay.toFormat("dd/MM/yyyy");
 }
 
 async function isTodayHoliday() {
-  const today = getLocalTime().toFormat('dd/MM/yyyy');
+  const today = getLocalTime().toFormat("dd/MM/yyyy");
   const holidays = await getHolidays();
   return holidays.has(today);
 }
@@ -1488,22 +1506,22 @@ async function isTodayWorkday() {
   const localTime = getLocalTime();
   const isHoliday = await isTodayHoliday();
 
-  const isWorkday = localTime.weekday !== 6 && localTime.weekday !== 0 && !isHoliday;
+  const isWorkday =
+    localTime.weekday !== 6 && localTime.weekday !== 0 && !isHoliday;
 
   return { isWorkday, localTime };
 }
 
 //Function to assign slots and comunicate
 async function assignSlotsAndCommunicate(res) {
-    let todayBool = false;
-    try {
-      todayBool = await isTodayHoliday();
-    } catch (error) {
-      console.error("Error checking if today is a holiday:", error);
-      return res.status(500).send("Failed to check holiday status.");
-    }
-  if(!todayBool){    
-       
+  let todayBool = false;
+  try {
+    todayBool = await isTodayHoliday();
+  } catch (error) {
+    console.error("Error checking if today is a holiday:", error);
+    return res.status(500).send("Failed to check holiday status.");
+  }
+  if (!todayBool) {
     // Try up to 3 times to get non-empty assignments
     let receivedData = [];
     let attempts = 0;
@@ -1518,7 +1536,7 @@ async function assignSlotsAndCommunicate(res) {
       return res.status(500).send("No assignments found. Aborting process.");
     }
 
-    saveParkingData(yesterday_FILE_PATH); //saving today's file 
+    saveParkingData(yesterday_FILE_PATH); //saving today's file
 
     // Create a new Date object based on localTime and add one day
     parkingDate = await getNextWorkday(); //changing the date to tomorrow since new assignations are placed
@@ -1526,10 +1544,10 @@ async function assignSlotsAndCommunicate(res) {
     // Clear all existing timeouts
     parkingSlots.forEach((slot) => {
       if (slot.number === 60) {
-        slot.status= "assigned"
-        slot.assignedTo= "Ramses de la Rosa"
-        slot.phone= "whatsapp:+5491169691511"
-        slot.timeoutHandle= null
+        slot.status = "assigned";
+        slot.assignedTo = "Ramses de la Rosa";
+        slot.phone = "whatsapp:+5491169691511";
+        slot.timeoutHandle = null;
         slot.timeoutDate = null;
         return; // Skip this slot
       }
@@ -1541,14 +1559,13 @@ async function assignSlotsAndCommunicate(res) {
       slot.assignedTo = null;
       slot.phone = null;
       slot.timeoutDate = null;
-    }); 
+    });
 
     waitingList = [];
 
     receivedData.forEach((item) => {
       const person = item.name;
-      const slotNumber =
-        item.slot === "WL" ? null : parseInt(item.slot, 10);
+      const slotNumber = item.slot === "WL" ? null : parseInt(item.slot, 10);
       const phone = `whatsapp:${item.phone}`;
 
       if (item.slot === "WL") {
@@ -1562,10 +1579,7 @@ async function assignSlotsAndCommunicate(res) {
           slot.assignedTo = person;
           slot.phone = phone;
           console.log(`${person} has parking slot ${slot.number}.`);
-          logActionToDB(
-            phone,
-            `Assigned slot ${slot.number} via /excel-data`
-          );
+          logActionToDB(phone, `Assigned slot ${slot.number} via /excel-data`);
 
           // Notify the assigned user with a 2-hour timeout
           assignSlotToUser(
@@ -1585,7 +1599,7 @@ async function assignSlotsAndCommunicate(res) {
     if (waitingList.length > 0) {
       // Create a personalized message for each member in the waiting list
       waitingList.forEach((member, i) => {
-          // Create a message that only contains the position of the member on the waiting list
+        // Create a message that only contains the position of the member on the waiting list
         const waitingListMessage = `${i + 1}`;
 
         // Send a WhatsApp message to each waiting list member with their order
@@ -1598,7 +1612,7 @@ async function assignSlotsAndCommunicate(res) {
     }
     saveParkingData(DATA_FILE_PATH);
     res.status(200).send("Excel data processed successfully.");
-  }else {
+  } else {
     res.status(200).send("Skipping day, today is holiday");
   }
 }
@@ -1619,38 +1633,43 @@ app.post("/send-reminder", async (req, res) => {
     const todayBool = await isTodayHoliday();
 
     if (todayBool) {
-      return res.status(200).json({ message: "Today is a holiday. No reminders sent." });
+      return res
+        .status(200)
+        .json({ message: "Today is a holiday. No reminders sent." });
     }
 
     // Only send reminders to assigned slots (not slot 60, and only if phone exists)
     const assignedSlots = parkingSlots
-      .filter(slot =>  slot.status === "assigned" && slot.phone)
-      .map(slot => ({ phone: slot.phone, number: slot.number }));
+      .filter((slot) => slot.status === "assigned" && slot.phone)
+      .map((slot) => ({ phone: slot.phone, number: slot.number }));
 
     if (assignedSlots.length === 0) {
-      return res.status(200).json({ message: "No assigned slots to send reminders." });
+      return res
+        .status(200)
+        .json({ message: "No assigned slots to send reminders." });
     }
 
     // Send reminders in parallel, passing both phone and slot number
-    await Promise.all(assignedSlots.map(({ phone, number }) => sendReminder(phone, number)));
+    await Promise.all(
+      assignedSlots.map(({ phone, number }) => sendReminder(phone, number))
+    );
 
-    res.status(200).json({ message: `Reminders sent to ${assignedSlots.length} users.` });
+    res
+      .status(200)
+      .json({ message: `Reminders sent to ${assignedSlots.length} users.` });
   } catch (error) {
     console.error("Error sending reminders:", error);
     res.status(500).json({ message: "Failed to send reminders." });
   }
 });
 
-
-
-
 // Endpoint to receive data from Excel macro
 app.post("/excel-data", async (req, res) => {
   const todayBool = await isTodayHoliday();
-  if(!todayBool){    
+  if (!todayBool) {
     const receivedData = req.body;
-    
-    saveParkingData(yesterday_FILE_PATH); //saving today's file 
+
+    saveParkingData(yesterday_FILE_PATH); //saving today's file
 
     // Create a new Date object based on localTime and add one day
     parkingDate = await getNextWorkday(); //changing the date to tomorrow since new assignations are placed
@@ -1658,10 +1677,10 @@ app.post("/excel-data", async (req, res) => {
     // Clear all existing timeouts
     parkingSlots.forEach((slot) => {
       if (slot.number === 60) {
-        slot.status= "assigned"
-        slot.assignedTo= "Ramses de la Rosa"
-        slot.phone= "whatsapp:+5491169691511"
-        slot.timeoutHandle= null
+        slot.status = "assigned";
+        slot.assignedTo = "Ramses de la Rosa";
+        slot.phone = "whatsapp:+5491169691511";
+        slot.timeoutHandle = null;
         slot.timeoutDate = null;
         return; // Skip this slot
       }
@@ -1673,7 +1692,7 @@ app.post("/excel-data", async (req, res) => {
       slot.assignedTo = null;
       slot.phone = null;
       slot.timeoutDate = null;
-    }); 
+    });
 
     waitingList = [];
 
@@ -1694,10 +1713,7 @@ app.post("/excel-data", async (req, res) => {
           slot.assignedTo = person;
           slot.phone = phone;
           console.log(`${person} has parking slot ${slot.number}.`);
-          logActionToDB(
-            phone,
-            `Assigned slot ${slot.number} via /excel-data`
-          );
+          logActionToDB(phone, `Assigned slot ${slot.number} via /excel-data`);
 
           // Notify the assigned user with a 2-hour timeout
           assignSlotToUser(
@@ -1717,7 +1733,7 @@ app.post("/excel-data", async (req, res) => {
     if (waitingList.length > 0) {
       // Create a personalized message for each member in the waiting list
       waitingList.forEach((member, i) => {
-          // Create a message that only contains the position of the member on the waiting list
+        // Create a message that only contains the position of the member on the waiting list
         const waitingListMessage = `${i + 1}`;
 
         // Send a WhatsApp message to each waiting list member with their order
@@ -1730,13 +1746,12 @@ app.post("/excel-data", async (req, res) => {
     }
     saveParkingData(DATA_FILE_PATH);
     res.status(200).send("Excel data processed successfully.");
-  }else {
+  } else {
     res.status(200).send("Skipping day, today is holiday");
   }
-  
 });
 
-async function writeTable(users, res){
+async function writeTable(users, res) {
   try {
     // Loop through each user and insert into the database
     for (const user of users) {
@@ -1755,81 +1770,90 @@ async function writeTable(users, res){
 
       // Execute the query
       await pool.query(query, [name, phone, date_of_hire, priority, zs_id]);
-
     }
 
     // Respond with a success message
     return res.status(200).json({ message: "Roster updated successfully." });
   } catch (error) {
     console.error("Error updating roster:", error);
-    return res.status(500).json({ message: "Failed to update roster.", error: error.message });
+    return res
+      .status(500)
+      .json({ message: "Failed to update roster.", error: error.message });
   }
 }
 
 // Add new endpoint to get parking image
 app.get("/parking-image", async (req, res) => {
-    try {
-        await generateParkingImage();
-        res.sendFile(outputPath, { root: __dirname });
-    } catch (error) {
-        console.error("Error serving parking image:", error);
-        res.status(500).send("Error generating parking image");
-    }
+  try {
+    await generateParkingImage();
+    res.sendFile(outputPath, { root: __dirname });
+  } catch (error) {
+    console.error("Error serving parking image:", error);
+    res.status(500).send("Error generating parking image");
+  }
 });
 
 // Add new endpoint to get parking image
 app.post("/save_location", async (req, res) => {
-    try {
-        // Extract query parameters from the URL
-        const { user_id, latitude, longitude } = req.query;
+  try {
+    // Extract query parameters from the URL
+    const { user_id, latitude, longitude } = req.query;
 
-        // Check if the required parameters are provided
-        if (!user_id || !latitude || !longitude) {
-          return res.status(400).json({ message: "Missing required parameters: user_id, latitude, or longitude." });
-        }
-
-        // For demonstration purposes, log the data
-        console.log(`User ID: ${user_id}, Latitude: ${latitude}, Longitude: ${longitude}`);
-
-        res.status(200).json({ message: "Location received successfully." });
-    } catch (error) {
-        console.error("Error saving parking data:", error);
-        res.status(500).send("Error saving parking data");
+    // Check if the required parameters are provided
+    if (!user_id || !latitude || !longitude) {
+      return res
+        .status(400)
+        .json({
+          message:
+            "Missing required parameters: user_id, latitude, or longitude.",
+        });
     }
+
+    // For demonstration purposes, log the data
+    console.log(
+      `User ID: ${user_id}, Latitude: ${latitude}, Longitude: ${longitude}`
+    );
+
+    res.status(200).json({ message: "Location received successfully." });
+  } catch (error) {
+    console.error("Error saving parking data:", error);
+    res.status(500).send("Error saving parking data");
+  }
 });
 
-
 // API route to get data from PostgreSQL
-app.get('/today_assignments', async (req, res) => {
+app.get("/today_assignments", async (req, res) => {
   try {
     const assignments = await assignSlots(true);
     res.json(assignments);
   } catch (err) {
     console.error(err);
-    res.status(500).send('Server Error');
+    res.status(500).send("Server Error");
   }
 });
 
 // API route to get roster data from PostgreSQL
-app.get('/roster', async (req, res) => {
+app.get("/roster", async (req, res) => {
   try {
-    const cancellations = await getViews('roster');
+    const cancellations = await getViews("roster");
     res.status(200).json(cancellations);
   } catch (err) {
     console.error(err);
-    res.status(500).send('Server Error');
+    res.status(500).send("Server Error");
   }
 });
 
 // API route to get roster data from PostgreSQL
-app.get('/twilio-balance', async (req, res) => {
+app.get("/twilio-balance", async (req, res) => {
   try {
     const accountSid = process.env.TWILIO_ACCOUNT_SID;
-    const authToken  = process.env.TWILIO_AUTH_TOKEN;
+    const authToken = process.env.TWILIO_AUTH_TOKEN;
 
     if (!accountSid || !authToken) {
-      console.error('Twilio credentials missing');
-      return res.status(500).json({ error: 'Twilio credentials not configured.' });
+      console.error("Twilio credentials missing");
+      return res
+        .status(500)
+        .json({ error: "Twilio credentials not configured." });
     }
 
     // Initialize the Twilio client
@@ -1841,52 +1865,51 @@ app.get('/twilio-balance', async (req, res) => {
     // Return only the bits your React app needs
     res.status(200).json({ balance: `${data.balance} ${data.currency}` });
   } catch (err) {
-    console.error('Error fetching Twilio balance:', err);
+    console.error("Error fetching Twilio balance:", err);
     res.status(500).json({ error: err.message });
   }
 });
 
-
 // API route to get last cancellations from PostgreSQL
-app.get('/last_cancellations', async (req, res) => {
+app.get("/last_cancellations", async (req, res) => {
   try {
-    const cancellations = await getViews('last_cancellations');
+    const cancellations = await getViews("last_cancellations");
     res.status(200).json(cancellations);
   } catch (err) {
     console.error(err);
-    res.status(500).send('Server Error');
+    res.status(500).send("Server Error");
   }
 });
 
 // API route to get top cancellers from PostgreSQL
-app.get('/top_cancellers', async (req, res) => {
+app.get("/top_cancellers", async (req, res) => {
   try {
-    const cancellations = await getViews('top_cancellers');
+    const cancellations = await getViews("top_cancellers");
     res.status(200).json(cancellations);
   } catch (err) {
     console.error(err);
-    res.status(500).send('Server Error');
+    res.status(500).send("Server Error");
   }
 });
 
 // API route to get monthly cancellations from PostgreSQL
-app.get('/monthly_cancellations', async (req, res) => {
+app.get("/monthly_cancellations", async (req, res) => {
   try {
-    const cancellations = await getViews('monthly_cancellations');
+    const cancellations = await getViews("monthly_cancellations");
     res.status(200).json(cancellations);
   } catch (err) {
     console.error(err);
-    res.status(500).send('Server Error');
+    res.status(500).send("Server Error");
   }
 });
 
 // Endpoint: returns both today's and yesterday's parking data
-app.get('/parking-data', async (req, res) => {
+app.get("/parking-data", async (req, res) => {
   try {
     // use your constants here
     const [todayRaw, yesterdayRaw] = await Promise.all([
-      fs.readFileSync(DATA_FILE_PATH, 'utf8'),
-      fs.readFileSync(yesterday_FILE_PATH, 'utf8'),
+      fs.readFileSync(DATA_FILE_PATH, "utf8"),
+      fs.readFileSync(yesterday_FILE_PATH, "utf8"),
     ]);
 
     const today = JSON.parse(todayRaw);
@@ -1894,8 +1917,8 @@ app.get('/parking-data', async (req, res) => {
 
     res.json({ today, yesterday });
   } catch (err) {
-    console.error('Failed to load parking data:', err);
-    res.status(500).json({ message: 'Error loading parking data' });
+    console.error("Failed to load parking data:", err);
+    res.status(500).json({ message: "Error loading parking data" });
   }
 });
 
@@ -1922,7 +1945,6 @@ async function restore_score(user) {
 
   // 1) Flag the user
   await getQuery(`SELECT unflag_user(${userId});`);
-  
 
   // 2) Fetch their updated score
   const rows = await getQuery(`
@@ -1936,7 +1958,6 @@ async function restore_score(user) {
 }
 
 async function getPhone(userId) {
-
   const rows = await getQuery(`
     SELECT phone
       FROM roster
@@ -1947,41 +1968,39 @@ async function getPhone(userId) {
   return rows[0]?.phone ? `whatsapp:${rows[0].phone}` : null;
 }
 
-
 // API route to calculate Cancellers, communicate, and return a pretty payload
-app.post('/penalize', async (req, res) => {
+app.post("/penalize", async (req, res) => {
   try {
     // 1) Load data
-    const punished        = await getViews('current_month_punished');
-    let   toDepenalizeRaw = await getViews('current_month_depenalized');
-    const maxAllowed      = await getMaxPermitido();
+    const punished = await getViews("current_month_punished");
+    let toDepenalizeRaw = await getViews("current_month_depenalized");
+    const maxAllowed = await getMaxPermitido();
 
     // 2) Filter out punished users from depenalized list
     if (punished.length > 0) {
-      const punishedIds = new Set(punished.map(u => u.user_id));
-      toDepenalizeRaw = toDepenalizeRaw.filter(u => !punishedIds.has(u.user_id));
+      const punishedIds = new Set(punished.map((u) => u.user_id));
+      toDepenalizeRaw = toDepenalizeRaw.filter(
+        (u) => !punishedIds.has(u.user_id)
+      );
     }
 
     // 2) Process each user (penalize)
     const penalizedUsers = await Promise.all(
-      punished.map(async user => {
-        const {
-          user_id,
-          name,
-          cancellation_month,
-          cancellation_count
-        } = user;
+      punished.map(async (user) => {
+        const { user_id, name, cancellation_month, cancellation_count } = user;
 
         // a) derive first name & penalty month name (cancellation_month +1)
-        const firstName = name.split(' ')[0];
-        const penaltyMonthName = DateTime
-          .fromJSDate(new Date(cancellation_month), { zone: 'utc' })
+        const firstName = name.split(" ")[0];
+        const penaltyMonthName = DateTime.fromJSDate(
+          new Date(cancellation_month),
+          { zone: "utc" }
+        )
           .plus({ months: 1 })
-          .toFormat('LLLL');
+          .toFormat("LLLL");
 
         // b) compute & flag new score
         const newScore = await change_score(user);
-        const phone    = await getPhone(user_id);
+        const phone = await getPhone(user_id);
 
         await comunicatePenalty(
           phone,
@@ -1995,25 +2014,26 @@ app.post('/penalize', async (req, res) => {
         // d) return a “pretty” object
         return {
           user_id,
-          name:         firstName,
-          month:        penaltyMonthName,
+          name: firstName,
+          month: penaltyMonthName,
           cancellations: Number(cancellation_count),
-          max_allowed:   maxAllowed,
-          new_score:     newScore
+          max_allowed: maxAllowed,
+          new_score: newScore,
         };
       })
     );
 
     // 3) Process each user (de-penalize)
     const depenalizedUsers = await Promise.all(
-      toDepenalizeRaw.map(async user => {
-        const { user_id, name, current_month, last_month_cancellation_count } = user;
+      toDepenalizeRaw.map(async (user) => {
+        const { user_id, name, current_month, last_month_cancellation_count } =
+          user;
 
         // a) derive first name & release month name (same month)
-        const firstName      = name.split(' ')[0];
-        const releaseMonthName = DateTime
-          .fromJSDate(new Date(current_month), { zone: 'utc' })
-          .toFormat('LLLL');
+        const firstName = name.split(" ")[0];
+        const releaseMonthName = DateTime.fromJSDate(new Date(current_month), {
+          zone: "utc",
+        }).toFormat("LLLL");
 
         // b) compute & flag new score
         const newScore = await restore_score(user);
@@ -2031,9 +2051,9 @@ app.post('/penalize', async (req, res) => {
         // d) return a “pretty” object
         return {
           user_id,
-          name:      firstName,
-          month:     releaseMonthName,
-          new_score: newScore
+          name: firstName,
+          month: releaseMonthName,
+          new_score: newScore,
         };
       })
     );
@@ -2041,16 +2061,14 @@ app.post('/penalize', async (req, res) => {
     // 4) Respond
     res.status(200).json({
       max_allowed_cancellations_next_month: maxAllowed,
-      penalized_users:     penalizedUsers,
-      depenalized_users:   depenalizedUsers
+      penalized_users: penalizedUsers,
+      depenalized_users: depenalizedUsers,
     });
-
   } catch (err) {
     console.error(err);
-    res.status(500).send('Server Error');
+    res.status(500).send("Server Error");
   }
 });
-
 
 // Endpoint to update the user roster data
 app.post("/update-roster", async (req, res) => {
@@ -2059,22 +2077,21 @@ app.post("/update-roster", async (req, res) => {
 
   if (!Array.isArray(users) || users.length === 0) {
     console.log("Invalid request: request body must contain a list of users.");
-    return res.status(400).json({ message: "Request body must contain a list of users." });
+    return res
+      .status(400)
+      .json({ message: "Request body must contain a list of users." });
   }
 
-  csvData = users.map(user => ({
+  csvData = users.map((user) => ({
     name: user.name || "",
     phone: user.phone || "",
     date_of_hire: user.date_of_hire || "",
     priority: user.priority || "",
-	zs_id: user.zs_id || ""
+    zs_id: user.zs_id || "",
   }));
 
   await writeTable(csvData, res);
-
 });
-
-
 
 // Endpoint to update the holidays
 app.post("/update-holidays", (req, res) => {
@@ -2082,20 +2099,21 @@ app.post("/update-holidays", (req, res) => {
   const holidays = req.body;
 
   if (!Array.isArray(holidays) || holidays.length === 0) {
-    console.log("Invalid request: request body must contain a list of holidays.");
-    return res.status(400).json({ message: "Request body must contain a list of holidays." });
+    console.log(
+      "Invalid request: request body must contain a list of holidays."
+    );
+    return res
+      .status(400)
+      .json({ message: "Request body must contain a list of holidays." });
   }
 
-  holidaysData = holidays.map(user => ({
+  holidaysData = holidays.map((user) => ({
     date: user.date || "",
-    description: user.description || ""
+    description: user.description || "",
   }));
 
   saveHolidays(holidaysData, res);
-
 });
-
-
 
 // Twilio send message helper without interactive buttons
 async function sendWhatsAppMessage(to, message) {
@@ -2110,27 +2128,31 @@ async function sendWhatsAppMessage(to, message) {
       from: twilioNumber,
       to: to,
     });
-    
   } catch (error) {
     console.error("Error sending message:", error);
   }
 }
 
-
-async function comunicatePenalty(phone, firstName, penaltyMonthName, cancellationCount, maxAllowed, newScore) {
-
- const client = new twilio(
+async function comunicatePenalty(
+  phone,
+  firstName,
+  penaltyMonthName,
+  cancellationCount,
+  maxAllowed,
+  newScore
+) {
+  const client = new twilio(
     process.env.TWILIO_ACCOUNT_SID,
     process.env.TWILIO_AUTH_TOKEN
   );
-  const template_id = "HX433b179a721b295adb750c8f84db0b5e"
+  const template_id = "HX433b179a721b295adb750c8f84db0b5e";
 
   const variables = {
     1: String(firstName),
     2: String(cancellationCount),
     3: String(maxAllowed),
     4: String(penaltyMonthName),
-    5: String(newScore)
+    5: String(newScore),
   };
   const variablesJson = JSON.stringify(variables);
   try {
@@ -2139,29 +2161,37 @@ async function comunicatePenalty(phone, firstName, penaltyMonthName, cancellatio
       to: phone,
       contentSid: template_id,
       contentVariables: variablesJson,
-      timeout: 5000
+      timeout: 5000,
     });
     console.log(`Penalty notification sent to ${firstName} (${phone})`);
   } catch (error) {
-    console.error(`Error sending penalty notification to ${firstName} (${phone}):`, error
+    console.error(
+      `Error sending penalty notification to ${firstName} (${phone}):`,
+      error
     );
   }
 }
 
-async function comunicateDepenalize(phone, firstName, penaltyMonthName, cancellationCount, maxAllowed, newScore) {
-
- const client = new twilio(
+async function comunicateDepenalize(
+  phone,
+  firstName,
+  penaltyMonthName,
+  cancellationCount,
+  maxAllowed,
+  newScore
+) {
+  const client = new twilio(
     process.env.TWILIO_ACCOUNT_SID,
     process.env.TWILIO_AUTH_TOKEN
   );
-  const template_id = "HX482c98c4cdcf806a50a3ad0db1223a34"
+  const template_id = "HX482c98c4cdcf806a50a3ad0db1223a34";
 
   const variables = {
     1: String(firstName),
     2: String(cancellationCount),
     3: String(maxAllowed),
     4: String(penaltyMonthName),
-    5: String(newScore)
+    5: String(newScore),
   };
   const variablesJson = JSON.stringify(variables);
   try {
@@ -2170,16 +2200,16 @@ async function comunicateDepenalize(phone, firstName, penaltyMonthName, cancella
       to: phone,
       contentSid: template_id,
       contentVariables: variablesJson,
-      timeout: 5000
+      timeout: 5000,
     });
     console.log(`De-Penalty notification sent to ${firstName} (${phone})`);
   } catch (error) {
-    console.error(`Error sending de-penalty notification to ${firstName} (${phone}):`, error
+    console.error(
+      `Error sending de-penalty notification to ${firstName} (${phone}):`,
+      error
     );
   }
 }
-
-
 
 async function sendReminder(to, slotNumber) {
   const client = new twilio(
@@ -2189,11 +2219,11 @@ async function sendReminder(to, slotNumber) {
   const template_id = "HX897b5d5c9fa344f048119f103810d0c2";
 
   //retrieving first in waiting list
-  const waitingListUser = waitingList.length > 0 ? waitingList[0].name : "someone";
+  const waitingListUser =
+    waitingList.length > 0 ? waitingList[0].name : "someone";
 
   const variables = { 1: String(slotNumber), 2: waitingListUser };
   const variablesJson = JSON.stringify(variables);
-
 
   client.messages
     .create({
@@ -2201,19 +2231,18 @@ async function sendReminder(to, slotNumber) {
       to: to,
       contentSid: template_id,
       contentVariables: variablesJson,
-      timeout: 5000
+      timeout: 5000,
     })
     .catch((error) => console.error("Error sending message:", error));
 }
 
-
-function sendTimeoutMessage(to, slot){
+function sendTimeoutMessage(to, slot) {
   const client = new twilio(
     process.env.TWILIO_ACCOUNT_SID,
     process.env.TWILIO_AUTH_TOKEN
   );
   const template_id = "HX29b032532782ba9d68f850c4261aa409"; // Ensure this template ID is correct and approved
-  
+
   const variables = { 1: `${slot.number}` };
   const variablesJson = JSON.stringify(variables);
 
@@ -2223,7 +2252,7 @@ function sendTimeoutMessage(to, slot){
       to: to,
       contentSid: template_id,
       contentVariables: variablesJson,
-      timeout: 5000
+      timeout: 5000,
     })
     .catch((error) => console.error("Error sending message:", error));
 }
@@ -2243,31 +2272,30 @@ function sendWaitingListMessage(to, message) {
       to: to,
       contentSid: template_id,
       contentVariables: variablesJson,
-      timeout: 5000
+      timeout: 5000,
     })
     .catch((error) => console.error("Error sending message:", error));
 }
 
-function pingPair(to , assignedTo, number){
+function pingPair(to, assignedTo, number) {
   const client = new twilio(
     process.env.TWILIO_ACCOUNT_SID,
     process.env.TWILIO_AUTH_TOKEN
   );
   const template_id = "HX782c2ad7292677c969d75720ed1e3d69";
-  const variables = { 1: assignedTo, 2: String(number)};
+  const variables = { 1: assignedTo, 2: String(number) };
   const variablesJson = JSON.stringify(variables);
-  
+
   client.messages
     .create({
       from: twilioNumber,
       to: to,
       contentSid: template_id,
       contentVariables: variablesJson,
-      timeout: 5000
+      timeout: 5000,
     })
     .catch((error) => console.error("Error sending message:", error));
 }
-
 
 // Twilio send message helper with interactive buttons (using template messages)
 function sendMessageWithButtons(to, slot) {
@@ -2276,7 +2304,7 @@ function sendMessageWithButtons(to, slot) {
     process.env.TWILIO_AUTH_TOKEN
   );
   const template_id = "HX91de7066a15f37fa8e76250dfc3153b0"; // Ensure this template ID is correct and approved
-  
+
   const variables = { 1: `${slot.number}` };
   const variablesJson = JSON.stringify(variables);
 
@@ -2286,11 +2314,10 @@ function sendMessageWithButtons(to, slot) {
       to: to,
       contentSid: template_id,
       contentVariables: variablesJson,
-      timeout: 5000
+      timeout: 5000,
     })
     .catch((error) => console.error("Error sending message:", error));
 }
-
 
 function sendMessageWithButtonsFromBusiness(to, slot) {
   const client = new twilio(
@@ -2298,9 +2325,9 @@ function sendMessageWithButtonsFromBusiness(to, slot) {
     process.env.TWILIO_AUTH_TOKEN
   );
 
-  console.log("Sending with busines initiated message")
+  console.log("Sending with busines initiated message");
   const template_id = "HX1d2fbc51c4b8e5ba8612845e810b0bb6"; // Ensure this template ID is correct and approved
-  
+
   const variables = { 1: `${slot.number}` };
   const variablesJson = JSON.stringify(variables);
 
@@ -2310,7 +2337,7 @@ function sendMessageWithButtonsFromBusiness(to, slot) {
       to: to,
       contentSid: template_id,
       contentVariables: variablesJson,
-      timeout: 5000
+      timeout: 5000,
     })
     .catch((error) => console.error("Error sending message:", error));
 }
@@ -2321,7 +2348,7 @@ function sendCancelList(to, messageNum) {
     process.env.TWILIO_AUTH_TOKEN
   );
   const template_id = "HX6fcb1c24463e88d8005b3951f555fc97"; // Ensure this template ID is correct and approved
-  
+
   const variables = { 1: `${messageNum}` };
   const variablesJson = JSON.stringify(variables);
 
@@ -2331,7 +2358,7 @@ function sendCancelList(to, messageNum) {
       to: to,
       contentSid: template_id,
       contentVariables: variablesJson,
-      timeout: 5000
+      timeout: 5000,
     })
     .catch((error) => console.error("Error sending message:", error));
 }
@@ -2348,7 +2375,7 @@ function sendCancelReservation(to) {
       from: twilioNumber,
       to: to,
       contentSid: template_id,
-      timeout: 5000
+      timeout: 5000,
     })
     .catch((error) => console.error("Error sending message:", error));
 }
@@ -2359,7 +2386,7 @@ function sendReleaseSlotWL(to, messageNum) {
     process.env.TWILIO_AUTH_TOKEN
   );
   const template_id = "HX6316afb1e5e94c230c4d6ed86b9b9c15"; // Ensure this template ID is correct and approved
-  
+
   const variables = { 1: `${messageNum}` };
   const variablesJson = JSON.stringify(variables);
 
@@ -2369,23 +2396,24 @@ function sendReleaseSlotWL(to, messageNum) {
       to: to,
       contentSid: template_id,
       contentVariables: variablesJson,
-      timeout: 5000
+      timeout: 5000,
     })
     .catch((error) => console.error("Error sending message:", error));
 }
-
-
 
 function sendParkingImage(to) {
   const client = new twilio(
     process.env.TWILIO_ACCOUNT_SID,
     process.env.TWILIO_AUTH_TOKEN
   );
-  
+
   // Get current date in mm/dd/yyyy format
   const today = new Date();
-  const date = `${(today.getMonth() + 1).toString().padStart(2, '0')}/${today.getDate().toString().padStart(2, '0')}/${today.getFullYear()}`;
-  
+  const date = `${(today.getMonth() + 1).toString().padStart(2, "0")}/${today
+    .getDate()
+    .toString()
+    .padStart(2, "0")}/${today.getFullYear()}`;
+
   const template_id = "HX302373474c5815892d054e92aec7e64b";
   const variables = { 1: date };
   const variablesJson = JSON.stringify(variables);
@@ -2396,9 +2424,11 @@ function sendParkingImage(to) {
       to: to,
       contentSid: template_id,
       contentVariables: variablesJson,
-      timeout: 5000
+      timeout: 5000,
     })
-    .catch((error) => console.error("Error sending date template message:", error));
+    .catch((error) =>
+      console.error("Error sending date template message:", error)
+    );
 }
 
 // Start the server and ngrok
@@ -2406,7 +2436,7 @@ function sendParkingImage(to) {
 //   console.log(`Node.js web server at http://localhost:${port} is running...`)
 // );
 
-app.listen(port,'0.0.0.0', () =>
+app.listen(port, "0.0.0.0", () =>
   console.log(`Node.js web server at http://localhost:${port} is running...`)
 );
 
