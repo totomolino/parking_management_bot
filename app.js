@@ -190,7 +190,7 @@ app.use(bodyParser.json()); // Middleware to parse JSON body
 app.use(
   cors({
     origin: "*",
-    methods: ["GET", "POST", "OPTIONS"],
+    methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
     allowedHeaders: ["Content-Type", "ngrok-skip-browser-warning"],
   })
 );
@@ -2430,6 +2430,182 @@ function sendParkingImage(to) {
       console.error("Error sending date template message:", error)
     );
 }
+
+// ─────────────────────────────────────────────────────────────────────────────
+// ADMIN ENDPOINTS
+// ─────────────────────────────────────────────────────────────────────────────
+
+// GET /admin/live-slots — real-time in-memory state (not from file)
+app.get("/admin/live-slots", (req, res) => {
+  const slots = parkingSlots.map((s) => ({
+    number:     s.number,
+    status:     s.status,
+    assignedTo: s.assignedTo,
+    phone:      s.phone,
+    timeoutDate: s.timeoutDate,
+  }));
+  res.json({ slots, waitingList, parkingDate });
+});
+
+// POST /admin/assign — force-assign a roster user to a slot (skips pending flow)
+// Body: { slotNumber: number, userId: number, notify: boolean }
+app.post("/admin/assign", async (req, res) => {
+  const { slotNumber, userId, notify = false } = req.body;
+
+  if (!slotNumber || !userId) {
+    return res.status(400).json({ message: "slotNumber and userId are required." });
+  }
+
+  // Look up user from roster
+  let userRow;
+  try {
+    const result = await pool.query("SELECT name, phone FROM roster WHERE id = $1", [userId]);
+    if (!result.rows.length) return res.status(404).json({ message: "User not found in roster." });
+    userRow = result.rows[0];
+  } catch (err) {
+    return res.status(500).json({ message: "DB error looking up user.", error: err.message });
+  }
+
+  const slot = parkingSlots.find((s) => s.number === Number(slotNumber));
+  if (!slot) return res.status(404).json({ message: `Slot ${slotNumber} not found.` });
+
+  // Clear any existing timeout on this slot
+  if (slot.timeoutHandle) {
+    clearTimeout(slot.timeoutHandle);
+    slot.timeoutHandle = null;
+  }
+
+  slot.status     = "assigned";
+  slot.assignedTo = userRow.name;
+  slot.phone      = `whatsapp:${userRow.phone}`;
+  slot.timeoutDate = null;
+
+  if (notify) {
+    sendWhatsAppMessage(
+      slot.phone,
+      `Hi ${userRow.name.split(" ")[0]}! You have been manually assigned parking slot *${slot.number}* for ${parkingDate} by an administrator.`
+    );
+  }
+
+  saveParkingData(DATA_FILE_PATH);
+  res.json({ message: "Slot assigned.", slot: { number: slot.number, status: slot.status, assignedTo: slot.assignedTo } });
+});
+
+// POST /admin/release — free a slot by number
+// Body: { slotNumber: number, notify: boolean }
+app.post("/admin/release", (req, res) => {
+  const { slotNumber, notify = false } = req.body;
+
+  if (!slotNumber) return res.status(400).json({ message: "slotNumber is required." });
+
+  const slot = parkingSlots.find((s) => s.number === Number(slotNumber));
+  if (!slot) return res.status(404).json({ message: `Slot ${slotNumber} not found.` });
+  if (slot.status === "available") return res.status(400).json({ message: "Slot is already available." });
+
+  if (notify && slot.phone) {
+    sendWhatsAppMessage(
+      slot.phone,
+      `Hi ${(slot.assignedTo || "").split(" ")[0]}! Your parking slot *${slot.number}* for ${parkingDate} has been released by an administrator.`
+    );
+  }
+
+  if (slot.timeoutHandle) {
+    clearTimeout(slot.timeoutHandle);
+    slot.timeoutHandle = null;
+  }
+
+  slot.status     = "available";
+  slot.assignedTo = null;
+  slot.phone      = null;
+  slot.timeoutDate = null;
+
+  assignNextSlot();
+  saveParkingData(DATA_FILE_PATH);
+  res.json({ message: "Slot released.", slotNumber });
+});
+
+// POST /admin/swap — swap occupants between two slots
+// Body: { slotA: number, slotB: number }
+app.post("/admin/swap", (req, res) => {
+  const { slotA, slotB } = req.body;
+
+  if (!slotA || !slotB) return res.status(400).json({ message: "slotA and slotB are required." });
+  if (slotA === slotB) return res.status(400).json({ message: "Cannot swap a slot with itself." });
+
+  const a = parkingSlots.find((s) => s.number === Number(slotA));
+  const b = parkingSlots.find((s) => s.number === Number(slotB));
+
+  if (!a) return res.status(404).json({ message: `Slot ${slotA} not found.` });
+  if (!b) return res.status(404).json({ message: `Slot ${slotB} not found.` });
+
+  // Clear both timeouts — after a swap the old timeouts are stale
+  if (a.timeoutHandle) { clearTimeout(a.timeoutHandle); a.timeoutHandle = null; }
+  if (b.timeoutHandle) { clearTimeout(b.timeoutHandle); b.timeoutHandle = null; }
+
+  // Swap fields
+  [a.status,     b.status]     = [b.status,     a.status];
+  [a.assignedTo, b.assignedTo] = [b.assignedTo, a.assignedTo];
+  [a.phone,      b.phone]      = [b.phone,      a.phone];
+  a.timeoutDate = null;
+  b.timeoutDate = null;
+
+  saveParkingData(DATA_FILE_PATH);
+  res.json({
+    message: "Slots swapped.",
+    slotA: { number: a.number, status: a.status, assignedTo: a.assignedTo },
+    slotB: { number: b.number, status: b.status, assignedTo: b.assignedTo },
+  });
+});
+
+// POST /admin/wl-remove — remove a person from the waiting list by phone
+// Body: { phone: string }
+app.post("/admin/wl-remove", (req, res) => {
+  const { phone } = req.body;
+  if (!phone) return res.status(400).json({ message: "phone is required." });
+
+  const normalised = phone.startsWith("whatsapp:") ? phone : `whatsapp:${phone}`;
+  const before = waitingList.length;
+  waitingList = waitingList.filter((u) => u.phone !== normalised);
+
+  if (waitingList.length === before) {
+    return res.status(404).json({ message: "Person not found in waiting list." });
+  }
+
+  saveParkingData(DATA_FILE_PATH);
+  res.json({ message: "Removed from waiting list.", waitingList });
+});
+
+// POST /admin/wl-add — add a roster user to the waiting list
+// Body: { userId: number, position: number (optional, 0-indexed, default = end) }
+app.post("/admin/wl-add", async (req, res) => {
+  const { userId, position } = req.body;
+  if (!userId) return res.status(400).json({ message: "userId is required." });
+
+  let userRow;
+  try {
+    const result = await pool.query("SELECT name, phone FROM roster WHERE id = $1", [userId]);
+    if (!result.rows.length) return res.status(404).json({ message: "User not found in roster." });
+    userRow = result.rows[0];
+  } catch (err) {
+    return res.status(500).json({ message: "DB error.", error: err.message });
+  }
+
+  const phone = `whatsapp:${userRow.phone}`;
+
+  // Guard: already in a slot or WL
+  const alreadyInSlot = parkingSlots.find((s) => s.phone === phone && s.status !== "available");
+  if (alreadyInSlot) return res.status(400).json({ message: `${userRow.name} already has slot ${alreadyInSlot.number}.` });
+
+  const alreadyInWL = waitingList.find((u) => u.phone === phone);
+  if (alreadyInWL) return res.status(400).json({ message: `${userRow.name} is already on the waiting list.` });
+
+  const entry = { name: userRow.name, phone };
+  const pos = (position !== undefined && position !== null) ? Number(position) : waitingList.length;
+  waitingList.splice(pos, 0, entry);
+
+  saveParkingData(DATA_FILE_PATH);
+  res.json({ message: "Added to waiting list.", position: pos, waitingList });
+});
 
 // Start the server and ngrok
 // app.listen(port, () =>
