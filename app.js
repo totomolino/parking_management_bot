@@ -56,6 +56,34 @@ async function readCSV() {
 
 readCSV();
 
+// Apply permanent slot assignments from the DB to the live parkingSlots array
+async function loadPermanentSlots() {
+  try {
+    const result = await pool.query(`
+      SELECT ps.slot_number, r.name, r.phone
+      FROM permanent_slots ps
+      JOIN roster r ON r.id = ps.user_id
+    `);
+    result.rows.forEach((row) => {
+      const slot = parkingSlots.find((s) => s.number === row.slot_number);
+      if (!slot) return;
+      if (slot.timeoutHandle) {
+        clearTimeout(slot.timeoutHandle);
+        slot.timeoutHandle = null;
+      }
+      slot.status = "assigned";
+      slot.assignedTo = row.name;
+      slot.phone = `whatsapp:${row.phone}`;
+      slot.timeoutDate = null;
+    });
+    console.log(`Permanent slots loaded: ${result.rows.length} assignment(s).`);
+  } catch (err) {
+    console.error("Error loading permanent slots:", err);
+  }
+}
+
+loadPermanentSlots();
+
 // Configuration for image generation
 const cellWidth = 70; // Width of each cell in pixels
 const cellHeight = 22; // Height of each cell in pixels
@@ -316,15 +344,8 @@ const initialSlots = [
   timeoutDate: null,
 }));
 
-// Add slot 60 with pre-assigned values
-initialSlots.push({
-  number: 60,
-  status: "assigned",
-  assignedTo: "Ramses de la Rosa",
-  phone: "whatsapp:+5491169691511",
-  timeoutHandle: null,
-  timeoutDate: null,
-});
+// Slot 60 is included above. Permanent assignments are loaded from the
+// permanent_slots DB table at startup and after each daily reset.
 
 // Function to load data from file
 function loadParkingData() {
@@ -757,12 +778,10 @@ async function orderAssignements(res, force_flag = false) {
         .json({ message: "No assignments were ordered. Operation failed." });
       return [];
     }
-    res
-      .status(200)
-      .json({
-        message: "Assignments ordered successfully.",
-        data: result.rows,
-      });
+    res.status(200).json({
+      message: "Assignments ordered successfully.",
+      data: result.rows,
+    });
   } catch (err) {
     console.error("Error ordering the assignments:", err);
     res.status(500).json({ message: "Error ordering the assignments." });
@@ -1674,16 +1693,8 @@ app.post("/excel-data", async (req, res) => {
     // Create a new Date object based on localTime and add one day
     parkingDate = await getNextWorkday(); //changing the date to tomorrow since new assignations are placed
 
-    // Clear all existing timeouts
+    // Reset all slots to available
     parkingSlots.forEach((slot) => {
-      if (slot.number === 60) {
-        slot.status = "assigned";
-        slot.assignedTo = "Ramses de la Rosa";
-        slot.phone = "whatsapp:+5491169691511";
-        slot.timeoutHandle = null;
-        slot.timeoutDate = null;
-        return; // Skip this slot
-      }
       if (slot.timeoutHandle) {
         clearTimeout(slot.timeoutHandle);
         slot.timeoutHandle = null;
@@ -1695,6 +1706,9 @@ app.post("/excel-data", async (req, res) => {
     });
 
     waitingList = [];
+
+    // Re-apply permanent assignments from DB (these slots are skipped below)
+    await loadPermanentSlots();
 
     receivedData.forEach((item) => {
       const person = item.Person;
@@ -1708,7 +1722,8 @@ app.post("/excel-data", async (req, res) => {
         logActionToDB(phone, "Added to waiting list via /excel-data");
       } else if (slotNumber) {
         const slot = parkingSlots.find((s) => s.number === slotNumber);
-        if (slot) {
+        if (slot && slot.status === "available") {
+          // Skip slots already taken by a permanent assignment
           slot.status = "pending";
           slot.assignedTo = person;
           slot.phone = phone;
@@ -1801,12 +1816,10 @@ app.post("/save_location", async (req, res) => {
 
     // Check if the required parameters are provided
     if (!user_id || !latitude || !longitude) {
-      return res
-        .status(400)
-        .json({
-          message:
-            "Missing required parameters: user_id, latitude, or longitude.",
-        });
+      return res.status(400).json({
+        message:
+          "Missing required parameters: user_id, latitude, or longitude.",
+      });
     }
 
     // For demonstration purposes, log the data
@@ -2438,10 +2451,10 @@ function sendParkingImage(to) {
 // GET /admin/live-slots — real-time in-memory state (not from file)
 app.get("/admin/live-slots", (req, res) => {
   const slots = parkingSlots.map((s) => ({
-    number:     s.number,
-    status:     s.status,
+    number: s.number,
+    status: s.status,
     assignedTo: s.assignedTo,
-    phone:      s.phone,
+    phone: s.phone,
     timeoutDate: s.timeoutDate,
   }));
   res.json({ slots, waitingList, parkingDate });
@@ -2453,21 +2466,30 @@ app.post("/admin/assign", async (req, res) => {
   const { slotNumber, userId, notify = false } = req.body;
 
   if (!slotNumber || !userId) {
-    return res.status(400).json({ message: "slotNumber and userId are required." });
+    return res
+      .status(400)
+      .json({ message: "slotNumber and userId are required." });
   }
 
   // Look up user from roster
   let userRow;
   try {
-    const result = await pool.query("SELECT name, phone FROM roster WHERE id = $1", [userId]);
-    if (!result.rows.length) return res.status(404).json({ message: "User not found in roster." });
+    const result = await pool.query(
+      "SELECT name, phone FROM roster WHERE id = $1",
+      [userId]
+    );
+    if (!result.rows.length)
+      return res.status(404).json({ message: "User not found in roster." });
     userRow = result.rows[0];
   } catch (err) {
-    return res.status(500).json({ message: "DB error looking up user.", error: err.message });
+    return res
+      .status(500)
+      .json({ message: "DB error looking up user.", error: err.message });
   }
 
   const slot = parkingSlots.find((s) => s.number === Number(slotNumber));
-  if (!slot) return res.status(404).json({ message: `Slot ${slotNumber} not found.` });
+  if (!slot)
+    return res.status(404).json({ message: `Slot ${slotNumber} not found.` });
 
   // Clear any existing timeout on this slot
   if (slot.timeoutHandle) {
@@ -2475,20 +2497,31 @@ app.post("/admin/assign", async (req, res) => {
     slot.timeoutHandle = null;
   }
 
-  slot.status     = "assigned";
+  slot.status = "assigned";
   slot.assignedTo = userRow.name;
-  slot.phone      = `whatsapp:${userRow.phone}`;
+  slot.phone = `whatsapp:${userRow.phone}`;
   slot.timeoutDate = null;
 
   if (notify) {
     sendWhatsAppMessage(
       slot.phone,
-      `Hi ${userRow.name.split(" ")[0]}! You have been manually assigned parking slot *${slot.number}* for ${parkingDate} by an administrator.`
+      `Hi ${
+        userRow.name.split(" ")[0]
+      }! You have been manually assigned parking slot *${
+        slot.number
+      }* for ${parkingDate} by an administrator.`
     );
   }
 
   saveParkingData(DATA_FILE_PATH);
-  res.json({ message: "Slot assigned.", slot: { number: slot.number, status: slot.status, assignedTo: slot.assignedTo } });
+  res.json({
+    message: "Slot assigned.",
+    slot: {
+      number: slot.number,
+      status: slot.status,
+      assignedTo: slot.assignedTo,
+    },
+  });
 });
 
 // POST /admin/release — free a slot by number
@@ -2496,16 +2529,21 @@ app.post("/admin/assign", async (req, res) => {
 app.post("/admin/release", (req, res) => {
   const { slotNumber, notify = false } = req.body;
 
-  if (!slotNumber) return res.status(400).json({ message: "slotNumber is required." });
+  if (!slotNumber)
+    return res.status(400).json({ message: "slotNumber is required." });
 
   const slot = parkingSlots.find((s) => s.number === Number(slotNumber));
-  if (!slot) return res.status(404).json({ message: `Slot ${slotNumber} not found.` });
-  if (slot.status === "available") return res.status(400).json({ message: "Slot is already available." });
+  if (!slot)
+    return res.status(404).json({ message: `Slot ${slotNumber} not found.` });
+  if (slot.status === "available")
+    return res.status(400).json({ message: "Slot is already available." });
 
   if (notify && slot.phone) {
     sendWhatsAppMessage(
       slot.phone,
-      `Hi ${(slot.assignedTo || "").split(" ")[0]}! Your parking slot *${slot.number}* for ${parkingDate} has been released by an administrator.`
+      `Hi ${(slot.assignedTo || "").split(" ")[0]}! Your parking slot *${
+        slot.number
+      }* for ${parkingDate} has been released by an administrator.`
     );
   }
 
@@ -2514,9 +2552,9 @@ app.post("/admin/release", (req, res) => {
     slot.timeoutHandle = null;
   }
 
-  slot.status     = "available";
+  slot.status = "available";
   slot.assignedTo = null;
-  slot.phone      = null;
+  slot.phone = null;
   slot.timeoutDate = null;
 
   assignNextSlot();
@@ -2529,8 +2567,10 @@ app.post("/admin/release", (req, res) => {
 app.post("/admin/swap", (req, res) => {
   const { slotA, slotB } = req.body;
 
-  if (!slotA || !slotB) return res.status(400).json({ message: "slotA and slotB are required." });
-  if (slotA === slotB) return res.status(400).json({ message: "Cannot swap a slot with itself." });
+  if (!slotA || !slotB)
+    return res.status(400).json({ message: "slotA and slotB are required." });
+  if (slotA === slotB)
+    return res.status(400).json({ message: "Cannot swap a slot with itself." });
 
   const a = parkingSlots.find((s) => s.number === Number(slotA));
   const b = parkingSlots.find((s) => s.number === Number(slotB));
@@ -2539,13 +2579,19 @@ app.post("/admin/swap", (req, res) => {
   if (!b) return res.status(404).json({ message: `Slot ${slotB} not found.` });
 
   // Clear both timeouts — after a swap the old timeouts are stale
-  if (a.timeoutHandle) { clearTimeout(a.timeoutHandle); a.timeoutHandle = null; }
-  if (b.timeoutHandle) { clearTimeout(b.timeoutHandle); b.timeoutHandle = null; }
+  if (a.timeoutHandle) {
+    clearTimeout(a.timeoutHandle);
+    a.timeoutHandle = null;
+  }
+  if (b.timeoutHandle) {
+    clearTimeout(b.timeoutHandle);
+    b.timeoutHandle = null;
+  }
 
   // Swap fields
-  [a.status,     b.status]     = [b.status,     a.status];
+  [a.status, b.status] = [b.status, a.status];
   [a.assignedTo, b.assignedTo] = [b.assignedTo, a.assignedTo];
-  [a.phone,      b.phone]      = [b.phone,      a.phone];
+  [a.phone, b.phone] = [b.phone, a.phone];
   a.timeoutDate = null;
   b.timeoutDate = null;
 
@@ -2563,12 +2609,16 @@ app.post("/admin/wl-remove", (req, res) => {
   const { phone } = req.body;
   if (!phone) return res.status(400).json({ message: "phone is required." });
 
-  const normalised = phone.startsWith("whatsapp:") ? phone : `whatsapp:${phone}`;
+  const normalised = phone.startsWith("whatsapp:")
+    ? phone
+    : `whatsapp:${phone}`;
   const before = waitingList.length;
   waitingList = waitingList.filter((u) => u.phone !== normalised);
 
   if (waitingList.length === before) {
-    return res.status(404).json({ message: "Person not found in waiting list." });
+    return res
+      .status(404)
+      .json({ message: "Person not found in waiting list." });
   }
 
   saveParkingData(DATA_FILE_PATH);
@@ -2583,8 +2633,12 @@ app.post("/admin/wl-add", async (req, res) => {
 
   let userRow;
   try {
-    const result = await pool.query("SELECT name, phone FROM roster WHERE id = $1", [userId]);
-    if (!result.rows.length) return res.status(404).json({ message: "User not found in roster." });
+    const result = await pool.query(
+      "SELECT name, phone FROM roster WHERE id = $1",
+      [userId]
+    );
+    if (!result.rows.length)
+      return res.status(404).json({ message: "User not found in roster." });
     userRow = result.rows[0];
   } catch (err) {
     return res.status(500).json({ message: "DB error.", error: err.message });
@@ -2593,18 +2647,127 @@ app.post("/admin/wl-add", async (req, res) => {
   const phone = `whatsapp:${userRow.phone}`;
 
   // Guard: already in a slot or WL
-  const alreadyInSlot = parkingSlots.find((s) => s.phone === phone && s.status !== "available");
-  if (alreadyInSlot) return res.status(400).json({ message: `${userRow.name} already has slot ${alreadyInSlot.number}.` });
+  const alreadyInSlot = parkingSlots.find(
+    (s) => s.phone === phone && s.status !== "available"
+  );
+  if (alreadyInSlot)
+    return res
+      .status(400)
+      .json({
+        message: `${userRow.name} already has slot ${alreadyInSlot.number}.`,
+      });
 
   const alreadyInWL = waitingList.find((u) => u.phone === phone);
-  if (alreadyInWL) return res.status(400).json({ message: `${userRow.name} is already on the waiting list.` });
+  if (alreadyInWL)
+    return res
+      .status(400)
+      .json({ message: `${userRow.name} is already on the waiting list.` });
 
   const entry = { name: userRow.name, phone };
-  const pos = (position !== undefined && position !== null) ? Number(position) : waitingList.length;
+  const pos =
+    position !== undefined && position !== null
+      ? Number(position)
+      : waitingList.length;
   waitingList.splice(pos, 0, entry);
 
   saveParkingData(DATA_FILE_PATH);
   res.json({ message: "Added to waiting list.", position: pos, waitingList });
+});
+
+// GET /admin/permanent-slots — list all permanent assignments
+app.get("/admin/permanent-slots", async (req, res) => {
+  try {
+    const result = await pool.query(`
+      SELECT ps.slot_number, ps.user_id, r.name, r.phone
+      FROM permanent_slots ps
+      JOIN roster r ON r.id = ps.user_id
+      ORDER BY ps.slot_number
+    `);
+    res.json(result.rows);
+  } catch (err) {
+    res.status(500).json({ message: "DB error.", error: err.message });
+  }
+});
+
+// POST /admin/permanent-slots — add a permanent assignment and apply immediately
+// Body: { slotNumber, userId }
+app.post("/admin/permanent-slots", async (req, res) => {
+  const { slotNumber, userId } = req.body;
+  if (!slotNumber || !userId) {
+    return res
+      .status(400)
+      .json({ message: "slotNumber and userId are required." });
+  }
+
+  let userRow;
+  try {
+    const r = await pool.query("SELECT name, phone FROM roster WHERE id = $1", [
+      userId,
+    ]);
+    if (!r.rows.length)
+      return res.status(404).json({ message: "User not found." });
+    userRow = r.rows[0];
+  } catch (err) {
+    return res.status(500).json({ message: "DB error.", error: err.message });
+  }
+
+  try {
+    await pool.query(
+      `INSERT INTO permanent_slots (slot_number, user_id)
+       VALUES ($1, $2)
+       ON CONFLICT (slot_number) DO UPDATE SET user_id = EXCLUDED.user_id`,
+      [Number(slotNumber), Number(userId)]
+    );
+  } catch (err) {
+    return res
+      .status(500)
+      .json({ message: "Failed to save permanent slot.", error: err.message });
+  }
+
+  // Apply immediately to the live state
+  const slot = parkingSlots.find((s) => s.number === Number(slotNumber));
+  if (slot) {
+    if (slot.timeoutHandle) {
+      clearTimeout(slot.timeoutHandle);
+      slot.timeoutHandle = null;
+    }
+    slot.status = "assigned";
+    slot.assignedTo = userRow.name;
+    slot.phone = `whatsapp:${userRow.phone}`;
+    slot.timeoutDate = null;
+    saveParkingData(DATA_FILE_PATH);
+  }
+
+  res.json({
+    message: "Permanent assignment saved.",
+    slotNumber,
+    name: userRow.name,
+  });
+});
+
+// DELETE /admin/permanent-slots/:slotNumber — remove a permanent assignment
+// The slot stays assigned for the rest of the day; it will just behave normally on next reset.
+app.delete("/admin/permanent-slots/:slotNumber", async (req, res) => {
+  const slotNumber = parseInt(req.params.slotNumber, 10);
+  if (isNaN(slotNumber))
+    return res.status(400).json({ message: "Invalid slot number." });
+
+  try {
+    const result = await pool.query(
+      "DELETE FROM permanent_slots WHERE slot_number = $1 RETURNING slot_number",
+      [slotNumber]
+    );
+    if (!result.rowCount) {
+      return res
+        .status(404)
+        .json({ message: `No permanent assignment for slot ${slotNumber}.` });
+    }
+    res.json({
+      message: `Permanent assignment for slot ${slotNumber} removed. It stays assigned today but will be released on next reset.`,
+    });
+  } catch (err) {
+    res.status(500).json({ message: "DB error.", error: err.message });
+  }
 });
 
 // Start the server and ngrok
