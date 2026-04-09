@@ -82,7 +82,7 @@ async function loadPermanentSlots() {
   }
 }
 
-loadPermanentSlots();
+// Permanent slots are applied during the daily /excel-data reset, not on startup.
 
 // Configuration for image generation
 const cellWidth = 70; // Width of each cell in pixels
@@ -2724,22 +2724,9 @@ app.post("/admin/permanent-slots", async (req, res) => {
       .json({ message: "Failed to save permanent slot.", error: err.message });
   }
 
-  // Apply immediately to the live state
-  const slot = parkingSlots.find((s) => s.number === Number(slotNumber));
-  if (slot) {
-    if (slot.timeoutHandle) {
-      clearTimeout(slot.timeoutHandle);
-      slot.timeoutHandle = null;
-    }
-    slot.status = "assigned";
-    slot.assignedTo = userRow.name;
-    slot.phone = `whatsapp:${userRow.phone}`;
-    slot.timeoutDate = null;
-    saveParkingData(DATA_FILE_PATH);
-  }
-
   res.json({
-    message: "Permanent assignment saved.",
+    message:
+      "Permanent assignment saved. Will take effect on next daily reset.",
     slotNumber,
     name: userRow.name,
   });
