@@ -67,10 +67,13 @@ async function loadPermanentSlots() {
     result.rows.forEach((row) => {
       const slot = parkingSlots.find((s) => s.number === row.slot_number);
       if (!slot) return;
-      if (slot.timeoutHandle) { clearTimeout(slot.timeoutHandle); slot.timeoutHandle = null; }
-      slot.status     = "assigned";
+      if (slot.timeoutHandle) {
+        clearTimeout(slot.timeoutHandle);
+        slot.timeoutHandle = null;
+      }
+      slot.status = "assigned";
       slot.assignedTo = row.name;
-      slot.phone      = `whatsapp:${row.phone}`;
+      slot.phone = `whatsapp:${row.phone}`;
       slot.timeoutDate = null;
     });
     console.log(`Permanent slots loaded: ${result.rows.length} assignment(s).`);
@@ -500,7 +503,8 @@ If you continue to experience issues after this, please reach out to someone fro
   // ── Location share (user shares WhatsApp location) ──────────────────────────
   if (req.body.Latitude && req.body.Longitude) {
     await handleLocationCheckIn(
-      sender, name,
+      sender,
+      name,
       parseFloat(req.body.Latitude),
       parseFloat(req.body.Longitude)
     );
@@ -511,7 +515,8 @@ If you continue to experience issues after this, please reach out to someone fro
   switch (true) {
     case messageBody === "checkin":
       logActionToDB(sender, "COMMAND_CHECKIN");
-      sendWhatsAppMessage(sender,
+      sendWhatsAppMessage(
+        sender,
         `🅿️ *Parking Check-in*\n\nTo confirm your presence, please share your *current location* in this chat:\n\n1. Tap the 📎 attachment icon\n2. Select *Location*\n3. Tap *Send current location*\n\nMake sure you're inside or near the parking lot when sharing.`
       );
       break;
@@ -639,7 +644,6 @@ Commands:
 🔹 *show all* – see all today’s bookings
 🔹 *ping* – notify shared spot users
 🔹 *score* – check your current score and month cancellations.
-🔹 *checkin* – confirm your physical presence at the office (10:00–11:30 AM).
       `;
       await sendWhatsAppMessage(sender, infoMessage1);
 
@@ -793,12 +797,10 @@ async function orderAssignements(res, force_flag = false) {
         .json({ message: "No assignments were ordered. Operation failed." });
       return [];
     }
-    res
-      .status(200)
-      .json({
-        message: "Assignments ordered successfully.",
-        data: result.rows,
-      });
+    res.status(200).json({
+      message: "Assignments ordered successfully.",
+      data: result.rows,
+    });
   } catch (err) {
     console.error("Error ordering the assignments:", err);
     res.status(500).json({ message: "Error ordering the assignments." });
@@ -1833,12 +1835,10 @@ app.post("/save_location", async (req, res) => {
 
     // Check if the required parameters are provided
     if (!user_id || !latitude || !longitude) {
-      return res
-        .status(400)
-        .json({
-          message:
-            "Missing required parameters: user_id, latitude, or longitude.",
-        });
+      return res.status(400).json({
+        message:
+          "Missing required parameters: user_id, latitude, or longitude.",
+      });
     }
 
     // For demonstration purposes, log the data
@@ -2471,116 +2471,148 @@ function sendParkingImage(to) {
 // Coordinates are stored * 1,000,000 to fit the INTEGER column.
 async function getOfficeConfig() {
   const keys = [
-    'office_lat', 'office_lng', 'checkin_radius_m',
-    'checkin_open_hour', 'checkin_open_min',
-    'checkin_deadline_hour', 'checkin_deadline_min',
+    "office_lat",
+    "office_lng",
+    "checkin_radius_m",
+    "checkin_open_hour",
+    "checkin_open_min",
+    "checkin_deadline_hour",
+    "checkin_deadline_min",
   ];
   const result = await pool.query(
-    `SELECT key, value FROM parking_config WHERE key = ANY($1)`, [keys]
+    `SELECT key, value FROM parking_config WHERE key = ANY($1)`,
+    [keys]
   );
-  const map = Object.fromEntries(result.rows.map(r => [r.key, Number(r.value)]));
+  const map = Object.fromEntries(
+    result.rows.map((r) => [r.key, Number(r.value)])
+  );
   return {
-    lat:           (map.office_lat           || -34581400) / 1_000_000,
-    lng:           (map.office_lng           || -58422600) / 1_000_000,
-    radiusM:        map.checkin_radius_m      ?? 400,
-    openHour:       map.checkin_open_hour     ?? 10,
-    openMin:        map.checkin_open_min      ?? 0,
-    deadlineHour:   map.checkin_deadline_hour ?? 11,
-    deadlineMin:    map.checkin_deadline_min  ?? 30,
+    lat: (map.office_lat || -34581400) / 1_000_000,
+    lng: (map.office_lng || -58422600) / 1_000_000,
+    radiusM: map.checkin_radius_m ?? 400,
+    openHour: map.checkin_open_hour ?? 10,
+    openMin: map.checkin_open_min ?? 0,
+    deadlineHour: map.checkin_deadline_hour ?? 11,
+    deadlineMin: map.checkin_deadline_min ?? 30,
   };
 }
 
 // Haversine distance in meters between two lat/lng points.
 function haversineDistance(lat1, lng1, lat2, lng2) {
-  const R  = 6371000;
-  const φ1 = lat1 * Math.PI / 180;
-  const φ2 = lat2 * Math.PI / 180;
-  const Δφ = (lat2 - lat1) * Math.PI / 180;
-  const Δλ = (lng2 - lng1) * Math.PI / 180;
-  const a  = Math.sin(Δφ/2)**2 + Math.cos(φ1)*Math.cos(φ2)*Math.sin(Δλ/2)**2;
-  return Math.round(R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a)));
+  const R = 6371000;
+  const φ1 = (lat1 * Math.PI) / 180;
+  const φ2 = (lat2 * Math.PI) / 180;
+  const Δφ = ((lat2 - lat1) * Math.PI) / 180;
+  const Δλ = ((lng2 - lng1) * Math.PI) / 180;
+  const a =
+    Math.sin(Δφ / 2) ** 2 + Math.cos(φ1) * Math.cos(φ2) * Math.sin(Δλ / 2) ** 2;
+  return Math.round(R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a)));
 }
 
 // Insert or ignore a check-in row (UNIQUE per user per day).
 async function saveCheckIn(userId, slotNumber, lat, lng, distanceM, isValid) {
   const now = getLocalTime().toISO();
-  await pool.query(`
+  await pool.query(
+    `
     INSERT INTO check_ins (user_id, slot_number, check_in_time, latitude, longitude, distance_m, is_valid)
     VALUES ($1, $2, $3, $4, $5, $6, $7)
     ON CONFLICT (user_id, check_in_date) DO NOTHING
-  `, [userId, slotNumber, now, lat, lng, distanceM, isValid]);
+  `,
+    [userId, slotNumber, now, lat, lng, distanceM, isValid]
+  );
 }
 
 // Returns today's check-in status for every currently assigned slot.
 async function getTodayCheckIns() {
-  const assigned = parkingSlots.filter(s => s.status !== 'available' && s.phone);
+  const assigned = parkingSlots.filter(
+    (s) => s.status !== "available" && s.phone
+  );
   if (!assigned.length) return [];
 
-  const phones = assigned.map(s => s.phone.replace('whatsapp:', ''));
+  const phones = assigned.map((s) => s.phone.replace("whatsapp:", ""));
 
   const [rosterRes, checkInRes] = await Promise.all([
-    pool.query('SELECT id, name, phone FROM roster WHERE phone = ANY($1)', [phones]),
-    pool.query('SELECT * FROM check_ins WHERE check_in_date = CURRENT_DATE'),
+    pool.query("SELECT id, name, phone FROM roster WHERE phone = ANY($1)", [
+      phones,
+    ]),
+    pool.query("SELECT * FROM check_ins WHERE check_in_date = CURRENT_DATE"),
   ]);
 
-  const rosterMap  = Object.fromEntries(rosterRes.rows.map(r => [r.phone, r]));
-  const checkInMap = Object.fromEntries(checkInRes.rows.map(r => [r.user_id, r]));
+  const rosterMap = Object.fromEntries(rosterRes.rows.map((r) => [r.phone, r]));
+  const checkInMap = Object.fromEntries(
+    checkInRes.rows.map((r) => [r.user_id, r])
+  );
 
   const config = await getOfficeConfig();
-  const now    = getLocalTime();
+  const now = getLocalTime();
   const nowMins = now.hour * 60 + now.minute;
-  const openMins     = config.openHour     * 60 + config.openMin;
+  const openMins = config.openHour * 60 + config.openMin;
   const deadlineMins = config.deadlineHour * 60 + config.deadlineMin;
 
-  return assigned.map(s => {
-    const phone   = s.phone.replace('whatsapp:', '');
-    const user    = rosterMap[phone];
-    if (!user) return null;
-    const checkIn = checkInMap[user.id];
+  return assigned
+    .map((s) => {
+      const phone = s.phone.replace("whatsapp:", "");
+      const user = rosterMap[phone];
+      if (!user) return null;
+      const checkIn = checkInMap[user.id];
 
-    let status;
-    if (checkIn) {
-      status = checkIn.is_valid ? 'checked_in' : 'wrong_location';
-    } else if (nowMins > deadlineMins) {
-      status = 'noshow';
-    } else {
-      status = 'pending';
-    }
+      let status;
+      if (checkIn) {
+        status = checkIn.is_valid ? "checked_in" : "wrong_location";
+      } else if (nowMins > deadlineMins) {
+        status = "noshow";
+      } else {
+        status = "pending";
+      }
 
-    return {
-      slot_number:    s.number,
-      user_id:        user.id,
-      name:           s.assignedTo?.replace(' (Pending)', '') || user.name,
-      phone,
-      slot_status:    s.status,
-      status,
-      check_in_time:  checkIn?.check_in_time  || null,
-      distance_m:     checkIn?.distance_m     || null,
-      is_valid:       checkIn?.is_valid       ?? null,
-    };
-  }).filter(Boolean);
+      return {
+        slot_number: s.number,
+        user_id: user.id,
+        name: s.assignedTo?.replace(" (Pending)", "") || user.name,
+        phone,
+        slot_status: s.status,
+        status,
+        check_in_time: checkIn?.check_in_time || null,
+        distance_m: checkIn?.distance_m || null,
+        is_valid: checkIn?.is_valid ?? null,
+      };
+    })
+    .filter(Boolean);
 }
 
 // Handles an incoming WhatsApp location share and records a check-in.
 async function handleLocationCheckIn(sender, name, lat, lng) {
   const config = await getOfficeConfig();
-  const now    = getLocalTime();
+  const now = getLocalTime();
   const nowMins = now.hour * 60 + now.minute;
-  const openMins     = config.openHour     * 60 + config.openMin;
+  const openMins = config.openHour * 60 + config.openMin;
   const deadlineMins = config.deadlineHour * 60 + config.deadlineMin;
 
   // Outside check-in window
   if (nowMins < openMins || nowMins > deadlineMins) {
-    const open     = `${config.openHour}:${String(config.openMin).padStart(2,'0')} AM`;
-    const deadline = `${config.deadlineHour}:${String(config.deadlineMin).padStart(2,'0')} AM`;
-    await sendWhatsAppMessage(sender, `Check-in is only available between ${open} and ${deadline}.`);
+    const open = `${config.openHour}:${String(config.openMin).padStart(
+      2,
+      "0"
+    )} AM`;
+    const deadline = `${config.deadlineHour}:${String(
+      config.deadlineMin
+    ).padStart(2, "0")} AM`;
+    await sendWhatsAppMessage(
+      sender,
+      `Check-in is only available between ${open} and ${deadline}.`
+    );
     return;
   }
 
   // Find user's assigned slot
-  const slot = parkingSlots.find(s => s.phone === sender && s.status !== 'available');
+  const slot = parkingSlots.find(
+    (s) => s.phone === sender && s.status !== "available"
+  );
   if (!slot) {
-    await sendWhatsAppMessage(sender, `You don't have a parking slot assigned for today.`);
+    await sendWhatsAppMessage(
+      sender,
+      `You don't have a parking slot assigned for today.`
+    );
     return;
   }
 
@@ -2593,23 +2625,33 @@ async function handleLocationCheckIn(sender, name, lat, lng) {
     [userId]
   );
   if (existing.rows.length > 0) {
-    await sendWhatsAppMessage(sender, `✅ You've already checked in for today (slot ${slot.number}).`);
+    await sendWhatsAppMessage(
+      sender,
+      `✅ You've already checked in for today (slot ${slot.number}).`
+    );
     return;
   }
 
   // Calculate distance
   const distanceM = haversineDistance(lat, lng, config.lat, config.lng);
-  const isValid   = distanceM <= config.radiusM;
+  const isValid = distanceM <= config.radiusM;
 
   await saveCheckIn(userId, slot.number, lat, lng, distanceM, isValid);
-  logActionToDB(sender, `Check-in for slot ${slot.number} — ${distanceM}m from office — ${isValid ? 'VALID' : 'INVALID'}`);
+  logActionToDB(
+    sender,
+    `Check-in for slot ${slot.number} — ${distanceM}m from office — ${
+      isValid ? "VALID" : "INVALID"
+    }`
+  );
 
   if (isValid) {
-    await sendWhatsAppMessage(sender,
+    await sendWhatsAppMessage(
+      sender,
       `✅ Check-in confirmed for slot *${slot.number}*! You are ${distanceM}m from the office. See you tonight! 🚗`
     );
   } else {
-    await sendWhatsAppMessage(sender,
+    await sendWhatsAppMessage(
+      sender,
       `📍 Your location is *${distanceM}m* from the office (limit: ${config.radiusM}m).\nPlease share your location from inside the parking lot.`
     );
   }
@@ -2622,10 +2664,10 @@ async function handleLocationCheckIn(sender, name, lat, lng) {
 // GET /admin/live-slots — real-time in-memory state (not from file)
 app.get("/admin/live-slots", (req, res) => {
   const slots = parkingSlots.map((s) => ({
-    number:     s.number,
-    status:     s.status,
+    number: s.number,
+    status: s.status,
     assignedTo: s.assignedTo,
-    phone:      s.phone,
+    phone: s.phone,
     timeoutDate: s.timeoutDate,
   }));
   res.json({ slots, waitingList, parkingDate });
@@ -2637,21 +2679,30 @@ app.post("/admin/assign", async (req, res) => {
   const { slotNumber, userId, notify = false } = req.body;
 
   if (!slotNumber || !userId) {
-    return res.status(400).json({ message: "slotNumber and userId are required." });
+    return res
+      .status(400)
+      .json({ message: "slotNumber and userId are required." });
   }
 
   // Look up user from roster
   let userRow;
   try {
-    const result = await pool.query("SELECT name, phone FROM roster WHERE id = $1", [userId]);
-    if (!result.rows.length) return res.status(404).json({ message: "User not found in roster." });
+    const result = await pool.query(
+      "SELECT name, phone FROM roster WHERE id = $1",
+      [userId]
+    );
+    if (!result.rows.length)
+      return res.status(404).json({ message: "User not found in roster." });
     userRow = result.rows[0];
   } catch (err) {
-    return res.status(500).json({ message: "DB error looking up user.", error: err.message });
+    return res
+      .status(500)
+      .json({ message: "DB error looking up user.", error: err.message });
   }
 
   const slot = parkingSlots.find((s) => s.number === Number(slotNumber));
-  if (!slot) return res.status(404).json({ message: `Slot ${slotNumber} not found.` });
+  if (!slot)
+    return res.status(404).json({ message: `Slot ${slotNumber} not found.` });
 
   // Clear any existing timeout on this slot
   if (slot.timeoutHandle) {
@@ -2659,20 +2710,31 @@ app.post("/admin/assign", async (req, res) => {
     slot.timeoutHandle = null;
   }
 
-  slot.status     = "assigned";
+  slot.status = "assigned";
   slot.assignedTo = userRow.name;
-  slot.phone      = `whatsapp:${userRow.phone}`;
+  slot.phone = `whatsapp:${userRow.phone}`;
   slot.timeoutDate = null;
 
   if (notify) {
     sendWhatsAppMessage(
       slot.phone,
-      `Hi ${userRow.name.split(" ")[0]}! You have been manually assigned parking slot *${slot.number}* for ${parkingDate} by an administrator.`
+      `Hi ${
+        userRow.name.split(" ")[0]
+      }! You have been manually assigned parking slot *${
+        slot.number
+      }* for ${parkingDate} by an administrator.`
     );
   }
 
   saveParkingData(DATA_FILE_PATH);
-  res.json({ message: "Slot assigned.", slot: { number: slot.number, status: slot.status, assignedTo: slot.assignedTo } });
+  res.json({
+    message: "Slot assigned.",
+    slot: {
+      number: slot.number,
+      status: slot.status,
+      assignedTo: slot.assignedTo,
+    },
+  });
 });
 
 // POST /admin/release — free a slot by number
@@ -2680,16 +2742,21 @@ app.post("/admin/assign", async (req, res) => {
 app.post("/admin/release", (req, res) => {
   const { slotNumber, notify = false } = req.body;
 
-  if (!slotNumber) return res.status(400).json({ message: "slotNumber is required." });
+  if (!slotNumber)
+    return res.status(400).json({ message: "slotNumber is required." });
 
   const slot = parkingSlots.find((s) => s.number === Number(slotNumber));
-  if (!slot) return res.status(404).json({ message: `Slot ${slotNumber} not found.` });
-  if (slot.status === "available") return res.status(400).json({ message: "Slot is already available." });
+  if (!slot)
+    return res.status(404).json({ message: `Slot ${slotNumber} not found.` });
+  if (slot.status === "available")
+    return res.status(400).json({ message: "Slot is already available." });
 
   if (notify && slot.phone) {
     sendWhatsAppMessage(
       slot.phone,
-      `Hi ${(slot.assignedTo || "").split(" ")[0]}! Your parking slot *${slot.number}* for ${parkingDate} has been released by an administrator.`
+      `Hi ${(slot.assignedTo || "").split(" ")[0]}! Your parking slot *${
+        slot.number
+      }* for ${parkingDate} has been released by an administrator.`
     );
   }
 
@@ -2698,9 +2765,9 @@ app.post("/admin/release", (req, res) => {
     slot.timeoutHandle = null;
   }
 
-  slot.status     = "available";
+  slot.status = "available";
   slot.assignedTo = null;
-  slot.phone      = null;
+  slot.phone = null;
   slot.timeoutDate = null;
 
   assignNextSlot();
@@ -2713,8 +2780,10 @@ app.post("/admin/release", (req, res) => {
 app.post("/admin/swap", (req, res) => {
   const { slotA, slotB } = req.body;
 
-  if (!slotA || !slotB) return res.status(400).json({ message: "slotA and slotB are required." });
-  if (slotA === slotB) return res.status(400).json({ message: "Cannot swap a slot with itself." });
+  if (!slotA || !slotB)
+    return res.status(400).json({ message: "slotA and slotB are required." });
+  if (slotA === slotB)
+    return res.status(400).json({ message: "Cannot swap a slot with itself." });
 
   const a = parkingSlots.find((s) => s.number === Number(slotA));
   const b = parkingSlots.find((s) => s.number === Number(slotB));
@@ -2723,13 +2792,19 @@ app.post("/admin/swap", (req, res) => {
   if (!b) return res.status(404).json({ message: `Slot ${slotB} not found.` });
 
   // Clear both timeouts — after a swap the old timeouts are stale
-  if (a.timeoutHandle) { clearTimeout(a.timeoutHandle); a.timeoutHandle = null; }
-  if (b.timeoutHandle) { clearTimeout(b.timeoutHandle); b.timeoutHandle = null; }
+  if (a.timeoutHandle) {
+    clearTimeout(a.timeoutHandle);
+    a.timeoutHandle = null;
+  }
+  if (b.timeoutHandle) {
+    clearTimeout(b.timeoutHandle);
+    b.timeoutHandle = null;
+  }
 
   // Swap fields
-  [a.status,     b.status]     = [b.status,     a.status];
+  [a.status, b.status] = [b.status, a.status];
   [a.assignedTo, b.assignedTo] = [b.assignedTo, a.assignedTo];
-  [a.phone,      b.phone]      = [b.phone,      a.phone];
+  [a.phone, b.phone] = [b.phone, a.phone];
   a.timeoutDate = null;
   b.timeoutDate = null;
 
@@ -2747,12 +2822,16 @@ app.post("/admin/wl-remove", (req, res) => {
   const { phone } = req.body;
   if (!phone) return res.status(400).json({ message: "phone is required." });
 
-  const normalised = phone.startsWith("whatsapp:") ? phone : `whatsapp:${phone}`;
+  const normalised = phone.startsWith("whatsapp:")
+    ? phone
+    : `whatsapp:${phone}`;
   const before = waitingList.length;
   waitingList = waitingList.filter((u) => u.phone !== normalised);
 
   if (waitingList.length === before) {
-    return res.status(404).json({ message: "Person not found in waiting list." });
+    return res
+      .status(404)
+      .json({ message: "Person not found in waiting list." });
   }
 
   saveParkingData(DATA_FILE_PATH);
@@ -2767,8 +2846,12 @@ app.post("/admin/wl-add", async (req, res) => {
 
   let userRow;
   try {
-    const result = await pool.query("SELECT name, phone FROM roster WHERE id = $1", [userId]);
-    if (!result.rows.length) return res.status(404).json({ message: "User not found in roster." });
+    const result = await pool.query(
+      "SELECT name, phone FROM roster WHERE id = $1",
+      [userId]
+    );
+    if (!result.rows.length)
+      return res.status(404).json({ message: "User not found in roster." });
     userRow = result.rows[0];
   } catch (err) {
     return res.status(500).json({ message: "DB error.", error: err.message });
@@ -2777,14 +2860,27 @@ app.post("/admin/wl-add", async (req, res) => {
   const phone = `whatsapp:${userRow.phone}`;
 
   // Guard: already in a slot or WL
-  const alreadyInSlot = parkingSlots.find((s) => s.phone === phone && s.status !== "available");
-  if (alreadyInSlot) return res.status(400).json({ message: `${userRow.name} already has slot ${alreadyInSlot.number}.` });
+  const alreadyInSlot = parkingSlots.find(
+    (s) => s.phone === phone && s.status !== "available"
+  );
+  if (alreadyInSlot)
+    return res
+      .status(400)
+      .json({
+        message: `${userRow.name} already has slot ${alreadyInSlot.number}.`,
+      });
 
   const alreadyInWL = waitingList.find((u) => u.phone === phone);
-  if (alreadyInWL) return res.status(400).json({ message: `${userRow.name} is already on the waiting list.` });
+  if (alreadyInWL)
+    return res
+      .status(400)
+      .json({ message: `${userRow.name} is already on the waiting list.` });
 
   const entry = { name: userRow.name, phone };
-  const pos = (position !== undefined && position !== null) ? Number(position) : waitingList.length;
+  const pos =
+    position !== undefined && position !== null
+      ? Number(position)
+      : waitingList.length;
   waitingList.splice(pos, 0, entry);
 
   saveParkingData(DATA_FILE_PATH);
@@ -2797,35 +2893,41 @@ app.get("/admin/office-config", async (_, res) => {
     const config = await getOfficeConfig();
     res.json(config);
   } catch (err) {
-    res.status(500).json({ message: "Failed to load office config.", error: err.message });
+    res
+      .status(500)
+      .json({ message: "Failed to load office config.", error: err.message });
   }
 });
 
 // POST /admin/office-config — save office location + check-in window
 // Body: { lat, lng, radiusM, openHour, openMin, deadlineHour, deadlineMin }
 app.post("/admin/office-config", async (req, res) => {
-  const { lat, lng, radiusM, openHour, openMin, deadlineHour, deadlineMin } = req.body;
+  const { lat, lng, radiusM, openHour, openMin, deadlineHour, deadlineMin } =
+    req.body;
   if (lat === undefined || lng === undefined) {
     return res.status(400).json({ message: "lat and lng are required." });
   }
   try {
-    const upsert = (key, value) => pool.query(
-      `INSERT INTO parking_config (key, value) VALUES ($1, $2)
+    const upsert = (key, value) =>
+      pool.query(
+        `INSERT INTO parking_config (key, value) VALUES ($1, $2)
        ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value`,
-      [key, value]
-    );
+        [key, value]
+      );
     await Promise.all([
-      upsert('office_lat',            Math.round(parseFloat(lat) * 1_000_000)),
-      upsert('office_lng',            Math.round(parseFloat(lng) * 1_000_000)),
-      upsert('checkin_radius_m',      Number(radiusM)      ?? 400),
-      upsert('checkin_open_hour',     Number(openHour)     ?? 10),
-      upsert('checkin_open_min',      Number(openMin)      ?? 0),
-      upsert('checkin_deadline_hour', Number(deadlineHour) ?? 11),
-      upsert('checkin_deadline_min',  Number(deadlineMin)  ?? 30),
+      upsert("office_lat", Math.round(parseFloat(lat) * 1_000_000)),
+      upsert("office_lng", Math.round(parseFloat(lng) * 1_000_000)),
+      upsert("checkin_radius_m", Number(radiusM) ?? 400),
+      upsert("checkin_open_hour", Number(openHour) ?? 10),
+      upsert("checkin_open_min", Number(openMin) ?? 0),
+      upsert("checkin_deadline_hour", Number(deadlineHour) ?? 11),
+      upsert("checkin_deadline_min", Number(deadlineMin) ?? 30),
     ]);
     res.json({ message: "Office config saved." });
   } catch (err) {
-    res.status(500).json({ message: "Failed to save office config.", error: err.message });
+    res
+      .status(500)
+      .json({ message: "Failed to save office config.", error: err.message });
   }
 });
 
@@ -2835,7 +2937,9 @@ app.get("/admin/checkins-today", async (_, res) => {
     const data = await getTodayCheckIns();
     res.json(data);
   } catch (err) {
-    res.status(500).json({ message: "Failed to load check-ins.", error: err.message });
+    res
+      .status(500)
+      .json({ message: "Failed to load check-ins.", error: err.message });
   }
 });
 
@@ -2844,7 +2948,9 @@ app.get("/admin/checkins-today", async (_, res) => {
 app.post("/admin/manual-checkin", async (req, res) => {
   const { userId, slotNumber } = req.body;
   if (!userId || !slotNumber) {
-    return res.status(400).json({ message: "userId and slotNumber are required." });
+    return res
+      .status(400)
+      .json({ message: "userId and slotNumber are required." });
   }
   try {
     const existing = await pool.query(
@@ -2852,45 +2958,70 @@ app.post("/admin/manual-checkin", async (req, res) => {
       [userId]
     );
     if (existing.rows.length > 0) {
-      return res.status(400).json({ message: "User already checked in today." });
+      return res
+        .status(400)
+        .json({ message: "User already checked in today." });
     }
-    await saveCheckIn(Number(userId), Number(slotNumber), null, null, null, true);
-    logActionToDB(`admin`, `Manual check-in for user ${userId} slot ${slotNumber}`);
+    await saveCheckIn(
+      Number(userId),
+      Number(slotNumber),
+      null,
+      null,
+      null,
+      true
+    );
+    logActionToDB(
+      `admin`,
+      `Manual check-in for user ${userId} slot ${slotNumber}`
+    );
     res.json({ message: "Manual check-in recorded." });
   } catch (err) {
-    res.status(500).json({ message: "Failed to record check-in.", error: err.message });
+    res
+      .status(500)
+      .json({ message: "Failed to record check-in.", error: err.message });
   }
 });
 
 // POST /send-checkin-request — send WhatsApp location request to assigned users
 // Body: { targets: 'all' | [userId, ...] }
 app.post("/send-checkin-request", async (req, res) => {
-  const { targets = 'all' } = req.body;
+  const { targets = "all" } = req.body;
   const config = await getOfficeConfig();
-  const deadline = `${config.deadlineHour}:${String(config.deadlineMin).padStart(2,'0')} AM`;
+  const deadline = `${config.deadlineHour}:${String(
+    config.deadlineMin
+  ).padStart(2, "0")} AM`;
 
-  const toNotify = parkingSlots.filter(s => {
-    if (s.status === 'available' || !s.phone) return false;
-    if (targets === 'all') return true;
+  const toNotify = parkingSlots.filter((s) => {
+    if (s.status === "available" || !s.phone) return false;
+    if (targets === "all") return true;
     // targets is array of userId — match by phone lookup (handled below)
     return true;
   });
 
-  let sent = 0, skipped = 0;
+  let sent = 0,
+    skipped = 0;
   const details = [];
 
   for (const slot of toNotify) {
-    const name = slot.assignedTo?.replace(' (Pending)', '') || 'there';
-    const firstName = name.split(' ')[0];
+    const name = slot.assignedTo?.replace(" (Pending)", "") || "there";
+    const firstName = name.split(" ")[0];
     const msg = `🅿️ Hi ${firstName}! Time to check in for slot *${slot.number}*.\n\nPlease share your *current location* in this chat to confirm you're at the office.\nDeadline: *${deadline}*\n\nTap 📎 → Location → Send current location.`;
     try {
       await sendWhatsAppMessage(slot.phone, msg);
-      logActionToDB(slot.phone, `Check-in request sent for slot ${slot.number}`);
+      logActionToDB(
+        slot.phone,
+        `Check-in request sent for slot ${slot.number}`
+      );
       sent++;
-      details.push({ slot: slot.number, name, status: 'sent' });
+      details.push({ slot: slot.number, name, status: "sent" });
     } catch (err) {
       skipped++;
-      details.push({ slot: slot.number, name, status: 'failed', error: err.message });
+      details.push({
+        slot: slot.number,
+        name,
+        status: "failed",
+        error: err.message,
+      });
     }
   }
 
@@ -2902,16 +3033,21 @@ app.post("/send-checkin-request", async (req, res) => {
 app.post("/process-noshow", async (_, res) => {
   try {
     const checkIns = await getTodayCheckIns();
-    const noShows  = checkIns.filter(c => c.status === 'noshow');
+    const noShows = checkIns.filter((c) => c.status === "noshow");
 
     if (!noShows.length) {
       return res.json({ message: "No no-shows found.", processed: [] });
     }
 
     // Use 11:30 today (Argentina time) as the log timestamp so scoring picks it up
-    const logTime = getLocalTime().set({
-      hour:   11, minute: 30, second: 0, millisecond: 0,
-    }).toISO();
+    const logTime = getLocalTime()
+      .set({
+        hour: 11,
+        minute: 30,
+        second: 0,
+        millisecond: 0,
+      })
+      .toISO();
 
     const processed = [];
 
@@ -2926,21 +3062,34 @@ app.post("/process-noshow", async (_, res) => {
         );
 
         // Notify user
-        const firstName = user.name.split(' ')[0];
+        const firstName = user.name.split(" ")[0];
         await sendWhatsAppMessage(
           `whatsapp:${user.phone}`,
           `⚠️ Hi ${firstName}, we noticed you didn't check in for slot *${user.slot_number}* today.\nThis has been recorded as a *double late cancellation* on your score. Please remember to check in next time by sharing your location when requested.`
         );
 
-        processed.push({ user_id: user.user_id, name: user.name, slot: user.slot_number, penalty: '2x bad cancellation' });
+        processed.push({
+          user_id: user.user_id,
+          name: user.name,
+          slot: user.slot_number,
+          penalty: "2x bad cancellation",
+        });
       } catch (err) {
-        console.error(`Error processing no-show for user ${user.user_id}:`, err);
+        console.error(
+          `Error processing no-show for user ${user.user_id}:`,
+          err
+        );
       }
     }
 
-    res.json({ message: `Processed ${processed.length} no-show(s).`, processed });
+    res.json({
+      message: `Processed ${processed.length} no-show(s).`,
+      processed,
+    });
   } catch (err) {
-    res.status(500).json({ message: "Failed to process no-shows.", error: err.message });
+    res
+      .status(500)
+      .json({ message: "Failed to process no-shows.", error: err.message });
   }
 });
 
@@ -2964,13 +3113,18 @@ app.get("/admin/permanent-slots", async (req, res) => {
 app.post("/admin/permanent-slots", async (req, res) => {
   const { slotNumber, userId } = req.body;
   if (!slotNumber || !userId) {
-    return res.status(400).json({ message: "slotNumber and userId are required." });
+    return res
+      .status(400)
+      .json({ message: "slotNumber and userId are required." });
   }
 
   let userRow;
   try {
-    const r = await pool.query("SELECT name, phone FROM roster WHERE id = $1", [userId]);
-    if (!r.rows.length) return res.status(404).json({ message: "User not found." });
+    const r = await pool.query("SELECT name, phone FROM roster WHERE id = $1", [
+      userId,
+    ]);
+    if (!r.rows.length)
+      return res.status(404).json({ message: "User not found." });
     userRow = r.rows[0];
   } catch (err) {
     return res.status(500).json({ message: "DB error.", error: err.message });
@@ -2984,17 +3138,25 @@ app.post("/admin/permanent-slots", async (req, res) => {
       [Number(slotNumber), Number(userId)]
     );
   } catch (err) {
-    return res.status(500).json({ message: "Failed to save permanent slot.", error: err.message });
+    return res
+      .status(500)
+      .json({ message: "Failed to save permanent slot.", error: err.message });
   }
 
-  res.json({ message: "Permanent assignment saved. Will take effect on next daily reset.", slotNumber, name: userRow.name });
+  res.json({
+    message:
+      "Permanent assignment saved. Will take effect on next daily reset.",
+    slotNumber,
+    name: userRow.name,
+  });
 });
 
 // DELETE /admin/permanent-slots/:slotNumber — remove a permanent assignment
 // The slot stays assigned for the rest of the day; it will just behave normally on next reset.
 app.delete("/admin/permanent-slots/:slotNumber", async (req, res) => {
   const slotNumber = parseInt(req.params.slotNumber, 10);
-  if (isNaN(slotNumber)) return res.status(400).json({ message: "Invalid slot number." });
+  if (isNaN(slotNumber))
+    return res.status(400).json({ message: "Invalid slot number." });
 
   try {
     const result = await pool.query(
@@ -3002,9 +3164,13 @@ app.delete("/admin/permanent-slots/:slotNumber", async (req, res) => {
       [slotNumber]
     );
     if (!result.rowCount) {
-      return res.status(404).json({ message: `No permanent assignment for slot ${slotNumber}.` });
+      return res
+        .status(404)
+        .json({ message: `No permanent assignment for slot ${slotNumber}.` });
     }
-    res.json({ message: `Permanent assignment for slot ${slotNumber} removed. It stays assigned today but will be released on next reset.` });
+    res.json({
+      message: `Permanent assignment for slot ${slotNumber} removed. It stays assigned today but will be released on next reset.`,
+    });
   } catch (err) {
     res.status(500).json({ message: "DB error.", error: err.message });
   }
