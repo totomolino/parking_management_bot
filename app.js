@@ -1883,8 +1883,17 @@ app.get("/twilio-balance", async (req, res) => {
 // API route to get last cancellations from PostgreSQL
 app.get("/last_cancellations", async (req, res) => {
   try {
+    const limit = parseInt(req.query.limit) || 100;
     const cancellations = await getViews("last_cancellations");
-    res.status(200).json(cancellations);
+
+    // Filter to last 15 days and limit results
+    const fifteenDaysMs = 15 * 24 * 60 * 60 * 1000;
+    const now = Date.now();
+    const filtered = cancellations
+      .filter(item => now - new Date(item.cancellation_time).getTime() <= fifteenDaysMs)
+      .slice(0, limit);
+
+    res.status(200).json(filtered);
   } catch (err) {
     console.error(err);
     res.status(500).send("Server Error");
