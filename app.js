@@ -514,6 +514,17 @@ If you continue to experience issues after this, please reach out to someone fro
   switch (true) {
     case messageBody === "checkin":
       logActionToDB(sender, "COMMAND_CHECKIN");
+      // Check if user has a slot assigned before asking for location
+      const assignedSlot = parkingSlots.find(
+        (s) => s.phone === sender && s.status !== "available"
+      );
+      if (!assignedSlot) {
+        await sendWhatsAppMessage(
+          sender,
+          `❌ You don't have a parking slot assigned for today. Please use the *add me* command to request a spot.`
+        );
+        break;
+      }
       sendWhatsAppMessage(
         sender,
         `🅿️ *Parking Check-in*\n\nTo confirm your presence, please share your *current location* in this chat:\n\n1. Tap the 📎 attachment icon\n2. Select *Location*\n3. Tap *Send current location*\n\nMake sure you're inside or near the parking lot when sharing.`
