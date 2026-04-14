@@ -393,6 +393,9 @@ let waitingList = restoredData?.waitingList || [];
 let parkingDate =
   restoredData?.parkingDate || getLocalTime().toFormat("dd/MM/yyyy");
 
+// Apply permanent slots on startup
+loadPermanentSlots().catch(err => console.error("Failed to load permanent slots on startup:", err));
+
 // Health check endpoint
 app.get("/health", (_, res) => {
   res.send("OK");
