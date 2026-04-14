@@ -327,6 +327,23 @@ async function logActionToDB(userPhone, action) {
   }
 }
 
+// Log admin actions to admin_actions table
+async function logAdminActionToDB(actionType, description, details = null) {
+  try {
+    const logTime = DateTime.now()
+      .setZone("America/Argentina/Buenos_Aires")
+      .toISO();
+    const query =
+      "INSERT INTO admin_actions (action_type, description, details, action_time) VALUES ($1, $2, $3, $4)";
+    const values = [actionType, description, details ? JSON.stringify(details) : null, logTime];
+
+    await pool.query(query, values);
+    console.log(`[ADMIN_LOG] ${actionType}: ${description}`);
+  } catch (err) {
+    console.error("Error logging admin action to DB:", err);
+  }
+}
+
 // Initial Parking Slots Configuration
 const initialSlots = [
   // --- 4º SUB (800s) ---
@@ -501,6 +518,7 @@ If you continue to experience issues after this, please reach out to someone fro
 
   // ── Location share (user shares WhatsApp location) ──────────────────────────
   if (req.body.Latitude && req.body.Longitude) {
+    console.log(`[LOCATION_RECEIVED] Raw message from ${sender}:`, req.body);
     await handleLocationCheckIn(
       sender,
       name,
@@ -2983,10 +3001,13 @@ app.post("/admin/manual-checkin", async (req, res) => {
       null,
       true
     );
-    logActionToDB(
-      `admin`,
-      `Manual check-in for user ${userId} slot ${slotNumber}`
+    // Log manual check-in to admin_actions table
+    logAdminActionToDB(
+      'MANUAL_CHECKIN',
+      `Manual check-in for user ${userId} (slot ${slotNumber})`,
+      { userId, slotNumber }
     );
+    console.log(`[MANUAL_CHECKIN] User ${userId} checked in to slot ${slotNumber}`);
     res.json({ message: "Manual check-in recorded." });
   } catch (err) {
     res
