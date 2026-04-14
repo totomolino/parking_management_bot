@@ -82,7 +82,7 @@ async function loadPermanentSlots() {
   }
 }
 
-// Permanent slots are applied during the daily /excel-data reset, not on startup.
+// Permanent slots are loaded from DB at startup and reapplied after daily /excel-data reset.
 
 // Configuration for image generation
 const cellWidth = 70; // Width of each cell in pixels
@@ -344,8 +344,7 @@ const initialSlots = [
   timeoutDate: null,
 }));
 
-// Slot 60 is included above. Permanent assignments are loaded from the
-// permanent_slots DB table at startup and after each daily reset.
+// Permanent assignments are loaded from the permanent_slots DB table at startup and reapplied after each daily reset.
 
 // Function to load data from file
 function loadParkingData() {
@@ -392,9 +391,6 @@ let parkingSlots = restoredData?.parkingSlots || initialSlots;
 let waitingList = restoredData?.waitingList || [];
 let parkingDate =
   restoredData?.parkingDate || getLocalTime().toFormat("dd/MM/yyyy");
-
-// Apply permanent slots on startup
-loadPermanentSlots().catch(err => console.error("Failed to load permanent slots on startup:", err));
 
 // Health check endpoint
 app.get("/health", (_, res) => {
@@ -851,7 +847,6 @@ async function getMaxPermitido() {
 //Function to order reservations and assign slots
 async function assignSlots(all_flag = false) {
   const slotNumbers = parkingSlots
-    .filter((slot) => slot.number !== 60)
     .map((slot) => slot.number);
 
   const assignments = await getAssignments();
@@ -1475,18 +1470,6 @@ app.post("/parking_slots", (req, res) => {
     timeoutDate: null,
   }));
 
-  // Ensure slot 60 is included with the assigned values if it's not in receivedSlots
-  if (!parkingSlots.some((slot) => slot.number === 60)) {
-    parkingSlots.push({
-      number: 60,
-      status: "assigned",
-      assignedTo: "Ramses de la Rosa",
-      phone: "whatsapp:+5491169691511",
-      timeoutHandle: null,
-      timeoutDate: null,
-    });
-  }
-
   waitingList = []; // Reset waiting list
 
   console.log("The parking slots have been reset: ", parkingSlots);
@@ -1582,16 +1565,8 @@ async function assignSlotsAndCommunicate(res) {
     // Create a new Date object based on localTime and add one day
     parkingDate = await getNextWorkday(); //changing the date to tomorrow since new assignations are placed
 
-    // Clear all existing timeouts
+    // Clear all existing timeouts and reset slots
     parkingSlots.forEach((slot) => {
-      if (slot.number === 60) {
-        slot.status = "assigned";
-        slot.assignedTo = "Ramses de la Rosa";
-        slot.phone = "whatsapp:+5491169691511";
-        slot.timeoutHandle = null;
-        slot.timeoutDate = null;
-        return; // Skip this slot
-      }
       if (slot.timeoutHandle) {
         clearTimeout(slot.timeoutHandle);
         slot.timeoutHandle = null;
@@ -1679,7 +1654,7 @@ app.post("/send-reminder", async (req, res) => {
         .json({ message: "Today is a holiday. No reminders sent." });
     }
 
-    // Only send reminders to assigned slots (not slot 60, and only if phone exists)
+    // Only send reminders to assigned slots that have a phone number
     const assignedSlots = parkingSlots
       .filter((slot) => slot.status === "assigned" && slot.phone)
       .map((slot) => ({ phone: slot.phone, number: slot.number }));
