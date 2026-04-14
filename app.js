@@ -527,7 +527,8 @@ If you continue to experience issues after this, please reach out to someone fro
       }
       sendWhatsAppMessage(
         sender,
-        `🅿️ *Parking Check-in*\n\nTo confirm your presence, please share your *current location* in this chat:\n\n1. Tap the 📎 attachment icon\n2. Select *Location*\n3. Tap *Send current location*\n\nMake sure you're inside or near the parking lot when sharing.`
+        null,
+        'HXb62f0781132f522b6b10317ecdb7bf44'
       );
       break;
     case messageBody === "add me":
@@ -2145,19 +2146,30 @@ app.post("/update-holidays", (req, res) => {
   saveHolidays(holidaysData, res);
 });
 
-// Twilio send message helper without interactive buttons
-async function sendWhatsAppMessage(to, message) {
+// Twilio send message helper - supports both regular messages and templates
+async function sendWhatsAppMessage(to, message, templateId = null, variables = []) {
   const client = new twilio(
     process.env.TWILIO_ACCOUNT_SID,
     process.env.TWILIO_AUTH_TOKEN
   );
 
   try {
-    const sentMessage = await client.messages.create({
-      body: message,
-      from: twilioNumber,
-      to: to,
-    });
+    if (templateId) {
+      // Send template message
+      await client.messages.create({
+        contentSid: templateId,
+        contentVariables: JSON.stringify(variables),
+        from: twilioNumber,
+        to: to,
+      });
+    } else {
+      // Send regular text message
+      await client.messages.create({
+        body: message,
+        from: twilioNumber,
+        to: to,
+      });
+    }
   } catch (error) {
     console.error("Error sending message:", error);
   }
@@ -3077,11 +3089,13 @@ app.post("/process-noshow", async (_, res) => {
           [user.user_id, `Released_slot_${user.slot_number}_noshow`, logTime]
         );
 
-        // Notify user
+        // Notify user with template
         const firstName = user.name.split(" ")[0];
         await sendWhatsAppMessage(
           `whatsapp:${user.phone}`,
-          `⚠️ Hi ${firstName}, we noticed you didn't check in for slot *${user.slot_number}* today.\nThis has been recorded as a *double late cancellation* on your score. Please remember to check in next time by sharing your location when requested.`
+          null,
+          'HX6b0f23f08bab02ca6fb3797487411f1e',
+          [firstName, user.slot_number]
         );
 
         processed.push({
