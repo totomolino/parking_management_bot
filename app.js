@@ -2476,6 +2476,7 @@ async function getOfficeConfig() {
     "checkin_open_min",
     "checkin_deadline_hour",
     "checkin_deadline_min",
+    "enable_noshow_penalty",
   ];
   const result = await pool.query(
     `SELECT key, value FROM parking_config WHERE key = ANY($1)`,
@@ -2492,6 +2493,7 @@ async function getOfficeConfig() {
     openMin: map.checkin_open_min ?? 0,
     deadlineHour: map.checkin_deadline_hour ?? 11,
     deadlineMin: map.checkin_deadline_min ?? 30,
+    enableNoshowPenalty: map.enable_noshow_penalty ?? 1,
   };
 }
 
@@ -2897,10 +2899,10 @@ app.get("/admin/office-config", async (_, res) => {
   }
 });
 
-// POST /admin/office-config — save office location + check-in window
-// Body: { lat, lng, radiusM, openHour, openMin, deadlineHour, deadlineMin }
+// POST /admin/office-config — save office location + check-in window + penalties
+// Body: { lat, lng, radiusM, openHour, openMin, deadlineHour, deadlineMin, enableNoshowPenalty }
 app.post("/admin/office-config", async (req, res) => {
-  const { lat, lng, radiusM, openHour, openMin, deadlineHour, deadlineMin } =
+  const { lat, lng, radiusM, openHour, openMin, deadlineHour, deadlineMin, enableNoshowPenalty } =
     req.body;
   if (lat === undefined || lng === undefined) {
     return res.status(400).json({ message: "lat and lng are required." });
@@ -2920,6 +2922,7 @@ app.post("/admin/office-config", async (req, res) => {
       upsert("checkin_open_min", Number(openMin) ?? 0),
       upsert("checkin_deadline_hour", Number(deadlineHour) ?? 11),
       upsert("checkin_deadline_min", Number(deadlineMin) ?? 30),
+      upsert("enable_noshow_penalty", enableNoshowPenalty ? 1 : 0),
     ]);
     res.json({ message: "Office config saved." });
   } catch (err) {
@@ -3028,13 +3031,28 @@ app.post("/send-checkin-request", async (req, res) => {
 
 // POST /process-noshow — penalise users who didn't check in (2x bad cancellation)
 // Slot is NOT released. Penalty = 2 log entries matching the scoring pattern.
+// Penalty is only applied if enable_noshow_penalty flag is enabled.
 app.post("/process-noshow", async (_, res) => {
   try {
+    const config = await getOfficeConfig();
     const checkIns = await getTodayCheckIns();
     const noShows = checkIns.filter((c) => c.status === "noshow");
 
     if (!noShows.length) {
       return res.json({ message: "No no-shows found.", processed: [] });
+    }
+
+    // Check if penalty is enabled
+    if (!config.enableNoshowPenalty) {
+      return res.json({
+        message: `Found ${noShows.length} no-show(s) but penalty is disabled.`,
+        processed: noShows.map((u) => ({
+          user_id: u.user_id,
+          name: u.name,
+          slot: u.slot_number,
+          penalty: "Skipped (penalty disabled)",
+        })),
+      });
     }
 
     // Use 11:30 today (Argentina time) as the log timestamp so scoring picks it up
