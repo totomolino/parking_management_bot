@@ -2677,12 +2677,12 @@ async function handleLocationCheckIn(sender, name, lat, lng) {
   if (isValid) {
     await sendWhatsAppMessage(
       sender,
-      `✅ Check-in confirmed for slot *${slot.number}*! You are ${distanceM}m from the office. See you tonight! 🚗`
+      `✅ Check-in confirmed for slot *${slot.number}*!`
     );
   } else {
     await sendWhatsAppMessage(
       sender,
-      `📍 Your location is *${distanceM}m* from the office (limit: ${config.radiusM}m).\nPlease share your location from inside the parking lot.`
+      `📍 Your location is *${distanceM}m* from the office.\nPlease share your location from inside the office.`
     );
   }
 }
