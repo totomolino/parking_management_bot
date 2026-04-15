@@ -526,6 +526,15 @@ If you continue to experience issues after this, please reach out to someone fro
       return res.status(200).end();
     }
 
+    // Reject forwarded locations (Forwarded flag indicates message was forwarded)
+    if (req.body.Forwarded === 'true' || req.body.Forwarded === true) {
+      await sendWhatsAppMessage(
+        sender,
+        `❌ Please share your *own location*, not a forwarded one.\n\nTap 📎 → Location → Send current location.`
+      );
+      return res.status(200).end();
+    }
+
     await handleLocationCheckIn(
       sender,
       name,
