@@ -909,22 +909,39 @@ async function getMaxPermitido() {
 //Function to order reservations and assign slots
 //Function to order reservations and assign slots
 async function assignSlots(all_flag = false) {
-  const slotNumbers = parkingSlots
-    .map((slot) => slot.number);
+  // Step 1: Load permanent slots first (marks them as "assigned" in parkingSlots)
+  await loadPermanentSlots();
 
+  // Step 2: Get available slot numbers ONLY (exclude permanent slots)
+  const availableSlots = parkingSlots.filter(s => s.status === "available");
+  const availableSlotNumbers = availableSlots.map(s => s.number);
+
+  // Step 3: Get assignments from DB (includes permanent + daily)
   const assignments = await getAssignments();
 
-  console.log(`[DEBUG] parkingSlots.length: ${parkingSlots.length}`);
-  console.log(`[DEBUG] slotNumbers: ${slotNumbers}`);
-  console.log(`[DEBUG] assignments.length: ${assignments.length}`);
+  console.log(`[DEBUG] Total parkingSlots: ${parkingSlots.length}`);
+  console.log(`[DEBUG] Permanent slots (assigned): ${parkingSlots.filter(s => s.status === "assigned").length}`);
+  console.log(`[DEBUG] Available slots for daily assignment: ${availableSlotNumbers.length}`);
+  console.log(`[DEBUG] Total assignments from DB: ${assignments.length}`);
+  console.log(`[DEBUG] Daily assignments (to be mapped to available slots): ${assignments.length - parkingSlots.filter(s => s.status === "assigned").length}`);
 
-  let filteredAssignments = assignments.map((assignment, index) => {
+  // Step 4: Separate permanent from daily assignments
+  const permanentNames = new Set(
+    parkingSlots
+      .filter(s => s.status === "assigned")
+      .map(s => s.assignedTo)
+  );
+
+  const dailyAssignments = assignments.filter(a => !permanentNames.has(a.name));
+
+  // Step 5: Map daily assignments to available slots by index
+  let filteredAssignments = dailyAssignments.map((assignment, index) => {
     return all_flag
-      ? { ...assignment, slot: slotNumbers[index] ?? "WL" }
+      ? { ...assignment, slot: availableSlotNumbers[index] ?? "WL" }
       : {
           name: assignment.name,
           phone: assignment.phone,
-          slot: slotNumbers[index] ?? "WL",
+          slot: availableSlotNumbers[index] ?? "WL",
         };
   });
 
