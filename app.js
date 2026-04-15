@@ -519,6 +519,17 @@ If you continue to experience issues after this, please reach out to someone fro
   // ── Location share (user shares WhatsApp location) ──────────────────────────
   if (req.body.Latitude && req.body.Longitude) {
     console.log(`[LOCATION_RECEIVED] Raw message from ${sender}:`, req.body);
+
+    // Reject manual/pinned locations (they have Address or Label fields)
+    // Only accept current/live locations (no Address/Label = live GPS)
+    if (req.body.Address || req.body.Label) {
+      await sendWhatsAppMessage(
+        sender,
+        `❌ Please share your *current live location* from your phone, not a pinned address.\n\nTap 📎 → Location → Send current location.`
+      );
+      return res.status(200).end();
+    }
+
     await handleLocationCheckIn(
       sender,
       name,
