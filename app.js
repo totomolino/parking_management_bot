@@ -56,7 +56,7 @@ async function readCSV() {
 
 readCSV();
 
-// Apply permanent slot assignments from the DB to the live parkingSlots array
+// Get permanent slot assignments from the DB (returns data, doesn't modify parkingSlots)
 async function loadPermanentSlots() {
   try {
     const result = await pool.query(`
@@ -64,21 +64,11 @@ async function loadPermanentSlots() {
       FROM permanent_slots ps
       JOIN roster r ON r.id = ps.user_id
     `);
-    result.rows.forEach((row) => {
-      const slot = parkingSlots.find((s) => s.number === row.slot_number);
-      if (!slot) return;
-      if (slot.timeoutHandle) {
-        clearTimeout(slot.timeoutHandle);
-        slot.timeoutHandle = null;
-      }
-      slot.status = "assigned";
-      slot.assignedTo = row.name;
-      slot.phone = `whatsapp:${row.phone}`;
-      slot.timeoutDate = null;
-    });
-    console.log(`Permanent slots loaded: ${result.rows.length} assignment(s).`);
+    console.log(`Permanent slots found: ${result.rows.length} assignment(s).`);
+    return result.rows;
   } catch (err) {
     console.error("Error loading permanent slots:", err);
+    return [];
   }
 }
 
@@ -403,8 +393,10 @@ function saveParkingData(filePath) {
 }
 
 // Restore data on startup
+// Restore parkingSlots from file to preserve slot assignment state across restarts
+// Then loadPermanentSlots() will update permanent assignments from DB
 const restoredData = loadParkingData();
-let parkingSlots = restoredData?.parkingSlots || initialSlots;
+let parkingSlots = restoredData?.parkingSlots || initialSlots.map(slot => ({...slot}));
 let waitingList = restoredData?.waitingList || [];
 let parkingDate =
   restoredData?.parkingDate || getLocalTime().toFormat("dd/MM/yyyy");
@@ -907,34 +899,29 @@ async function getMaxPermitido() {
 }
 
 //Function to order reservations and assign slots
-//Function to order reservations and assign slots
 async function assignSlots(all_flag = false) {
-  // Step 1: Load permanent slots first (marks them as "assigned" in parkingSlots)
-  await loadPermanentSlots();
-
-  // Step 2: Get available slot numbers ONLY (exclude permanent slots)
-  const availableSlots = parkingSlots.filter(s => s.status === "available");
-  const availableSlotNumbers = availableSlots.map(s => s.number);
-
-  // Step 3: Get assignments from DB (includes permanent + daily)
+  // Get assignments from DB (includes permanent + daily)
   const assignments = await getAssignments();
 
-  console.log(`[DEBUG] Total parkingSlots: ${parkingSlots.length}`);
-  console.log(`[DEBUG] Permanent slots (assigned): ${parkingSlots.filter(s => s.status === "assigned").length}`);
-  console.log(`[DEBUG] Available slots for daily assignment: ${availableSlotNumbers.length}`);
-  console.log(`[DEBUG] Total assignments from DB: ${assignments.length}`);
-  console.log(`[DEBUG] Daily assignments (to be mapped to available slots): ${assignments.length - parkingSlots.filter(s => s.status === "assigned").length}`);
+  // Get permanent slots info (doesn't modify parkingSlots, just returns data)
+  const permanentSlots = await loadPermanentSlots();
+  const permanentNames = new Set(permanentSlots.map(p => p.name));
+  const permanentSlotNumbers = new Set(permanentSlots.map(p => p.slot_number));
 
-  // Step 4: Separate permanent from daily assignments
-  const permanentNames = new Set(
-    parkingSlots
-      .filter(s => s.status === "assigned")
-      .map(s => s.assignedTo)
-  );
-
+  // Filter out permanent people - they already have slots, don't assign them to daily slots
   const dailyAssignments = assignments.filter(a => !permanentNames.has(a.name));
 
-  // Step 5: Map daily assignments to available slots by index
+  // Get all slot numbers, but exclude permanent slots for mapping
+  const allSlotNumbers = initialSlots.map(s => s.number);
+  const availableSlotNumbers = allSlotNumbers.filter(n => !permanentSlotNumbers.has(n));
+
+  console.log(`[DEBUG] Total slots: ${allSlotNumbers.length}`);
+  console.log(`[DEBUG] Permanent slots: ${permanentSlots.length}`);
+  console.log(`[DEBUG] Available slots for daily: ${availableSlotNumbers.length}`);
+  console.log(`[DEBUG] Total assignments from DB: ${assignments.length}`);
+  console.log(`[DEBUG] Daily assignments (to be mapped): ${dailyAssignments.length}`);
+
+  // Map daily assignments to available slots by index (skip permanent slots)
   let filteredAssignments = dailyAssignments.map((assignment, index) => {
     return all_flag
       ? { ...assignment, slot: availableSlotNumbers[index] ?? "WL" }
@@ -943,10 +930,6 @@ async function assignSlots(all_flag = false) {
           phone: assignment.phone,
           slot: availableSlotNumbers[index] ?? "WL",
         };
-  });
-
-  filteredAssignments.forEach((a) => {
-    // logActionToDB(a.phone, `Assigned to slot ${a.slot}`); //TODO uncomment this line to log the assignment
   });
 
   return filteredAssignments;
@@ -1661,6 +1644,17 @@ async function assignSlotsAndCommunicate(res) {
       slot.timeoutDate = null;
     });
 
+    // Apply permanent slots from DB
+    const permanentSlots = await loadPermanentSlots();
+    permanentSlots.forEach((perm) => {
+      const slot = parkingSlots.find((s) => s.number === perm.slot_number);
+      if (slot) {
+        slot.status = "assigned";
+        slot.assignedTo = perm.name;
+        slot.phone = `whatsapp:${perm.phone}`;
+      }
+    });
+
     waitingList = [];
 
     receivedData.forEach((item) => {
@@ -1674,7 +1668,8 @@ async function assignSlotsAndCommunicate(res) {
         logActionToDB(phone, "Added to waiting list via /excel-data");
       } else if (slotNumber) {
         const slot = parkingSlots.find((s) => s.number === slotNumber);
-        if (slot) {
+        // Only assign if slot is available (not a permanent slot)
+        if (slot && slot.status === "available") {
           slot.status = "pending";
           slot.assignedTo = person;
           slot.phone = phone;
@@ -1786,10 +1781,18 @@ app.post("/excel-data", async (req, res) => {
       slot.timeoutDate = null;
     });
 
-    waitingList = [];
+    // Apply permanent slots from DB
+    const permanentSlots = await loadPermanentSlots();
+    permanentSlots.forEach((perm) => {
+      const slot = parkingSlots.find((s) => s.number === perm.slot_number);
+      if (slot) {
+        slot.status = "assigned";
+        slot.assignedTo = perm.name;
+        slot.phone = `whatsapp:${perm.phone}`;
+      }
+    });
 
-    // Re-apply permanent assignments from DB (these slots are skipped below)
-    await loadPermanentSlots();
+    waitingList = [];
 
     receivedData.forEach((item) => {
       const person = item.Person;
