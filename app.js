@@ -2595,6 +2595,13 @@ async function getTodayCheckIns() {
         status = "pending";
       }
 
+      // Convert check_in_time to Argentina timezone
+      let checkInTime = null;
+      if (checkIn?.check_in_time) {
+        const utcTime = DateTime.fromISO(checkIn.check_in_time, { zone: 'utc' });
+        checkInTime = utcTime.setZone('America/Argentina/Buenos_Aires').toISO();
+      }
+
       return {
         slot_number: s.number,
         user_id: user.id,
@@ -2602,7 +2609,7 @@ async function getTodayCheckIns() {
         phone,
         slot_status: s.status,
         status,
-        check_in_time: checkIn?.check_in_time || null,
+        check_in_time: checkInTime,
         distance_m: checkIn?.distance_m || null,
         is_valid: checkIn?.is_valid ?? null,
       };
@@ -2682,7 +2689,7 @@ async function handleLocationCheckIn(sender, name, lat, lng) {
   } else {
     await sendWhatsAppMessage(
       sender,
-      `📍 Your location is *${distanceM}m* from the office.\nPlease share your location from inside the office.`
+      `📍 Your location is *${distanceM}m* from the office.\nPlease share your location from the office`
     );
   }
 }
@@ -3060,6 +3067,63 @@ app.post("/send-checkin-request", async (req, res) => {
   }
 
   res.json({ sent, skipped, details });
+});
+
+// POST /admin/send-checkin-to-user — send check-in request to a specific user
+// Body: { userId }
+app.post("/admin/send-checkin-to-user", async (req, res) => {
+  const { userId } = req.body;
+  if (!userId) {
+    return res.status(400).json({ message: "userId is required." });
+  }
+
+  try {
+    const config = await getOfficeConfig();
+    const deadline = `${config.deadlineHour}:${String(
+      config.deadlineMin
+    ).padStart(2, "0")} AM`;
+
+    // Find user in roster to get phone
+    const userRes = await pool.query(
+      "SELECT phone, name FROM roster WHERE id = $1",
+      [userId]
+    );
+
+    if (!userRes.rows.length) {
+      return res.status(400).json({ message: "User not found." });
+    }
+
+    const user = userRes.rows[0];
+    const userSlot = parkingSlots.find(
+      (s) => s.phone.replace("whatsapp:", "") === user.phone && s.status !== "available"
+    );
+
+    if (!userSlot) {
+      return res.status(400).json({ message: "User does not have an assigned slot." });
+    }
+
+    const name = userSlot.assignedTo?.replace(" (Pending)", "") || user.name;
+    const firstName = name.split(" ")[0];
+    const msg = `🅿️ Hi ${firstName}! Time to check in for slot *${userSlot.number}*.\n\nPlease share your *current location* in this chat to confirm you're at the office.\nDeadline: *${deadline}*\n\nTap 📎 → Location → Send current location.`;
+
+    await sendWhatsAppMessage(userSlot.phone, msg);
+    logActionToDB(
+      userSlot.phone,
+      `Manual check-in request sent for slot ${userSlot.number}`
+    );
+    logAdminActionToDB(
+      'SEND_CHECKIN_REQUEST',
+      `Sent check-in request to user ${userId} (slot ${userSlot.number})`,
+      { userId, slotNumber: userSlot.number }
+    );
+
+    res.json({ message: `Check-in request sent to ${name}` });
+  } catch (err) {
+    res.status(500).json({
+      message: "Failed to send check-in request.",
+      error: err.message,
+    });
+  }
 });
 
 // POST /process-noshow — penalise users who didn't check in (2x bad cancellation)
