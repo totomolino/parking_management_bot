@@ -2174,12 +2174,16 @@ async function sendWhatsAppMessage(to, message, templateId = null, variables = [
   try {
     if (templateId) {
       // Send template message
-      await client.messages.create({
+      const messageConfig = {
         contentSid: templateId,
-        contentVariables: JSON.stringify(variables),
         from: twilioNumber,
         to: to,
-      });
+      };
+      // Only include contentVariables if there are variables
+      if (variables && variables.length > 0) {
+        messageConfig.contentVariables = JSON.stringify(variables);
+      }
+      await client.messages.create(messageConfig);
     } else {
       // Send regular text message
       await client.messages.create({
