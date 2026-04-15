@@ -409,6 +409,10 @@ let waitingList = restoredData?.waitingList || [];
 let parkingDate =
   restoredData?.parkingDate || getLocalTime().toFormat("dd/MM/yyyy");
 
+console.log(`[STARTUP] parkingSlots loaded: ${parkingSlots.length} slots`);
+console.log(`[STARTUP] Slot numbers: ${parkingSlots.map(s => s.number).join(', ')}`);
+console.log(`[STARTUP] parkingDate: ${parkingDate}`);
+
 // Health check endpoint
 app.get("/health", (_, res) => {
   res.send("OK");
@@ -903,11 +907,16 @@ async function getMaxPermitido() {
 }
 
 //Function to order reservations and assign slots
+//Function to order reservations and assign slots
 async function assignSlots(all_flag = false) {
   const slotNumbers = parkingSlots
     .map((slot) => slot.number);
 
   const assignments = await getAssignments();
+
+  console.log(`[DEBUG] parkingSlots.length: ${parkingSlots.length}`);
+  console.log(`[DEBUG] slotNumbers: ${slotNumbers}`);
+  console.log(`[DEBUG] assignments.length: ${assignments.length}`);
 
   let filteredAssignments = assignments.map((assignment, index) => {
     return all_flag
