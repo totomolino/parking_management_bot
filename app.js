@@ -908,7 +908,8 @@ async function assignSlots(all_flag = false) {
   const permanentNames = new Set(permanentSlots.map(p => p.name));
   const permanentSlotNumbers = new Set(permanentSlots.map(p => p.slot_number));
 
-  // Filter out permanent people - they already have slots, don't assign them to daily slots
+  // Split assignments into permanent and daily
+  const permanentAssignments = assignments.filter(a => permanentNames.has(a.name));
   const dailyAssignments = assignments.filter(a => !permanentNames.has(a.name));
 
   // Get all slot numbers, but exclude permanent slots for mapping
@@ -919,10 +920,23 @@ async function assignSlots(all_flag = false) {
   console.log(`[DEBUG] Permanent slots: ${permanentSlots.length}`);
   console.log(`[DEBUG] Available slots for daily: ${availableSlotNumbers.length}`);
   console.log(`[DEBUG] Total assignments from DB: ${assignments.length}`);
+  console.log(`[DEBUG] Permanent assignments: ${permanentAssignments.length}`);
   console.log(`[DEBUG] Daily assignments (to be mapped): ${dailyAssignments.length}`);
 
+  // Map permanent assignments to their permanent slots
+  const mappedPermanent = permanentAssignments.map((assignment) => {
+    const permSlot = permanentSlots.find(p => p.name === assignment.name);
+    return all_flag
+      ? { ...assignment, slot: permSlot?.slot_number ?? "WL" }
+      : {
+          name: assignment.name,
+          phone: assignment.phone,
+          slot: permSlot?.slot_number ?? "WL",
+        };
+  });
+
   // Map daily assignments to available slots by index (skip permanent slots)
-  let filteredAssignments = dailyAssignments.map((assignment, index) => {
+  const mappedDaily = dailyAssignments.map((assignment, index) => {
     return all_flag
       ? { ...assignment, slot: availableSlotNumbers[index] ?? "WL" }
       : {
@@ -932,7 +946,8 @@ async function assignSlots(all_flag = false) {
         };
   });
 
-  return filteredAssignments;
+  // Return both permanent and daily assignments combined
+  return [...mappedPermanent, ...mappedDaily];
 }
 
 function getLocalTime() {
