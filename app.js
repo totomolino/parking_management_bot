@@ -543,6 +543,23 @@ If you continue to experience issues after this, please reach out to someone fro
         );
         break;
       }
+
+      // Check if already checked in today
+      const userId = await searchUserId(sender);
+      if (userId) {
+        const existing = await pool.query(
+          `SELECT id FROM check_ins WHERE user_id = $1 AND check_in_date = CURRENT_DATE`,
+          [userId]
+        );
+        if (existing.rows.length > 0) {
+          await sendWhatsAppMessage(
+            sender,
+            `✅ You've already checked in for today (slot ${assignedSlot.number}).`
+          );
+          break;
+        }
+      }
+
       sendWhatsAppMessage(
         sender,
         null,
@@ -2543,14 +2560,13 @@ function haversineDistance(lat1, lng1, lat2, lng2) {
   return Math.round(R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a)));
 }
 
-// Insert or ignore a check-in row (UNIQUE per user per day).
+// Insert a check-in row (allows multiple check-ins per user per day for spot checks).
 async function saveCheckIn(userId, slotNumber, lat, lng, distanceM, isValid) {
   const now = getLocalTime().toISO();
   await pool.query(
     `
     INSERT INTO check_ins (user_id, slot_number, check_in_time, latitude, longitude, distance_m, is_valid)
     VALUES ($1, $2, $3, $4, $5, $6, $7)
-    ON CONFLICT (user_id, check_in_date) DO NOTHING
   `,
     [userId, slotNumber, now, lat, lng, distanceM, isValid]
   );
@@ -2660,23 +2676,11 @@ async function handleLocationCheckIn(sender, name, lat, lng) {
   const userId = await searchUserId(sender);
   if (!userId) return;
 
-  // Check if already checked in today
-  const existing = await pool.query(
-    `SELECT id FROM check_ins WHERE user_id = $1 AND check_in_date = CURRENT_DATE`,
-    [userId]
-  );
-  if (existing.rows.length > 0) {
-    await sendWhatsAppMessage(
-      sender,
-      `✅ You've already checked in for today (slot ${slot.number}).`
-    );
-    return;
-  }
-
   // Calculate distance
   const distanceM = haversineDistance(lat, lng, config.lat, config.lng);
   const isValid = distanceM <= config.radiusM;
 
+  // Record the check-in (allows multiple per day for spot checks)
   await saveCheckIn(userId, slot.number, lat, lng, distanceM, isValid);
   logActionToDB(
     sender,
