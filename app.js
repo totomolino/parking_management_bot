@@ -555,11 +555,11 @@ If you continue to experience issues after this, please reach out to someone fro
         break;
       }
 
-      // Check if already checked in today
+      // Check if already checked in today (mandatory only)
       const userId = await searchUserId(sender);
       if (userId) {
         const existing = await pool.query(
-          `SELECT id FROM check_ins WHERE user_id = $1 AND check_in_date = CURRENT_DATE`,
+          `SELECT id FROM check_ins WHERE user_id = $1 AND check_in_date = CURRENT_DATE AND check_in_type = 'mandatory'`,
           [userId]
         );
         if (existing.rows.length > 0) {
@@ -2572,14 +2572,14 @@ function haversineDistance(lat1, lng1, lat2, lng2) {
 }
 
 // Insert a check-in row (allows multiple check-ins per user per day for spot checks).
-async function saveCheckIn(userId, slotNumber, lat, lng, distanceM, isValid) {
+async function saveCheckIn(userId, slotNumber, lat, lng, distanceM, isValid, checkInType = 'mandatory') {
   const now = getLocalTime().toISO();
   await pool.query(
     `
-    INSERT INTO check_ins (user_id, slot_number, check_in_time, latitude, longitude, distance_m, is_valid)
-    VALUES ($1, $2, $3, $4, $5, $6, $7)
+    INSERT INTO check_ins (user_id, slot_number, check_in_time, latitude, longitude, distance_m, is_valid, check_in_type)
+    VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
   `,
-    [userId, slotNumber, now, lat, lng, distanceM, isValid]
+    [userId, slotNumber, now, lat, lng, distanceM, isValid, checkInType]
   );
 }
 
@@ -2600,9 +2600,22 @@ async function getTodayCheckIns() {
   ]);
 
   const rosterMap = Object.fromEntries(rosterRes.rows.map((r) => [r.phone, r]));
-  const checkInMap = Object.fromEntries(
-    checkInRes.rows.map((r) => [r.user_id, r])
-  );
+
+  // Separate mandatory and spot check maps
+  const mandatoryMap = {};
+  const spotCheckMap = {};
+
+  checkInRes.rows.forEach((r) => {
+    if (r.check_in_type === 'spot_check') {
+      // Keep the latest spot check per user
+      if (!spotCheckMap[r.user_id] || r.check_in_time > spotCheckMap[r.user_id].check_in_time) {
+        spotCheckMap[r.user_id] = r;
+      }
+    } else {
+      // Only one mandatory per day (due to partial unique index)
+      mandatoryMap[r.user_id] = r;
+    }
+  });
 
   const config = await getOfficeConfig();
   const now = getLocalTime();
@@ -2615,22 +2628,32 @@ async function getTodayCheckIns() {
       const phone = s.phone.replace("whatsapp:", "");
       const user = rosterMap[phone];
       if (!user) return null;
-      const checkIn = checkInMap[user.id];
 
+      const mandatoryCheckIn = mandatoryMap[user.id];
+      const spotCheck = spotCheckMap[user.id];
+
+      // Status is determined only from mandatory check-ins
       let status;
-      if (checkIn) {
-        status = checkIn.is_valid ? "checked_in" : "wrong_location";
+      if (mandatoryCheckIn) {
+        status = mandatoryCheckIn.is_valid ? "checked_in" : "wrong_location";
       } else if (nowMins > deadlineMins) {
         status = "noshow";
       } else {
         status = "pending";
       }
 
-      // Convert check_in_time to Argentina timezone
+      // Convert mandatory check-in time to Argentina timezone
       let checkInTime = null;
-      if (checkIn?.check_in_time) {
-        const utcTime = DateTime.fromISO(checkIn.check_in_time, { zone: 'utc' });
+      if (mandatoryCheckIn?.check_in_time) {
+        const utcTime = DateTime.fromISO(mandatoryCheckIn.check_in_time, { zone: 'utc' });
         checkInTime = utcTime.setZone('America/Argentina/Buenos_Aires').toISO();
+      }
+
+      // Convert spot check time to Argentina timezone
+      let spotCheckTime = null;
+      if (spotCheck?.check_in_time) {
+        const utcTime = DateTime.fromISO(spotCheck.check_in_time, { zone: 'utc' });
+        spotCheckTime = utcTime.setZone('America/Argentina/Buenos_Aires').toISO();
       }
 
       return {
@@ -2641,8 +2664,11 @@ async function getTodayCheckIns() {
         slot_status: s.status,
         status,
         check_in_time: checkInTime,
-        distance_m: checkIn?.distance_m || null,
-        is_valid: checkIn?.is_valid ?? null,
+        distance_m: mandatoryCheckIn?.distance_m || null,
+        is_valid: mandatoryCheckIn?.is_valid ?? null,
+        spot_check_time: spotCheckTime,
+        spot_check_distance_m: spotCheck?.distance_m || null,
+        spot_check_valid: spotCheck?.is_valid ?? null,
       };
     })
     .filter(Boolean);
@@ -2656,21 +2682,9 @@ async function handleLocationCheckIn(sender, name, lat, lng) {
   const openMins = config.openHour * 60 + config.openMin;
   const deadlineMins = config.deadlineHour * 60 + config.deadlineMin;
 
-  // Outside check-in window
-  if (nowMins < openMins || nowMins > deadlineMins) {
-    const open = `${config.openHour}:${String(config.openMin).padStart(
-      2,
-      "0"
-    )} AM`;
-    const deadline = `${config.deadlineHour}:${String(
-      config.deadlineMin
-    ).padStart(2, "0")} AM`;
-    await sendWhatsAppMessage(
-      sender,
-      `Check-in is only available between ${open} and ${deadline}.`
-    );
-    return;
-  }
+  // Infer check-in type from time — no rejection for spot checks
+  const withinWindow = nowMins >= openMins && nowMins <= deadlineMins;
+  const checkInType = withinWindow ? 'mandatory' : 'spot_check';
 
   // Find user's assigned slot
   const slot = parkingSlots.find(
@@ -2691,11 +2705,11 @@ async function handleLocationCheckIn(sender, name, lat, lng) {
   const distanceM = haversineDistance(lat, lng, config.lat, config.lng);
   const isValid = distanceM <= config.radiusM;
 
-  // Record the check-in (allows multiple per day for spot checks)
-  await saveCheckIn(userId, slot.number, lat, lng, distanceM, isValid);
+  // Record the check-in with type (allows multiple per day for spot checks)
+  await saveCheckIn(userId, slot.number, lat, lng, distanceM, isValid, checkInType);
   logActionToDB(
     sender,
-    `Check-in for slot ${slot.number} — ${distanceM}m from office — ${
+    `Check-in [${checkInType}] for slot ${slot.number} — ${distanceM}m from office — ${
       isValid ? "VALID" : "INVALID"
     }`
   );
