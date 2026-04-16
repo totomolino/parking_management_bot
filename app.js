@@ -1269,7 +1269,7 @@ async function handleCancelList(sender) {
 }
 
 // Function to handle the 'cancel' command
-function handleCancel(sender, name) {
+async function handleCancel(sender, name) {
   const userInWaitingIndex = waitingList.findIndex(
     (user) => user.phone === sender
   );
@@ -1306,6 +1306,46 @@ function handleCancel(sender, name) {
     sendWhatsAppMessage(sender, `You've released parking slot ${slot.number}.`);
     logActionToDB(sender, `Released_slot_${slot.number}`);
     assignNextSlot();
+
+    // Warn user how many free cancellations remain
+    try {
+      const userId = await searchUserId(sender);
+      const [cancelRes, max] = await Promise.all([
+        pool.query(
+          `SELECT COALESCE(b.cancellation_count, 0) AS cancellations
+           FROM roster
+           LEFT JOIN (
+             SELECT * FROM monthly_cancellations
+             WHERE EXTRACT(month FROM cancellation_month) = EXTRACT(month FROM CURRENT_DATE)
+               AND EXTRACT(year FROM cancellation_month) = EXTRACT(year FROM CURRENT_DATE)
+           ) b ON roster.id = b.user_id
+           WHERE roster.id = $1`,
+          [userId]
+        ),
+        getMaxPermitido(),
+      ]);
+      // +1 because logActionToDB may not be committed yet
+      const count = (cancelRes.rows[0]?.cancellations ?? 0) + 1;
+      const remaining = max - count;
+
+      let msg;
+      if (max === 0) {
+        // penalty system off — no message
+      } else if (remaining > 1) {
+        msg = `📊 You've used *${count}/${max}* free cancellations this month. You have *${remaining}* left before penalty.`;
+      } else if (remaining === 1) {
+        msg = `⚠️ You've used *${count}/${max}* free cancellations this month. Only *1 left* — next cancellation triggers a penalty!`;
+      } else if (remaining === 0) {
+        msg = `🚨 You've reached your limit of *${max}* cancellations this month. A penalty will be applied next month.`;
+      } else {
+        msg = `🚨 You've exceeded your limit with *${count}/${max}* cancellations this month. Penalty already incurred.`;
+      }
+
+      if (msg) await sendWhatsAppMessage(sender, msg);
+    } catch (err) {
+      console.error("Error sending cancel warning:", err);
+    }
+
     return;
   }
 
@@ -2627,13 +2667,38 @@ function haversineDistance(lat1, lng1, lat2, lng2) {
 // Insert a check-in row (allows multiple check-ins per user per day for spot checks).
 async function saveCheckIn(userId, slotNumber, lat, lng, distanceM, isValid, checkInType = 'mandatory') {
   const now = getLocalTime().toISO();
-  await pool.query(
-    `
-    INSERT INTO check_ins (user_id, slot_number, check_in_time, latitude, longitude, distance_m, is_valid, check_in_type)
-    VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
-  `,
-    [userId, slotNumber, now, lat, lng, distanceM, isValid, checkInType]
-  );
+
+  if (checkInType === 'mandatory') {
+    // For mandatory: allow updating if one already exists today (e.g., user moved and re-checked in)
+    const existingRes = await pool.query(
+      `SELECT id FROM check_ins WHERE user_id = $1 AND check_in_date = CURRENT_DATE AND check_in_type = 'mandatory'`,
+      [userId]
+    );
+
+    if (existingRes.rows.length > 0) {
+      // Update existing mandatory check-in with new location/time
+      await pool.query(
+        `UPDATE check_ins
+         SET check_in_time = $2, latitude = $3, longitude = $4, distance_m = $5, is_valid = $6
+         WHERE user_id = $1 AND check_in_date = CURRENT_DATE AND check_in_type = 'mandatory'`,
+        [userId, now, lat, lng, distanceM, isValid]
+      );
+    } else {
+      // Insert new mandatory check-in
+      await pool.query(
+        `INSERT INTO check_ins (user_id, slot_number, check_in_time, latitude, longitude, distance_m, is_valid, check_in_type)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
+        [userId, slotNumber, now, lat, lng, distanceM, isValid, checkInType]
+      );
+    }
+  } else {
+    // For spot checks: always insert (allow multiple per day)
+    await pool.query(
+      `INSERT INTO check_ins (user_id, slot_number, check_in_time, latitude, longitude, distance_m, is_valid, check_in_type)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
+      [userId, slotNumber, now, lat, lng, distanceM, isValid, checkInType]
+    );
+  }
 }
 
 // Returns today's check-in status for every currently assigned slot.
@@ -2698,14 +2763,22 @@ async function getTodayCheckIns() {
       // Convert mandatory check-in time to Argentina timezone
       let checkInTime = null;
       if (mandatoryCheckIn?.check_in_time) {
-        const utcTime = DateTime.fromISO(mandatoryCheckIn.check_in_time, { zone: 'utc' });
+        // Handle both ISO strings and Date objects from DB
+        const timeStr = typeof mandatoryCheckIn.check_in_time === 'string'
+          ? mandatoryCheckIn.check_in_time
+          : mandatoryCheckIn.check_in_time.toISOString();
+        const utcTime = DateTime.fromISO(timeStr, { zone: 'utc' });
         checkInTime = utcTime.setZone('America/Argentina/Buenos_Aires').toISO();
       }
 
       // Convert spot check time to Argentina timezone
       let spotCheckTime = null;
       if (spotCheck?.check_in_time) {
-        const utcTime = DateTime.fromISO(spotCheck.check_in_time, { zone: 'utc' });
+        // Handle both ISO strings and Date objects from DB
+        const timeStr = typeof spotCheck.check_in_time === 'string'
+          ? spotCheck.check_in_time
+          : spotCheck.check_in_time.toISOString();
+        const utcTime = DateTime.fromISO(timeStr, { zone: 'utc' });
         spotCheckTime = utcTime.setZone('America/Argentina/Buenos_Aires').toISO();
       }
 
