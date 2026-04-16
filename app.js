@@ -2666,7 +2666,8 @@ function haversineDistance(lat1, lng1, lat2, lng2) {
 
 // Insert a check-in row (allows multiple check-ins per user per day for spot checks).
 async function saveCheckIn(userId, slotNumber, lat, lng, distanceM, isValid, checkInType = 'mandatory') {
-  const now = getLocalTime().toISO();
+  // Convert to UTC for unambiguous DB storage
+  const now = getLocalTime().toUTC().toISO();
 
   if (checkInType === 'mandatory') {
     // For mandatory: allow updating if one already exists today (e.g., user moved and re-checked in)
