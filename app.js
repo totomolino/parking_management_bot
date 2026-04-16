@@ -2666,8 +2666,8 @@ function haversineDistance(lat1, lng1, lat2, lng2) {
 
 // Insert a check-in row (allows multiple check-ins per user per day for spot checks).
 async function saveCheckIn(userId, slotNumber, lat, lng, distanceM, isValid, checkInType = 'mandatory') {
-  // Convert to UTC for unambiguous DB storage
-  const now = getLocalTime().toUTC().toISO();
+  // Store Argentina local time directly
+  const now = getLocalTime().toISO();
 
   if (checkInType === 'mandatory') {
     // For mandatory: allow updating if one already exists today (e.g., user moved and re-checked in)
@@ -2761,33 +2761,11 @@ async function getTodayCheckIns() {
         status = "pending";
       }
 
-      // Convert mandatory check-in time to Argentina timezone
-      let checkInTime = null;
-      if (mandatoryCheckIn?.check_in_time) {
-        let checkInDateTime;
-        if (typeof mandatoryCheckIn.check_in_time === 'string') {
-          // String: parse as ISO (timezone info is in the string)
-          checkInDateTime = DateTime.fromISO(mandatoryCheckIn.check_in_time);
-        } else {
-          // Date object: from DB (in UTC), interpret as UTC then convert
-          checkInDateTime = DateTime.fromJSDate(mandatoryCheckIn.check_in_time, { zone: 'utc' });
-        }
-        checkInTime = checkInDateTime.setZone('America/Argentina/Buenos_Aires').toISO();
-      }
+      // Use check-in time as-is (already stored in Argentina timezone)
+      let checkInTime = mandatoryCheckIn?.check_in_time || null;
 
-      // Convert spot check time to Argentina timezone
-      let spotCheckTime = null;
-      if (spotCheck?.check_in_time) {
-        let spotCheckDateTime;
-        if (typeof spotCheck.check_in_time === 'string') {
-          // String: parse as ISO (timezone info is in the string)
-          spotCheckDateTime = DateTime.fromISO(spotCheck.check_in_time);
-        } else {
-          // Date object: from DB (in UTC), interpret as UTC then convert
-          spotCheckDateTime = DateTime.fromJSDate(spotCheck.check_in_time, { zone: 'utc' });
-        }
-        spotCheckTime = spotCheckDateTime.setZone('America/Argentina/Buenos_Aires').toISO();
-      }
+      // Use spot check time as-is (already stored in Argentina timezone)
+      let spotCheckTime = spotCheck?.check_in_time || null;
 
       return {
         slot_number: s.number,
