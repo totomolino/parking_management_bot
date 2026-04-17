@@ -1304,7 +1304,7 @@ async function handleCancel(sender, name) {
     slot.phone = null;
     slot.timeoutDate = null;
     sendWhatsAppMessage(sender, `You've released parking slot ${slot.number}.`);
-    logActionToDB(sender, `Released_slot_${slot.number}`);
+    await logActionToDB(sender, `Released_slot_${slot.number}`);
     assignNextSlot();
 
     // Warn user how many free cancellations remain (only after 8 AM — pre-8AM cancellations don't count)
@@ -1326,8 +1326,7 @@ async function handleCancel(sender, name) {
         ),
         getMaxPermitido(),
       ]);
-      // +1 because logActionToDB may not be committed yet
-      const count = (cancelRes.rows[0]?.cancellations ?? 0) + 1;
+      const count = cancelRes.rows[0]?.cancellations ?? 0;
       const remaining = max - count;
 
       let msg;
