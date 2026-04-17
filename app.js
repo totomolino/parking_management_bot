@@ -1307,8 +1307,11 @@ async function handleCancel(sender, name) {
     await logActionToDB(sender, `Released_slot_${slot.number}`);
     assignNextSlot();
 
-    // Warn user how many free cancellations remain (only after 8 AM — pre-8AM cancellations don't count)
-    if (getLocalTime().hour < 8) return;
+    // Warn only on workdays between 8 AM and 5 PM — cancellations outside this window don't count
+    const cancelHour = getLocalTime().hour;
+    if (cancelHour < 8 || cancelHour >= 17) return;
+    const { isWorkday } = await isTodayWorkday();
+    if (!isWorkday) return;
 
     try {
       const userId = await searchUserId(sender);
