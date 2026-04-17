@@ -1307,7 +1307,9 @@ async function handleCancel(sender, name) {
     logActionToDB(sender, `Released_slot_${slot.number}`);
     assignNextSlot();
 
-    // Warn user how many free cancellations remain
+    // Warn user how many free cancellations remain (only after 8 AM — pre-8AM cancellations don't count)
+    if (getLocalTime().hour < 8) return;
+
     try {
       const userId = await searchUserId(sender);
       const [cancelRes, max] = await Promise.all([
@@ -1331,12 +1333,10 @@ async function handleCancel(sender, name) {
       let msg;
       if (max === 0) {
         // penalty system off — no message
-      } else if (remaining > 1) {
+      } else if (remaining > 0) {
         msg = `📊 You've used *${count}/${max}* free cancellations this month. You have *${remaining}* left before penalty.`;
-      } else if (remaining === 1) {
-        msg = `⚠️ You've used *${count}/${max}* free cancellations this month. Only *1 left* — next cancellation triggers a penalty!`;
       } else if (remaining === 0) {
-        msg = `🚨 You've reached your limit of *${max}* cancellations this month. A penalty will be applied next month.`;
+        msg = `⚠️ You've used all *${max}* free cancellations this month. *Next cancellation will trigger a penalty!*`;
       } else {
         msg = `🚨 You've exceeded your limit with *${count}/${max}* cancellations this month. Penalty already incurred.`;
       }
