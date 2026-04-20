@@ -3444,79 +3444,42 @@ app.delete("/admin/permanent-slots/:slotNumber", async (req, res) => {
 // PARKING INSIGHTS ENDPOINTS
 // ─────────────────────────────────────────────────────────────────────────────
 
-// POST /admin/parking-insights — upload merged_all_time.xlsx, cross-ref with DB assignments
+// POST /admin/parking-insights — upload parking_insights_*.xlsx (already processed output)
 app.post('/admin/parking-insights', upload.single('file'), async (req, res) => {
   if (!req.file) return res.status(400).json({ message: 'No file uploaded.' });
 
   try {
     const wb = XLSX.read(req.file.buffer, { type: 'buffer', cellDates: false });
-    if (!wb.SheetNames.includes('Daily_ZS_Summary')) {
-      return res.status(400).json({ message: 'Sheet "Daily_ZS_Summary" not found in uploaded file.' });
+    if (!wb.SheetNames.includes('parking_insights')) {
+      return res.status(400).json({ message: 'Sheet "parking_insights" not found. Upload the output file from the Python script.' });
     }
 
-    const rows = XLSX.utils.sheet_to_json(wb.Sheets['Daily_ZS_Summary'], { raw: false });
+    const rows = XLSX.utils.sheet_to_json(wb.Sheets['parking_insights'], { raw: false });
+    if (rows.length === 0) return res.status(400).json({ message: 'No data rows found in parking_insights sheet.' });
 
-    // Build attendance lookup: "zs_id|YYYY-MM-DD" → {entry_time, leave_time, stay_hours}
-    const attendanceMap = new Map();
-    const summaryDays = new Set();
-
+    const insights = [];
     for (const row of rows) {
-      const zsId = String(row.zs_id || '').trim();
-      let day = String(row.Day || '').trim();
-      if (!zsId || !day) continue;
-      if (day.includes('T')) day = day.split('T')[0];
+      const zsId       = String(row.zs_id || '').trim();
+      const name       = String(row.name || '').trim();
+      let   parkingDate = String(row.parking_date || '').trim();
+      if (parkingDate.includes('T')) parkingDate = parkingDate.split('T')[0];
+      if (!zsId || !parkingDate) continue;
 
-      const stayHours = parseFloat(row.stay_hours);
-      const key = `${zsId}|${day}`;
-      const existing = attendanceMap.get(key);
-      if (!existing || (!isNaN(stayHours) && (isNaN(existing.stay_hours) || stayHours > existing.stay_hours))) {
-        attendanceMap.set(key, {
-          entry_time: row.entry_time || null,
-          leave_time: row.leave_time || null,
-          stay_hours: isNaN(stayHours) ? null : stayHours,
-        });
-      }
-      summaryDays.add(day);
+      const stayHours = row.stay_hours === '-' || row.stay_hours === '' ? null : parseFloat(row.stay_hours);
+      insights.push({
+        zs_id:        zsId,
+        name,
+        parking_date: parkingDate,
+        entry_time:   row.entry_time === '-' ? null : (row.entry_time || null),
+        leave_time:   row.leave_time === '-' ? null : (row.leave_time || null),
+        stay_hours:   isNaN(stayHours) ? null : stayHours,
+        verdict:      row.verdict || 'Horrible',
+      });
     }
 
-    if (summaryDays.size === 0) {
-      return res.status(400).json({ message: 'No valid data rows found in Daily_ZS_Summary.' });
-    }
-
-    const sortedDays = [...summaryDays].sort();
+    const sortedDays = [...new Set(insights.map(r => r.parking_date))].sort();
     const minDay = sortedDays[0];
     const maxDay = sortedDays[sortedDays.length - 1];
-
-    // Query DB assignments in the date range (only users with a zs_id)
-    const assignRes = await pool.query(
-      `SELECT r.zs_id, r.name, res.reservation_date::text AS parking_date
-       FROM reservations res
-       JOIN roster r ON r.id = res.user_id
-       WHERE res.reservation_date BETWEEN $1 AND $2
-         AND r.zs_id IS NOT NULL AND r.zs_id != ''`,
-      [minDay, maxDay]
-    );
-
-    // LEFT JOIN: for each assignment that has a matching summary day, compute verdict
-    const insights = [];
-    for (const a of assignRes.rows) {
-      if (!summaryDays.has(a.parking_date)) continue;
-      const att = attendanceMap.get(`${a.zs_id}|${a.parking_date}`);
-      let verdict, entryTime, leaveTime, stayHours;
-      if (att) {
-        entryTime  = att.entry_time;
-        leaveTime  = att.leave_time;
-        stayHours  = att.stay_hours;
-        verdict    = (stayHours !== null && stayHours >= 6.0) ? 'Good' : 'Bad';
-      } else {
-        entryTime = leaveTime = null;
-        stayHours = null;
-        verdict   = 'Horrible';
-      }
-      insights.push({ zs_id: a.zs_id, name: a.name, parking_date: a.parking_date, entry_time: entryTime, leave_time: leaveTime, stay_hours: stayHours, verdict });
-    }
-
-    insights.sort((a, b) => a.name.localeCompare(b.name) || a.parking_date.localeCompare(b.parking_date));
 
     // Upsert into parking_insights table
     for (const row of insights) {
