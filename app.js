@@ -3476,13 +3476,12 @@ app.post('/admin/parking-insights', async (req, res) => {
     const minDay = sortedDays[0];
     const maxDay = sortedDays[sortedDays.length - 1];
 
-    // Query DB assignments in the date range
+    // Query actual assignments (accepted + not cancelled) in the date range
     const assignRes = await pool.query(
-      `SELECT r.zs_id, r.name, res.reservation_date::text AS parking_date
-       FROM reservations res
-       JOIN roster r ON r.id = res.user_id
-       WHERE res.reservation_date BETWEEN $1 AND $2
-         AND r.zs_id IS NOT NULL AND r.zs_id != ''`,
+      `SELECT zs_id, name, parking_date::text AS parking_date
+       FROM assignments_without_cancellation
+       WHERE parking_date BETWEEN $1 AND $2
+         AND zs_id IS NOT NULL AND zs_id != ''`,
       [minDay, maxDay]
     );
 
