@@ -6,6 +6,9 @@ const ngrok = require("@ngrok/ngrok");
 const fs = require("fs"); // Import fs module for logging
 const path = require("path");
 const { DateTime } = require("luxon"); //for date manipulation
+const multer = require("multer");
+const XLSX = require("xlsx");
+const upload = multer({ storage: multer.memoryStorage() });
 require("dotenv").config(); // Load environment variables from .env file
 const csvParser = require("csv-parser");
 const { createCanvas, loadImage } = require("canvas");
@@ -3434,6 +3437,122 @@ app.delete("/admin/permanent-slots/:slotNumber", async (req, res) => {
     });
   } catch (err) {
     res.status(500).json({ message: "DB error.", error: err.message });
+  }
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// PARKING INSIGHTS ENDPOINTS
+// ─────────────────────────────────────────────────────────────────────────────
+
+// POST /admin/parking-insights — upload merged_all_time.xlsx, cross-ref with DB assignments
+app.post('/admin/parking-insights', upload.single('file'), async (req, res) => {
+  if (!req.file) return res.status(400).json({ message: 'No file uploaded.' });
+
+  try {
+    const wb = XLSX.read(req.file.buffer, { type: 'buffer', cellDates: false });
+    if (!wb.SheetNames.includes('Daily_ZS_Summary')) {
+      return res.status(400).json({ message: 'Sheet "Daily_ZS_Summary" not found in uploaded file.' });
+    }
+
+    const rows = XLSX.utils.sheet_to_json(wb.Sheets['Daily_ZS_Summary'], { raw: false });
+
+    // Build attendance lookup: "zs_id|YYYY-MM-DD" → {entry_time, leave_time, stay_hours}
+    const attendanceMap = new Map();
+    const summaryDays = new Set();
+
+    for (const row of rows) {
+      const zsId = String(row.zs_id || '').trim();
+      let day = String(row.Day || '').trim();
+      if (!zsId || !day) continue;
+      if (day.includes('T')) day = day.split('T')[0];
+
+      const stayHours = parseFloat(row.stay_hours);
+      const key = `${zsId}|${day}`;
+      const existing = attendanceMap.get(key);
+      if (!existing || (!isNaN(stayHours) && (isNaN(existing.stay_hours) || stayHours > existing.stay_hours))) {
+        attendanceMap.set(key, {
+          entry_time: row.entry_time || null,
+          leave_time: row.leave_time || null,
+          stay_hours: isNaN(stayHours) ? null : stayHours,
+        });
+      }
+      summaryDays.add(day);
+    }
+
+    if (summaryDays.size === 0) {
+      return res.status(400).json({ message: 'No valid data rows found in Daily_ZS_Summary.' });
+    }
+
+    const sortedDays = [...summaryDays].sort();
+    const minDay = sortedDays[0];
+    const maxDay = sortedDays[sortedDays.length - 1];
+
+    // Query DB assignments in the date range (only users with a zs_id)
+    const assignRes = await pool.query(
+      `SELECT r.zs_id, r.name, res.reservation_date::text AS parking_date
+       FROM reservations res
+       JOIN roster r ON r.id = res.user_id
+       WHERE res.reservation_date BETWEEN $1 AND $2
+         AND r.zs_id IS NOT NULL AND r.zs_id != ''`,
+      [minDay, maxDay]
+    );
+
+    // LEFT JOIN: for each assignment that has a matching summary day, compute verdict
+    const insights = [];
+    for (const a of assignRes.rows) {
+      if (!summaryDays.has(a.parking_date)) continue;
+      const att = attendanceMap.get(`${a.zs_id}|${a.parking_date}`);
+      let verdict, entryTime, leaveTime, stayHours;
+      if (att) {
+        entryTime  = att.entry_time;
+        leaveTime  = att.leave_time;
+        stayHours  = att.stay_hours;
+        verdict    = (stayHours !== null && stayHours >= 6.0) ? 'Good' : 'Bad';
+      } else {
+        entryTime = leaveTime = null;
+        stayHours = null;
+        verdict   = 'Horrible';
+      }
+      insights.push({ zs_id: a.zs_id, name: a.name, parking_date: a.parking_date, entry_time: entryTime, leave_time: leaveTime, stay_hours: stayHours, verdict });
+    }
+
+    insights.sort((a, b) => a.name.localeCompare(b.name) || a.parking_date.localeCompare(b.parking_date));
+
+    // Upsert into parking_insights table
+    for (const row of insights) {
+      await pool.query(
+        `INSERT INTO parking_insights (zs_id, name, parking_date, entry_time, leave_time, stay_hours, verdict, uploaded_at)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, NOW())
+         ON CONFLICT (zs_id, parking_date) DO UPDATE
+           SET name = EXCLUDED.name, entry_time = EXCLUDED.entry_time,
+               leave_time = EXCLUDED.leave_time, stay_hours = EXCLUDED.stay_hours,
+               verdict = EXCLUDED.verdict, uploaded_at = NOW()`,
+        [row.zs_id, row.name, row.parking_date, row.entry_time, row.leave_time, row.stay_hours, row.verdict]
+      );
+    }
+
+    res.json({ count: insights.length, from: minDay, to: maxDay, rows: insights });
+  } catch (err) {
+    console.error('Error processing parking insights:', err);
+    res.status(500).json({ message: 'Failed to process file.', error: err.message });
+  }
+});
+
+// GET /admin/parking-insights?from=YYYY-MM-DD&to=YYYY-MM-DD — load stored insights
+app.get('/admin/parking-insights', async (req, res) => {
+  const { from, to } = req.query;
+  if (!from || !to) return res.status(400).json({ message: 'from and to query params required.' });
+  try {
+    const result = await pool.query(
+      `SELECT zs_id, name, parking_date::text, entry_time, leave_time, stay_hours, verdict
+       FROM parking_insights
+       WHERE parking_date BETWEEN $1 AND $2
+       ORDER BY name, parking_date`,
+      [from, to]
+    );
+    res.json(result.rows);
+  } catch (err) {
+    res.status(500).json({ message: 'Failed to fetch insights.', error: err.message });
   }
 });
 
