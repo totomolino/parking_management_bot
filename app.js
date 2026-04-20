@@ -203,7 +203,7 @@ const twilioNumber = "whatsapp:+12023351857";
 
 // Middleware setup
 app.use(bodyParser.urlencoded({ extended: false }));
-app.use(bodyParser.json()); // Middleware to parse JSON body
+app.use(bodyParser.json({ limit: '20mb' })); // Middleware to parse JSON body
 // Enable CORS for all routes
 app.use(
   cors({
