@@ -3526,6 +3526,18 @@ app.post('/admin/parking-insights', async (req, res) => {
   }
 });
 
+// GET /admin/parking-insights/range — min/max dates of stored insights
+app.get('/admin/parking-insights/range', async (_, res) => {
+  try {
+    const result = await pool.query(
+      `SELECT MIN(parking_date)::text AS from_date, MAX(parking_date)::text AS to_date FROM parking_insights`
+    );
+    res.json(result.rows[0]);
+  } catch (err) {
+    res.status(500).json({ message: 'Failed.', error: err.message });
+  }
+});
+
 // GET /admin/parking-insights?from=YYYY-MM-DD&to=YYYY-MM-DD — load stored insights
 app.get('/admin/parking-insights', async (req, res) => {
   const { from, to } = req.query;
