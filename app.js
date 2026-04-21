@@ -3539,6 +3539,99 @@ app.post('/admin/parking-insights', async (req, res) => {
   }
 });
 
+// ─────────────────────────────────────────────────────────────────────────────
+// LOANER ENDPOINTS
+// ─────────────────────────────────────────────────────────────────────────────
+
+// POST /admin/loaner-activity — save aggregated loaner daily records
+app.post('/admin/loaner-activity', async (req, res) => {
+  const { loaners } = req.body;
+  if (!Array.isArray(loaners) || loaners.length === 0)
+    return res.status(400).json({ message: 'loaners array required.' });
+  try {
+    for (const row of loaners) {
+      await pool.query(
+        `INSERT INTO loaner_daily (loaner_name, day, entry_time, leave_time, stay_hours, uploaded_at)
+         VALUES ($1, $2, $3, $4, $5, NOW())
+         ON CONFLICT (loaner_name, day) DO UPDATE
+           SET entry_time=EXCLUDED.entry_time, leave_time=EXCLUDED.leave_time,
+               stay_hours=EXCLUDED.stay_hours, uploaded_at=NOW()`,
+        [row.loaner_name, row.day, row.entry_time, row.leave_time, row.stay_hours]
+      );
+    }
+    res.json({ saved: loaners.length });
+  } catch (err) {
+    res.status(500).json({ message: 'Failed to save loaner activity.', error: err.message });
+  }
+});
+
+// GET /admin/loaner-activity?from=&to= — loaners active in date range
+app.get('/admin/loaner-activity', async (req, res) => {
+  const { from, to } = req.query;
+  if (!from || !to) return res.status(400).json({ message: 'from and to required.' });
+  try {
+    const result = await pool.query(
+      `SELECT loaner_name, day::text, entry_time::text, leave_time::text, stay_hours
+       FROM loaner_daily WHERE day BETWEEN $1 AND $2 ORDER BY day, loaner_name`,
+      [from, to]
+    );
+    res.json(result.rows);
+  } catch (err) {
+    res.status(500).json({ message: 'Failed.', error: err.message });
+  }
+});
+
+// POST /admin/loaner-assignments — assign a loaner to a person
+app.post('/admin/loaner-assignments', async (req, res) => {
+  const { day, loaner_name, actual_zs_id } = req.body;
+  if (!day || !loaner_name || !actual_zs_id)
+    return res.status(400).json({ message: 'day, loaner_name and actual_zs_id required.' });
+  try {
+    const result = await pool.query(
+      `INSERT INTO loaner_assignments (day, loaner_name, actual_zs_id)
+       VALUES ($1, $2, $3)
+       ON CONFLICT (day, actual_zs_id) DO UPDATE
+         SET loaner_name=EXCLUDED.loaner_name, assigned_at=NOW()
+       RETURNING id`,
+      [day, loaner_name, actual_zs_id]
+    );
+    res.json({ id: result.rows[0].id });
+  } catch (err) {
+    res.status(500).json({ message: 'Failed.', error: err.message });
+  }
+});
+
+// DELETE /admin/loaner-assignments/:id — remove an assignment
+app.delete('/admin/loaner-assignments/:id', async (req, res) => {
+  try {
+    await pool.query('DELETE FROM loaner_assignments WHERE id = $1', [req.params.id]);
+    res.json({ message: 'Deleted.' });
+  } catch (err) {
+    res.status(500).json({ message: 'Failed.', error: err.message });
+  }
+});
+
+// GET /admin/loaner-assignments?from=&to= — assignments in date range
+app.get('/admin/loaner-assignments', async (req, res) => {
+  const { from, to } = req.query;
+  if (!from || !to) return res.status(400).json({ message: 'from and to required.' });
+  try {
+    const result = await pool.query(
+      `SELECT la.id, la.day::text, la.loaner_name, la.actual_zs_id, r.name AS actual_name,
+              ld.stay_hours AS loaner_stay_hours
+       FROM loaner_assignments la
+       LEFT JOIN roster r ON r.zs_id = la.actual_zs_id
+       LEFT JOIN loaner_daily ld ON ld.loaner_name = la.loaner_name AND ld.day = la.day
+       WHERE la.day BETWEEN $1 AND $2
+       ORDER BY la.day, la.loaner_name`,
+      [from, to]
+    );
+    res.json(result.rows);
+  } catch (err) {
+    res.status(500).json({ message: 'Failed.', error: err.message });
+  }
+});
+
 // GET /admin/parking-insights/range — min/max dates of stored insights
 app.get('/admin/parking-insights/range', async (_, res) => {
   try {
