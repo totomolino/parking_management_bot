@@ -3476,6 +3476,19 @@ app.post('/admin/parking-insights', async (req, res) => {
     const minDay = sortedDays[0];
     const maxDay = sortedDays[sortedDays.length - 1];
 
+    // Persist raw attendance data for future insights
+    for (const [key, att] of attendanceMap.entries()) {
+      const [zsId, day] = key.split('|');
+      await pool.query(
+        `INSERT INTO attendance_raw (zs_id, day, entry_time, leave_time, stay_hours, uploaded_at)
+         VALUES ($1, $2, $3, $4, $5, NOW())
+         ON CONFLICT (zs_id, day) DO UPDATE
+           SET entry_time = EXCLUDED.entry_time, leave_time = EXCLUDED.leave_time,
+               stay_hours = EXCLUDED.stay_hours, uploaded_at = NOW()`,
+        [zsId, day, att.entry_time, att.leave_time, att.stay_hours]
+      );
+    }
+
     // Query actual assignments (accepted + not cancelled) in the date range
     const assignRes = await pool.query(
       `SELECT zs_id, name, parking_date::text AS parking_date
