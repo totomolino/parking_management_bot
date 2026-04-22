@@ -1799,9 +1799,11 @@ app.post("/send-reminder", async (req, res) => {
         .json({ message: "Today is a holiday. No reminders sent." });
     }
 
-    // Only send reminders to assigned slots that have a phone number
+    // Only send reminders to assigned slots — exclude permanent slots
+    const permSlots = await loadPermanentSlots();
+    const permNumbers = new Set(permSlots.map(p => p.slot_number));
     const assignedSlots = parkingSlots
-      .filter((slot) => slot.status === "assigned" && slot.phone)
+      .filter((slot) => slot.status === "assigned" && slot.phone && !permNumbers.has(slot.number))
       .map((slot) => ({ phone: slot.phone, number: slot.number }));
 
     if (assignedSlots.length === 0) {
@@ -3178,10 +3180,12 @@ app.post("/send-checkin-request", async (req, res) => {
     config.deadlineMin
   ).padStart(2, "0")} AM`;
 
+  const permSlots = await loadPermanentSlots();
+  const permNumbers = new Set(permSlots.map(p => p.slot_number));
   const toNotify = parkingSlots.filter((s) => {
     if (s.status === "available" || !s.phone) return false;
+    if (permNumbers.has(s.number)) return false; // permanent slots don't need check-in requests
     if (targets === "all") return true;
-    // targets is array of userId — match by phone lookup (handled below)
     return true;
   });
 
@@ -3629,6 +3633,16 @@ app.get('/admin/loaner-assignments', async (req, res) => {
     res.json(result.rows);
   } catch (err) {
     res.status(500).json({ message: 'Failed.', error: err.message });
+  }
+});
+
+// DELETE /admin/insights-data — clear all stored insights and loaner data
+app.delete('/admin/insights-data', async (_, res) => {
+  try {
+    await pool.query('TRUNCATE parking_insights, loaner_daily, loaner_assignments RESTART IDENTITY');
+    res.json({ message: 'All insights and loaner data cleared.' });
+  } catch (err) {
+    res.status(500).json({ message: 'Failed to clear data.', error: err.message });
   }
 });
 
