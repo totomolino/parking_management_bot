@@ -633,6 +633,12 @@ If you continue to experience issues after this, please reach out to someone fro
       break;
     case messageBody === "reserve":
       logActionToDB(sender, "COMMAND_RESERVE");
+      const permSlotsCheck = await loadPermanentSlots();
+      const permPhonesCheck = new Set(permSlotsCheck.map(p => `whatsapp:${p.phone}`));
+      if (permPhonesCheck.has(sender)) {
+        sendWhatsAppMessage(sender, `You have a permanent parking slot — no reservation needed. Your spot is always assigned automatically. 🚗`);
+        break;
+      }
       const { isWorkday, localTime } = await isTodayWorkday();
       if (isWorkday && localTime.hour >= 8 && localTime.hour < 17) {
         handleReserve(req.body.MessageSid, sender, name);
@@ -1801,9 +1807,9 @@ app.post("/send-reminder", async (req, res) => {
 
     // Only send reminders to assigned slots — exclude permanent slots
     const permSlots = await loadPermanentSlots();
-    const permNumbers = new Set(permSlots.map(p => p.slot_number));
+    const permPhones = new Set(permSlots.map(p => `whatsapp:${p.phone}`));
     const assignedSlots = parkingSlots
-      .filter((slot) => slot.status === "assigned" && slot.phone && !permNumbers.has(slot.number))
+      .filter((slot) => slot.status === "assigned" && slot.phone && !permPhones.has(slot.phone))
       .map((slot) => ({ phone: slot.phone, number: slot.number }));
 
     if (assignedSlots.length === 0) {
@@ -3699,3 +3705,4 @@ ngrok
   .catch((error) => {
     console.error("Error connecting ngrok:", error);
   });
+
