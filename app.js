@@ -512,6 +512,15 @@ If you continue to experience issues after this, please reach out to someone fro
     return res.status(200).end();
   }
 
+  // ── Banned users — total block, no response ──────────────────────────────
+  const bannedCheck = await pool.query(
+    `SELECT banned FROM roster WHERE phone = $1`,
+    [sender.replace('whatsapp:', '')]
+  );
+  if (bannedCheck.rows[0]?.banned === true) {
+    return res.status(200).end();
+  }
+
   // ── Location share (user shares WhatsApp location) ──────────────────────────
   if (req.body.Latitude && req.body.Longitude) {
     console.log(`[LOCATION_RECEIVED] Raw message from ${sender}:`, req.body);
@@ -3679,6 +3688,71 @@ app.get('/admin/parking-insights', async (req, res) => {
     res.json(result.rows);
   } catch (err) {
     res.status(500).json({ message: 'Failed to fetch insights.', error: err.message });
+  }
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// BLACKLIST ENDPOINTS
+// ─────────────────────────────────────────────────────────────────────────────
+
+// GET /admin/blacklist — all banned users
+app.get('/admin/blacklist', async (req, res) => {
+  try {
+    const result = await pool.query(
+      `SELECT id, name, phone FROM roster WHERE banned = true ORDER BY name`
+    );
+    res.json(result.rows);
+  } catch (err) {
+    res.status(500).json({ message: 'Failed to fetch blacklist.', error: err.message });
+  }
+});
+
+// POST /admin/blacklist/:userId — ban a user
+app.post('/admin/blacklist/:userId', async (req, res) => {
+  const userId = parseInt(req.params.userId, 10);
+  if (isNaN(userId)) return res.status(400).json({ message: 'Invalid userId.' });
+  try {
+    await pool.query(`UPDATE roster SET banned = true WHERE id = $1`, [userId]);
+    res.json({ message: 'User banned.' });
+  } catch (err) {
+    res.status(500).json({ message: 'Failed to ban user.', error: err.message });
+  }
+});
+
+// DELETE /admin/blacklist/:userId — unban a user
+app.delete('/admin/blacklist/:userId', async (req, res) => {
+  const userId = parseInt(req.params.userId, 10);
+  if (isNaN(userId)) return res.status(400).json({ message: 'Invalid userId.' });
+  try {
+    await pool.query(`UPDATE roster SET banned = false WHERE id = $1`, [userId]);
+    res.json({ message: 'User unbanned.' });
+  } catch (err) {
+    res.status(500).json({ message: 'Failed to unban user.', error: err.message });
+  }
+});
+
+// GET /admin/compliance/no-shows — no-show users from insights, with cancellation cross-ref
+app.get('/admin/compliance/no-shows', async (req, res) => {
+  try {
+    const result = await pool.query(`
+      SELECT
+        r.id         AS user_id,
+        r.name,
+        r.banned,
+        COUNT(*)     AS no_show_count,
+        COALESCE(MAX(mc.cancellation_count), 0) AS cancellation_count
+      FROM parking_insights pi
+      JOIN roster r ON r.name = pi.name
+      LEFT JOIN monthly_cancellations mc
+        ON mc.user_id = r.id
+        AND mc.cancellation_month = date_trunc('month', CURRENT_DATE - INTERVAL '1 month')
+      WHERE pi.verdict = 'Horrible'
+      GROUP BY r.id, r.name, r.banned
+      ORDER BY no_show_count DESC
+    `);
+    res.json(result.rows);
+  } catch (err) {
+    res.status(500).json({ message: 'Failed to fetch no-shows.', error: err.message });
   }
 });
 
