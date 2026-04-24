@@ -3731,6 +3731,27 @@ app.delete('/admin/blacklist/:userId', async (req, res) => {
   }
 });
 
+// GET /admin/compliance/flagged — currently flagged + users to be flagged/deflagged on next penalize run
+app.get('/admin/compliance/flagged', async (req, res) => {
+  try {
+    const [flaggedRes, toBeRes, toDepenalizeRes, maxRes] = await Promise.all([
+      pool.query(`SELECT id AS user_id, name, score FROM roster WHERE flagged = true ORDER BY name`),
+      pool.query(`SELECT user_id, name, cancellation_count, possible_new_score FROM current_month_punished ORDER BY cancellation_count DESC`),
+      pool.query(`SELECT user_id, name, last_month_cancellation_count FROM current_month_depenalized ORDER BY name`),
+      pool.query(`SELECT MAX(value)::int AS max FROM parking_config WHERE key = 'maxPermitido'`),
+    ]);
+    const maxScore = maxRes.rows[0]?.max ?? 2;
+    res.json({
+      max_score: maxScore,
+      flagged: flaggedRes.rows,
+      to_be_flagged: toBeRes.rows,
+      to_be_depenalized: toDepenalizeRes.rows.map(u => ({ ...u, future_score: maxScore })),
+    });
+  } catch (err) {
+    res.status(500).json({ message: 'Failed to fetch flagged users.', error: err.message });
+  }
+});
+
 // GET /admin/compliance/no-shows — no-show users from insights, with cancellation cross-ref
 app.get('/admin/compliance/no-shows', async (req, res) => {
   try {
