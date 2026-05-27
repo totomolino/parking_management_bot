@@ -3563,22 +3563,24 @@ app.get("/admin/plates", async (req, res) => {
 });
 
 // POST /admin/upload-plates — bulk upsert plates from Excel or Power Automate
-// Body: [{ name: "Juan Perez", plate: "ABC123" }, ...]
+// Body: [{ name: "Juan Perez", phone: "+5491123456789", plate: "ABC123" }, ...]
+// name is for display only — matching is done by phone
 app.post("/admin/upload-plates", async (req, res) => {
   const rows = req.body;
   if (!Array.isArray(rows) || rows.length === 0)
-    return res.status(400).json({ message: "Array of { name, plate } required." });
+    return res.status(400).json({ message: "Array of { name, phone, plate } required." });
 
   const results = { inserted: 0, updated: 0, notFound: [] };
-  for (const { name, plate } of rows) {
-    if (!name || !plate) continue;
+  for (const { name, phone, plate } of rows) {
+    if (!phone || !plate) continue;
     const normalized = normalizePlate(plate);
+    const cleanPhone = String(phone).replace(/\s/g, "").replace(/^\+/, "");
     const user = await pool.query(
-      `SELECT id FROM roster WHERE LOWER(TRIM(name)) = LOWER(TRIM($1))`,
-      [name]
+      `SELECT id, name FROM roster WHERE REPLACE(REPLACE(phone, '+', ''), ' ', '') = $1`,
+      [cleanPhone]
     );
     if (!user.rows.length) {
-      results.notFound.push(name);
+      results.notFound.push(name || phone);
       continue;
     }
     const r = await pool.query(
