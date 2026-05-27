@@ -640,6 +640,9 @@ If you continue to experience issues after this, please reach out to someone fro
       logActionToDB(sender, "COMMAND_PING");
       handleSlotPing(sender, name);
       break;
+    case messageBody.startsWith("wrong slot"):
+      await handleWrongSlot(sender, messageBody);
+      break;
     case messageBody === "reserve":
       logActionToDB(sender, "COMMAND_RESERVE");
       const permSlotsCheck = await loadPermanentSlots();
@@ -1538,6 +1541,82 @@ function handleSlotPing(sender, name) {
   } else {
     sendWhatsAppMessage(sender, "You don't have any slot assigned.");
     logActionToDB(sender, "Attempted to check slot but has no assignment.");
+  }
+}
+
+// ── Wrong slot command ───────────────────────────────────────────────────────
+async function handleWrongSlot(sender, messageBody) {
+  const rawPlate = messageBody.replace(/^wrong slot/i, "").trim();
+
+  if (!rawPlate) {
+    return sendWhatsAppMessage(
+      sender,
+      `Usage: *wrong slot <plate>*\nExample: wrong slot ABC123`
+    );
+  }
+
+  // Reporter must have an active slot today
+  const reporterSlot = parkingSlots.find(
+    (s) => s.phone === sender && (s.status === "assigned" || s.status === "pending")
+  );
+  if (!reporterSlot) {
+    return sendWhatsAppMessage(
+      sender,
+      `⚠️ You need to have an assigned parking slot today to use this command.`
+    );
+  }
+
+  const plate = rawPlate.toUpperCase().replace(/[\s\-\.]/g, "");
+
+  // Look up plate in DB
+  let owner;
+  try {
+    const r = await pool.query(
+      `SELECT r.name, r.phone FROM plates p JOIN roster r ON p.user_id = r.id WHERE p.plate = $1`,
+      [plate]
+    );
+    owner = r.rows[0] || null;
+  } catch (err) {
+    console.error("handleWrongSlot DB error:", err);
+    return sendWhatsAppMessage(sender, `⚠️ An error occurred. Please try again.`);
+  }
+
+  logActionToDB(sender, `COMMAND_WRONG_SLOT plate=${plate} found=${!!owner}`);
+
+  // Case C — plate not in ZS database
+  if (!owner) {
+    return sendWhatsAppMessage(
+      sender,
+      `🔍 Plate *${plate}* is not registered in ZS's database.\nThis may be an external vehicle. Please contact Support Services as soon as possible.`
+    );
+  }
+
+  // Find offender's slot in today's in-memory state
+  const offenderPhone = `whatsapp:${owner.phone}`;
+  const offenderSlot = parkingSlots.find(
+    (s) => s.phone === offenderPhone && (s.status === "assigned" || s.status === "pending")
+  );
+
+  if (offenderSlot) {
+    // Case A — offender has a slot today
+    sendWhatsAppMessage(
+      sender,
+      `🚗 Plate *${plate}* is registered to *${owner.name}*.\nTheir assigned slot for today is *${offenderSlot.number}*.\nYou can park in slot *${offenderSlot.number}* for now.\nWe've sent them a notification.`
+    );
+    sendWhatsAppMessage(
+      offenderPhone,
+      `⚠️ Hi ${owner.name}! Your car (*${plate}*) may be parked in the wrong spot.\nYour assigned slot for today is *${offenderSlot.number}*.\nPlease check and move your car as soon as possible!`
+    );
+  } else {
+    // Case B — ZS employee but no assignment today
+    sendWhatsAppMessage(
+      sender,
+      `🚗 Plate *${plate}* is registered to *${owner.name}*, but this person does not have a parking assignment today.\nPlease contact Support Services as soon as possible.`
+    );
+    sendWhatsAppMessage(
+      offenderPhone,
+      `⚠️ Hi ${owner.name}! Your car (*${plate}*) may be parked in a ZS parking spot, but you don't have an assignment for today.\nPlease contact Support Services as soon as possible.`
+    );
   }
 }
 
@@ -3461,6 +3540,57 @@ app.delete("/admin/permanent-slots/:slotNumber", async (req, res) => {
   } catch (err) {
     res.status(500).json({ message: "DB error.", error: err.message });
   }
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// PLATES ENDPOINTS
+// ─────────────────────────────────────────────────────────────────────────────
+
+const normalizePlate = (p) => p.toUpperCase().replace(/[\s\-\.]/g, "");
+
+// GET /admin/plates — list all registered plates
+app.get("/admin/plates", async (req, res) => {
+  try {
+    const r = await pool.query(
+      `SELECT p.plate, r.name, r.phone
+       FROM plates p JOIN roster r ON p.user_id = r.id
+       ORDER BY r.name, p.plate`
+    );
+    res.json(r.rows);
+  } catch (err) {
+    res.status(500).json({ message: "DB error.", error: err.message });
+  }
+});
+
+// POST /admin/upload-plates — bulk upsert plates from Excel or Power Automate
+// Body: [{ name: "Juan Perez", plate: "ABC123" }, ...]
+app.post("/admin/upload-plates", async (req, res) => {
+  const rows = req.body;
+  if (!Array.isArray(rows) || rows.length === 0)
+    return res.status(400).json({ message: "Array of { name, plate } required." });
+
+  const results = { inserted: 0, updated: 0, notFound: [] };
+  for (const { name, plate } of rows) {
+    if (!name || !plate) continue;
+    const normalized = normalizePlate(plate);
+    const user = await pool.query(
+      `SELECT id FROM roster WHERE LOWER(TRIM(name)) = LOWER(TRIM($1))`,
+      [name]
+    );
+    if (!user.rows.length) {
+      results.notFound.push(name);
+      continue;
+    }
+    const r = await pool.query(
+      `INSERT INTO plates (user_id, plate) VALUES ($1, $2)
+       ON CONFLICT (plate) DO UPDATE SET user_id = EXCLUDED.user_id
+       RETURNING (xmax = 0) AS inserted`,
+      [user.rows[0].id, normalized]
+    );
+    if (r.rows[0].inserted) results.inserted++;
+    else results.updated++;
+  }
+  res.json(results);
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
