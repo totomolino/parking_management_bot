@@ -1330,6 +1330,13 @@ async function handleCancel(sender, name) {
 
     try {
       const userId = await searchUserId(sender);
+
+      // Permanent slot holders are exempt from cancellation penalties
+      const permCheck = await pool.query(
+        `SELECT 1 FROM permanent_slots WHERE user_id = $1`,
+        [userId]
+      );
+      if (permCheck.rows.length > 0) return;
       const [cancelRes, max] = await Promise.all([
         pool.query(
           `SELECT COALESCE(b.cancellation_count, 0) AS cancellations
@@ -1351,11 +1358,11 @@ async function handleCancel(sender, name) {
       if (max === 0) {
         // penalty system off — no message
       } else if (remaining > 0) {
-        msg = `📊 You've used *${count}/${max}* free cancellations this month. You have *${remaining}* left before penalty.`;
+        msg = `📊 You've used *${count}/${max}* free cancellations after 8 am this month. You have *${remaining}* left before penalty.`;
       } else if (remaining === 0) {
-        msg = `⚠️ You've used all *${max}* free cancellations this month. *Next cancellation will trigger a penalty!*`;
+        msg = `⚠️ You've used all *${max}* free cancellations after 8 am this month. *Next cancellation will trigger a penalty!*`;
       } else {
-        msg = `🚨 You've exceeded your limit with *${count}/${max}* cancellations this month. Penalty already incurred.`;
+        msg = `🚨 You've exceeded your limit with *${count}/${max}* cancellations after 8 am this month. Penalty already incurred.`;
       }
 
       if (msg) await sendWhatsAppMessage(sender, msg);
@@ -3800,4 +3807,3 @@ ngrok
   .catch((error) => {
     console.error("Error connecting ngrok:", error);
   });
-
