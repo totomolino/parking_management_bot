@@ -1597,6 +1597,11 @@ async function handleWrongSlot(sender, messageBody) {
     (s) => s.phone === offenderPhone && (s.status === "assigned" || s.status === "pending")
   );
 
+  // Get reporter's name and clean phone for wa.me link
+  const reporterSlotData = parkingSlots.find(s => s.phone === sender);
+  const reporterName = reporterSlotData?.assignedTo?.replace(' (Pending)', '') || 'a colleague';
+  const reporterCleanPhone = sender.replace('whatsapp:', '').replace('+', '');
+
   if (offenderSlot) {
     // Case A — offender has a slot today
     sendWhatsAppMessage(
@@ -1605,7 +1610,7 @@ async function handleWrongSlot(sender, messageBody) {
     );
     sendWhatsAppMessage(
       offenderPhone,
-      `⚠️ Hi ${owner.name}! Your car (*${plate}*) may be parked in the wrong spot.\nYour assigned slot for today is *${offenderSlot.number}*.\nPlease check and move your car as soon as possible!`
+      `⚠️ Hi ${owner.name}! Your car *${plate}* may be parked in slot *${reporterSlot.number}*, assigned to *${reporterName}*.\nWe suggested ${reporterName} to use your slot *${offenderSlot.number}* in the meantime, but check just in case 👇\nhttps://wa.me/${reporterCleanPhone}`
     );
   } else {
     // Case B — ZS employee but no assignment today
@@ -1615,7 +1620,7 @@ async function handleWrongSlot(sender, messageBody) {
     );
     sendWhatsAppMessage(
       offenderPhone,
-      `⚠️ Hi ${owner.name}! Your car (*${plate}*) may be parked in a ZS parking spot, but you don't have an assignment for today.\nPlease contact Support Services as soon as possible.`
+      `⚠️ Hi ${owner.name}! Your car *${plate}* may be parked in a ZS parking spot assigned to *${reporterName}*, but you don't have an assignment for today.\nPlease sort it out directly 👇\nhttps://wa.me/${reporterCleanPhone}`
     );
   }
 }
