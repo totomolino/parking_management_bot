@@ -3857,7 +3857,12 @@ app.post('/admin/blacklist/:userId', async (req, res) => {
   if (isNaN(userId)) return res.status(400).json({ message: 'Invalid userId.' });
   try {
     await pool.query(`UPDATE roster SET banned = true WHERE id = $1`, [userId]);
-    res.json({ message: 'User banned.' });
+    // Delete any future/today reservations so the bot doesn't assign them a slot
+    const deleted = await pool.query(
+      `DELETE FROM reservations WHERE user_id = $1 AND reservation_date >= CURRENT_DATE RETURNING id`,
+      [userId]
+    );
+    res.json({ message: 'User banned.', reservationsDeleted: deleted.rowCount });
   } catch (err) {
     res.status(500).json({ message: 'Failed to ban user.', error: err.message });
   }
