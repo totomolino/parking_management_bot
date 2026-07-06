@@ -2511,7 +2511,7 @@ async function sendReminder(to, slotNumber) {
     process.env.TWILIO_ACCOUNT_SID,
     process.env.TWILIO_AUTH_TOKEN
   );
-  const template_id = "HX897b5d5c9fa344f048119f103810d0c2";
+  const template_id = "HXc7b550760d9320e629411706432b4700";
 
   //retrieving first in waiting list
   const waitingListUser =
