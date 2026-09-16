@@ -337,7 +337,7 @@ async function logAdminActionToDB(actionType, description, details = null) {
 // Initial Parking Slots Configuration
 const initialSlots = [
   // --- 4º SUB (800s) ---
-  814, 815, 816, 817, 839, 840, 841, 832, 834, 835, 836, 837, 838,
+  814, 815, 816, 817, 839, 840, 841, 843, 832, 834, 835, 836, 837, 838,
 
   // --- 3º SUB (500s) ---
   616, 585, 586, 587, 588, 589, 590, 591, 592, 593, 594, 596, 597, 598, 569,
@@ -352,6 +352,18 @@ const initialSlots = [
 }));
 
 // Permanent assignments are loaded from the permanent_slots DB table at startup and reapplied after each daily reset.
+
+// Slot 585 is a motorcycle-only spot: not a real permanent_slots DB row (no single owner),
+// so it's force-assigned to a "Motos" placeholder on every daily reset and excluded from the daily pool.
+const MOTORCYCLE_SLOT_NUMBER = 585;
+function applyMotorcycleSlot() {
+  const slot = parkingSlots.find((s) => s.number === MOTORCYCLE_SLOT_NUMBER);
+  if (slot) {
+    slot.status = "assigned";
+    slot.assignedTo = "🏍️ Motos";
+    slot.phone = null;
+  }
+}
 
 // Function to load data from file
 function loadParkingData() {
@@ -665,6 +677,17 @@ If you continue to experience issues after this, please reach out to someone fro
       logActionToDB(sender, "COMMAND_SCORE");
       handleScore(sender); //TODO
       break;
+    case messageBody === "moto" || messageBody === "motorcycle":
+      logActionToDB(sender, "COMMAND_MOTO");
+      sendWhatsAppMessage(
+        sender,
+        `🏍️ *Motorcycle Parking:*
+📍 3rd floor – *Spot 585*.
+🔹 *No reservation needed* – first come, first served.
+🔹 Multiple motorcycles can park in the spot, as long as they stay within the lines.
+🔹 Make sure your *parking access is activated* beforehand.`
+      );
+      break;
     case messageBody === "test_new":
       // sendReminder(sender)+
       sendWhatsAppMessage(sender, loginMessage);
@@ -724,6 +747,7 @@ Commands:
 🔹 *show all* – see all today’s bookings
 🔹 *ping* – notify shared spot users
 🔹 *score* – check your current score and month cancellations.
+🔹 *moto* – motorcycle parking info
       `;
       await sendWhatsAppMessage(sender, infoMessage1);
 
@@ -939,9 +963,11 @@ async function assignSlots(all_flag = false) {
   const permanentAssignments = assignments.filter(a => permanentNames.has(a.name));
   const dailyAssignments = assignments.filter(a => !permanentNames.has(a.name));
 
-  // Get all slot numbers, but exclude permanent slots for mapping
+  // Get all slot numbers, but exclude permanent slots for mapping (and the motorcycle-only slot)
   const allSlotNumbers = initialSlots.map(s => s.number);
-  const availableSlotNumbers = allSlotNumbers.filter(n => !permanentSlotNumbers.has(n));
+  const availableSlotNumbers = allSlotNumbers.filter(
+    n => !permanentSlotNumbers.has(n) && n !== MOTORCYCLE_SLOT_NUMBER
+  );
 
   console.log(`[DEBUG] Total slots: ${allSlotNumbers.length}`);
   console.log(`[DEBUG] Permanent slots: ${permanentSlots.length}`);
@@ -989,8 +1015,25 @@ function calculateTimeoutDuration(timeoutDuration) {
   let finalDelay = timeoutDuration;
 
   const currentHour = localTime.hour;
+  const currentMinute = localTime.minute;
 
-  if (currentHour >= 22 || currentHour < 7) {
+  // Between 17:00 and 19:10, any slot offer (direct assignment or WL reassignment)
+  // expires at 19:10 instead of the normal timeout, with a 10-minute floor.
+  const isInEveningWindow =
+    currentHour === 17 ||
+    currentHour === 18 ||
+    (currentHour === 19 && currentMinute < 10);
+
+  if (isInEveningWindow) {
+    const windowEnd = localTime.set({
+      hour: 19,
+      minute: 10,
+      second: 0,
+      millisecond: 0,
+    });
+    const msUntilWindowEnd = windowEnd.toMillis() - localTime.toMillis();
+    finalDelay = Math.max(msUntilWindowEnd, 10 * 60 * 1000);
+  } else if (currentHour >= 22 || currentHour < 7) {
     let nextDay7am = localTime;
     // Set time to 7:10 AM
     nextDay7am = nextDay7am.set({
@@ -1826,6 +1869,7 @@ async function assignSlotsAndCommunicate(res) {
         slot.phone = `whatsapp:${perm.phone}`;
       }
     });
+    applyMotorcycleSlot();
 
     waitingList = [];
 
@@ -1965,6 +2009,7 @@ app.post("/excel-data", async (req, res) => {
         slot.phone = `whatsapp:${perm.phone}`;
       }
     });
+    applyMotorcycleSlot();
 
     waitingList = [];
 
