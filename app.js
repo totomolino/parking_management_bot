@@ -1064,11 +1064,13 @@ function assignSlotToUser(
   slot,
   user,
   timeoutDuration,
-  message = `A parking slot is available!\nPlease confirm in the next 10 minutes if you want parking slot *${slot.number}*.`
+  message = `A parking slot is available!\nPlease confirm in the next 10 minutes if you want parking slot *${slot.number}*.`,
+  fromWaitingList = false
 ) {
   slot.status = "pending";
   slot.assignedTo = `${user.name} (Pending)`;
   slot.phone = user.phone;
+  slot.fromWaitingList = fromWaitingList;
 
   // Notify the user with interactive buttons
   if (message === "BS") {
@@ -1100,6 +1102,7 @@ function assignSlotToUser(
       slot.phone = null;
       slot.timeoutHandle = null;
       slot.timeoutDate = null;
+      slot.fromWaitingList = false;
 
       // Notify the user about timeout (optional)
       sendTimeoutMessage(user.phone, slot);
@@ -1134,7 +1137,13 @@ function assignNextSlot(timeoutDuration = 10 * 60 * 1000) {
     `The slot ${availableSlot.number} was free and given to first on WL`
   );
 
-  assignSlotToUser(availableSlot, nextPerson, timeoutDuration);
+  assignSlotToUser(
+    availableSlot,
+    nextPerson,
+    timeoutDuration,
+    undefined,
+    true // fromWaitingList
+  );
 }
 
 // Function to handle the 'add me' command
@@ -1182,7 +1191,9 @@ function handleAddMe(sender, name) {
     assignSlotToUser(
       availableSlot,
       { name, phone: sender },
-      10 * 60 * 1000 // 10 minutes in milliseconds
+      10 * 60 * 1000, // 10 minutes in milliseconds
+      undefined,
+      true // fromWaitingList
     );
     logActionToDB(sender, `Added and assigned slot ${availableSlot.number}`);
   } else {
@@ -1360,11 +1371,33 @@ async function handleCancel(sender, name) {
       slot.timeoutHandle = null;
     }
 
+    // Grace period: slots received via waiting list have 5 minutes after
+    // acceptance where cancelling doesn't count as a penalized cancellation
+    // (covers accidental "accept" taps). Logged with a different action string
+    // so it never matches the monthly_cancellations penalty view.
+    const GRACE_PERIOD_MS = 5 * 60 * 1000;
+    const withinGracePeriod =
+      slot.fromWaitingList &&
+      slot.acceptedAt &&
+      Date.now() - slot.acceptedAt < GRACE_PERIOD_MS;
+
     slot.status = "available";
     slot.assignedTo = null;
     slot.phone = null;
     slot.timeoutDate = null;
+    slot.fromWaitingList = false;
+    slot.acceptedAt = null;
     sendWhatsAppMessage(sender, `You've released parking slot ${slot.number}.`);
+
+    if (withinGracePeriod) {
+      await logActionToDB(
+        sender,
+        `Released slot ${slot.number} within grace period (no penalty)`
+      );
+      assignNextSlot();
+      return;
+    }
+
     await logActionToDB(sender, `Released_slot_${slot.number}`);
     assignNextSlot();
 
@@ -1472,6 +1505,10 @@ function handleSlotAccept(sender, name) {
     slot.status = "assigned";
     slot.assignedTo = slot.assignedTo.replace(" (Pending)", "") || name; //Assign name only if it's empty (waiting list)
     slot.timeoutDate = null;
+    // Grace period: if this slot came from the waiting list, give a 5-minute
+    // window where cancelling doesn't count as a penalized cancellation
+    // (covers accidental "accept" taps).
+    slot.acceptedAt = slot.fromWaitingList ? Date.now() : null;
     sendWhatsAppMessage(
       sender,
       `Congratulations! You've been assigned parking slot ${slot.number} for ${parkingDate}.`
